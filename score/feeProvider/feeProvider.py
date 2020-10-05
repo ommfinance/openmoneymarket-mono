@@ -18,6 +18,10 @@ class FeeProvider(IconScoreBase):
     def distribute(self, _tokens: list) -> None:
         pass
 
+    @external
+    def setLoanOriginationFeePercentage(self, _percentage: int) -> None:
+        pass
+
     @external(readonly = True)
     def calculateOriginationFee(self, _account: Address, _amount: int) -> int:
         pass
