@@ -110,23 +110,23 @@ class OToken(IconScoreBase, TokenStandard):
 
     # This will always include accured interest as a computated value
     @external(readonly = True)
-    def balanceOf(self, _account: Address) -> int:
+    def balanceOf(self, _owner: Address) -> int:
         pass
 
     # This shows the state updated balance and includes the accured interest upto the most recent computation initiated by the user transaction
     @external(readonly = True)
-    def principalBalanceOf(self, _account: Address) -> int:
+    def principalBalanceOf(self, _user: Address) -> int:
         pass
 
 
     # The transfer is only allowed if transferring this amount of the underlying collateral doesn't bring the health factor below 1
     @external(readonly = True)
-    def isTransferAllowed(self, _account: Address, _amount: int) -> bool:
+    def isTransferAllowed(self, _user: Address, _amount: int) -> bool:
         pass
 
     # This returns the most recent cummulative index for the user
     @external(readonly = True)
-    def getUserIndex(self, _account: Address) -> int:
+    def getUserIndex(self, _user: Address) -> int:
         pass
 
     @external
@@ -140,11 +140,11 @@ class OToken(IconScoreBase, TokenStandard):
         pass
     
     @external
-    def mintOnDeposit(self, _account: Address, _amount: int) -> None:
+    def mintOnDeposit(self, _user: Address, _amount: int) -> None:
         pass
 
     @external
-    def burnOnLiquidation(self, _account: Address, _value: int) -> None:
+    def burnOnLiquidation(self, _user: Address, _value: int) -> None:
         pass
     
     # This may not be required as we only allow collateral as an asset that can be received on liquidation

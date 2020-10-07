@@ -23,7 +23,7 @@ class FeeProvider(IconScoreBase):
         pass
 
     @external(readonly = True)
-    def calculateOriginationFee(self, _account: Address, _amount: int) -> int:
+    def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
         pass
     
     @external(readonly = True)

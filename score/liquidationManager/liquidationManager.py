@@ -16,7 +16,7 @@ class LiquidationManager(IconScoreBase):
     
     @payable
     @external
-    def liquidationCall(self, _collateral: Address, _reserve: Address, _account: Address, _purchaseAmount: int) -> None:
+    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> None:
         pass
 
     
