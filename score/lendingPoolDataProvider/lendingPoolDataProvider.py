@@ -2,12 +2,37 @@ from iconservice import *
 
 TAG = 'LendingPoolDataProvider'
 
+HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 10 ** 18
 
-# Fetches data from the core  and aggregate them
+# An interface to LendingPoolCore
+class CoreInterface(InterfaceScore):
+    @interface
+    def getReserves(self) -> list:
+        pass
+
+    @interface
+    def getUserBasicReserveData(self, _reserve: Address, _user: Address) -> dict:
+        pass
+
+    @interface
+    def getReserveConfiguration(self, _reserve: Address) -> dict:
+        pass
+
+# An interface to PriceOracle
+class OracleInterface(InterfaceScore):
+    @interface
+    def get_reference_data(self, _base: str, _quote: str) -> int:
+        pass
+
+  
+
 class LendingPoolDataProvider(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
+        self._symbol = DictDB('symbol', db , value_type = str)
+        self._lendingPoolCoreAddress = VarDB('lendingPoolCore', db, value_type = Address)
+        self._oracleAddress = VarDB('oracleAddress', db, value_type = Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -15,73 +40,97 @@ class LendingPoolDataProvider(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
+    @external
+    def setLendingPoolCoreAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._lendingPoolCoreAddress.set(_address)
+
+    @external
+    def setOracleAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._oracleAddress.set(_address)
+
+    @external(readonly = True)
+    def getLendingPoolCoreAddress(self) -> Address:
+        return self._lendingPoolCoreAddress.get()
+    
+    @external(readonly = True)
+    def getOracleAddress(self) -> Address:
+        return self._oracleAddress.get()
+    
+
     @external(readonly=True)
     def calculateUserGlobalData(self, _user: Address) -> dict:
-        """
-        calculates the user data across the reserve
-        :param _user:address of the user
-        :return:dict with totalLiquidityBalance,totalCollateralBalance,totalBorrowBalance,totalFees,currentLtv,currentLiquidationThreshold,healthFactor,healthFactorBelowThreshold
-        """
+        core = self.create_interface_score(LENDING_POOL_CORE_ADDRESS, CoreInterface)
+        oracle = self.create_interface_score(ORACLE_ADDRESS, OracleInterface)
+        totalLiquidityBalanceUSD = 0
+        totalCollateralBalanceUSD = 0
+        currentLtv = 0
+        currentLiquidationThreshold = 0
+        totalBorrowBalanceUSD = 0
+        totalFeesUSD = 0
+        healthFactorBelowThreshold = False
 
-    @external(readonly=True)
-    def balanceDecreaseAllowed(self, _reserve: Address, _user: Address, _amount: int) -> bool:
-        """
-        check if a specific balance decrease is allowed (i.e. doesn't bring the user borrow position health factor under 1)
-        :param _reserve:address of the reserve
-        :param _user:address of the user
-        :param _amount:amount to borrow
-        :return:true if the decrease in the balance is allowed
-        """
+        reserves = core.getReserves()
+        for _reserve in reserves:
+            userBasicReserveData = core.getUserBasicReserveData(_reserve, _user)
+            if userBasicReserveData['underlyingBalance'] == 0 and userBasicReserveData['compoundedBorrowBalance'] == 0:
+                continue
 
-    @external(readonly=True)
-    def calculateCollateralNeeded(self, _reserve: Address, _amount: int, _fee: int, _userCurrentBorrowBalance: int,
-                                  _userCurrentFees: int, _userCurrentLtv: int):
-        """
-        calculates the amount of collateral needed to borrow a new loan
-        :param _reserve: address of the reserve
-        :param _amount: amount user wants to borrow
-        :param _fee: borrow fee required for the borrow
-        :param _userCurrentBorrowBalance: current collateral balance of the user
-        :param _userCurrentFees: current fees of the user
-        :param _userCurrentLtv:the average ltv of the user given his current collateral
-        :return:total amount of collateral in ETH to cover the current borrow balance + the new amount + fee
-        """
+            reserveConfiguration = core.getReserveConfiguration(_reserve)
+            reserveConfiguration['tokenUnit'] = 10 ** reserveConfiguration['decimals']
+            reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(self._symbol[_reserve], 'USD')
 
-    @external(readonly=True)
-    def getReserveConfigurationData(self, _reserve: Address) -> dict:
-        """
-        fetches the configuration details of a reserve
-        :param _reserve: address of the reserve
-        :return: dict with ltv,liquidationThreshold,liquidationBonus,usageAsCollateralEnabled,borrowingEnabled,isActive
-        """
+            if userBasicReserveData['underlyingBalance'] > 0:
+                liquidityBalanceUSD = reserveConfiguration['reserveUnitPrice'] * userBasicReserveData['underlyingBalance'] // reserveConfiguration['tokenUnit']
+                totalLiquidityBalanceUSD += liquidityBalanceUSD
 
-    @external(readonly=True)
-    def getReserveData(self, _reserve: Address):
-        """
-        fetches the data of a specific reserve
-        :param _reserve: address of the reserve
-        :return: dict with totalLiquidity,availableLiquidity,totalBorrows,liquidityRate,borrowRate,utilizationRate,liquidityIndex,aTokenAddress,lastUpdateTimestamp
-        """
+                if reserveConfiguration['usageAsCollateralEnabled'] and userBasicReserveData['useAsCollateral']:
+                    totalCollateralBalanceUSD += liquidityBalanceUSD
+                    currentLtv += liquidityBalanceUSD * reserveConfiguration['baseLTVasCollateral']
+                    currentLiquidationThreshold += liquidityBalanceUSD * reserveConfiguration['liquidationThreshold'] 
 
-    @external(readonly=True)
-    def getUserAccountData(self, _user: Address):
-        """
-        get the user data for all the reserves
-        :param _user:address of the reserve
-        :return:dict with totalLiquidityBalance,totalCollateralBalance,totalBorrowBalance,totalFees,currentLtv,currentLiquidationThreshold,healthFactor,availableBorrows
-        """
+            if userBasicReserveData['compoundedBorrowBalance'] > 0:
+                totalBorrowBalanceUSD += reserveConfiguration['reserveUnitPrice'] * userBasicReserveData['compoundedBorrowBalance'] //  reserveConfiguration['tokenUnit']
+                totalFeesUSD += reserveConfiguration['reserveUnitPrice'] * userBasicReserveData['originationFee'] // reserveConfiguration['tokenUnit']
 
-    @external(readonly=True)
-    def getUserReserveData(self, _reserve: Address, _user: Address):
-        """
-        fetches the user's data for specific reserve
-        :param _reserve: address of the reserve
-        :param _user: address of the user
-        :return: dict with currentOTokenBalance,currentBorrowBalance,pricicipalBorrowBalance,borrowRate,liquidityRate,originationFee,lastUpdateTimestamp,usageAsCollateralEnabled
-        """
-    @external(readonly=True)
-    def getReserves(self) -> list:
-        """
-        list of reserves
-        :return:the list of reserves configured on the core
-        """
+
+        if totalCollateralBalanceUSD > 0:
+            currentLtv = ((currentLtv * 10**18) // totalCollateralBalanceUSD) // 10 ** 18
+        else:
+            currentLtv = 0
+
+        healthFactor = self._calculateHealthFactorFromBalancesInternal(totalCollateralBalanceUSD,totalBorrowBalanceUSD,totalFeesUSD,currentLiquidationThreshold)
+        if healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD:
+            healthFactorBelowThreshold = True
+
+        response ={
+            'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
+            'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
+            'totalBorrowBalanceUSD' : totalBorrowBalanceUSD,
+            'totalFeesUSD' : totalFeesUSD,
+            'currentLtv' : currentLtv,
+            'currentLiquidationThreshold' : currentLiquidationThreshold,
+            'healthFactor' : healthFactor,
+            'healthFactorBelowThreshold' : healthFactorBelowThreshold
+        }
+
+        return response
+
+
+    def _calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int, _totalFeesUSD: int, _liquidationThreshold: int) -> int:
+        if _borrowBalanceUSD == 0:
+            return -1
+        healthFactor = (((_collateralBalanceUSD * _liquidationThreshold // 100) * 10**18) // (_borrowBalanceUSD + _totalFeesUSD)) // 10**18
+        return healthFactor
+
+
+
+
+
+
+
