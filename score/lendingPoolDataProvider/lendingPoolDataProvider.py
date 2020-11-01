@@ -26,10 +26,20 @@ class CoreInterface(InterfaceScore):
     def getReserveConfiguration(self, _reserve) -> dict:
         pass
 
+    @interface
+    def getCompoundedBorrowBalance(self, _reserve: Address, _user: Address) -> int:
+        pass
+
 # An interface to PriceOracle
 class OracleInterface(InterfaceScore):
     @interface
     def get_reference_data(self, _base: str, _quote: str) -> int:
+        pass
+
+# An interface to oToken
+class oTokenInterface(InterfaceScore):
+    @interface
+    def balanceOf(self, _user: Address) -> int:
         pass
 
 
@@ -128,6 +138,37 @@ class LendingPoolDataProvider(IconScoreBase):
         }
 
         return response
+
+    @external(readonly = True)
+    def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        reserveData = core.getReserveData(_reserve)
+        userReserveData = core.getUserReserveData(_reserve,_user)
+        oToken = self.create_interface_score(reserveData['oTokenAddress'], oTokenInterface)
+        currentOTokenBalance = oToken.balanceOf(_user)
+        principalBorrowBalance = userReserveData['principalBorrowBalance']
+        currentBorrowBalance = core.getCompoundedBorrowBalance(_reserve,_user)
+        borrowRate = reserveData['borrowRate']
+        liquidityRate = reserveData['liquidityRate']
+        originationFee = userReserveData['originationFee']
+        userBorrowCumulativeIndex = userReserveData['userBorrowCumulativeIndex']
+        lastUpdateTimestamp = userReserveData['lastUpdateTimestamp']
+        useAsCollateral = userReserveData['useAsCollateral']
+
+        response ={
+            'currentOTokenBalance': currentOTokenBalance,
+            'currentBorrowBalance': currentBorrowBalance,
+            'principalBorrowBalance' : principalBorrowBalance,
+            'borrowRate' : borrowRate,
+            'liquidityRate' : liquidityRate,
+            'originationFee' : originationFee,
+            'userBorrowCumulativeIndex' : userBorrowCumulativeIndex,
+            'lastUpdateTimestamp' : lastUpdateTimestamp,
+            'useAsCollateral' : useAsCollateral
+        }
+
+        return response
+
 
 
     def calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int, _totalFeesUSD: int, _liquidationThreshold: int) -> int:

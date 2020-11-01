@@ -71,7 +71,7 @@ class LendingPoolCore(IconScoreBase):
         super().on_update()
 
     @eventlog(indexed = 3)
-    def ReserveUpdated(_reserve: Address, _liquidityRate: int, _borrowRate: int, _liquidityCumulativeIndex: int, _borrowCumulativeIndex: int ):
+    def ReserveUpdated(self, _reserve: Address, _liquidityRate: int, _borrowRate: int, _liquidityCumulativeIndex: int, _borrowCumulativeIndex: int ):
         pass
 
     @external
