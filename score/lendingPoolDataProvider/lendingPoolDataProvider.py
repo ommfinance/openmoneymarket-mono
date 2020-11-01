@@ -17,6 +17,14 @@ class CoreInterface(InterfaceScore):
     @interface
     def getReserveConfiguration(self, _reserve: Address) -> dict:
         pass
+        
+    @interface
+    def getReserveData(self, _reserveAddress: Address) -> dict:
+        pass
+
+    @interface
+    def getReserveConfiguration(self, _reserve) -> dict:
+        pass
 
 # An interface to PriceOracle
 class OracleInterface(InterfaceScore):
@@ -24,7 +32,6 @@ class OracleInterface(InterfaceScore):
     def get_reference_data(self, _base: str, _quote: str) -> int:
         pass
 
-  
 
 class LendingPoolDataProvider(IconScoreBase):
 
@@ -39,6 +46,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
     def on_update(self) -> None:
         super().on_update()
+        self._symbol[Address.from_string("cx072d8f95877a53df350e3dc3d8dba2f379037d42")] = "USDb"
 
     @external
     def setLendingPoolCoreAddress(self, _address: Address) -> None:
@@ -64,8 +72,8 @@ class LendingPoolDataProvider(IconScoreBase):
     
 
     @external(readonly=True)
-    def calculateUserGlobalData(self, _user: Address) -> dict:
-        core = self.create_interface_score(LENDING_POOL_CORE_ADDRESS, CoreInterface)
+    def getUserAccountData(self, _user: Address) -> dict:
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         oracle = self.create_interface_score(ORACLE_ADDRESS, OracleInterface)
         totalLiquidityBalanceUSD = 0
         totalCollateralBalanceUSD = 0
@@ -104,7 +112,7 @@ class LendingPoolDataProvider(IconScoreBase):
         else:
             currentLtv = 0
 
-        healthFactor = self._calculateHealthFactorFromBalancesInternal(totalCollateralBalanceUSD,totalBorrowBalanceUSD,totalFeesUSD,currentLiquidationThreshold)
+        healthFactor = self.calculateHealthFactorFromBalancesInternal(totalCollateralBalanceUSD,totalBorrowBalanceUSD,totalFeesUSD,currentLiquidationThreshold)
         if healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD:
             healthFactorBelowThreshold = True
 
@@ -122,11 +130,51 @@ class LendingPoolDataProvider(IconScoreBase):
         return response
 
 
-    def _calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int, _totalFeesUSD: int, _liquidationThreshold: int) -> int:
+    def calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int, _totalFeesUSD: int, _liquidationThreshold: int) -> int:
         if _borrowBalanceUSD == 0:
             return -1
-        healthFactor = (((_collateralBalanceUSD * _liquidationThreshold // 100) * 10**18) // (_borrowBalanceUSD + _totalFeesUSD)) // 10**18
+        healthFactor = (_collateralBalanceUSD * _liquidationThreshold // 100)  // (_borrowBalanceUSD + _totalFeesUSD)
         return healthFactor
+
+
+    def calculateBorrowingPowerFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int, _totalFeesUSD: int, _ltv: int) -> int:
+        borrowingPower = (_borrowBalanceUSD + _totalFeesUSD) // (_collateralBalanceUSD * _ltv // 100) 
+        return borrowingPower
+
+    @external(readonly=True)
+    def getReserveData(self, _reserve: Address) -> dict:
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        return core.getReserveData(_reserve)
+
+    @external(readonly=True)
+    def getAllReserveData(self) -> dict:
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        reserves = core.getReserves()
+        response = {}
+        for reserve in reserves:
+            response[self._symbol[reserve]] = core.getReserveData(reserve)
+
+        return response
+
+    @external(readonly=True)
+    def getReserveConfigurationData(self, _reserve: Address) -> dict:
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        return core.getReserveConfiguration(_reserve)
+
+    @external(readonly=True)
+    def getAllReserveConfigurationData(self) -> dict:
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        reserves = core.getReserves()
+        response = {}
+        for reserve in reserves:
+            response[self._symbol[reserve]] = core.getReserveConfiguration(reserve)
+
+        return response
+
+    
+    
+
+
 
 
 
