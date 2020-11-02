@@ -205,7 +205,7 @@ class OToken(IconScoreBase, TokenStandard):
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
         core = self.create_interface_score(self.getCoreAddress(), LendingPoolCoreInterface)
         if self._userIndexes[_user] == 0:
-            return 0
+            return _balance
         else:
             balance = exaDiv(exaMul(_balance, core.getNormalizedIncome(self.getReserveAddress())),
                          self._userIndexes[_user])
