@@ -74,7 +74,7 @@ def addDataToReserve(prefix: bytes, _reserve: 'ReserveDataDB', reserveData: 'Res
     _reserve[prefix].liquidationBonus.set(reserveData.liquidationBonus)
     _reserve[prefix].decimals.set(reserveData.decimals)
     _reserve[prefix].borrowingEnabled.set(reserveData.borrowingEnabled)
-    _reserve[prefix].usageAsCollateralEnabled.set(reserveData.usageAsCollateralEnabled),
+    _reserve[prefix].usageAsCollateralEnabled.set(reserveData.usageAsCollateralEnabled)
     _reserve[prefix].isFreezed.set(reserveData.isFreezed)
     _reserve[prefix].isActive.set(reserveData.isActive)
 
@@ -93,7 +93,7 @@ def getDataFromReserve(prefix: bytes, _reserve: 'ReserveDataDB') -> dict:
     liquidationBonus = _reserve[prefix].liquidationBonus.get()
     decimals = _reserve[prefix].decimals.get()
     borrowingEnabled = _reserve[prefix].borrowingEnabled.get()
-    usageAsCollateralEnabled = _reserve[prefix].usageAsCollateralEnabled.get(),
+    usageAsCollateralEnabled = _reserve[prefix].usageAsCollateralEnabled.get()
     isFreezed = _reserve[prefix].isFreezed.get()
     isActive = _reserve[prefix].isActive.get()
     return {

@@ -57,12 +57,21 @@ class AddressProvider(IconScoreBase):
         self._oICX.set(_address)
 
     @external(readonly = True)
-    def getAllAddress(self, _name: str) -> dict:
-        response = {}
-        response["collateral"] = {"USDb": self._USDb.get(),"sICX": self._sICX.get()}
-        response["oTokens"] = {"oICX": self._oICX.get(),"oUSDb": self._oUSDb.get()}
-        response["systemContract"] = {"LendingPool": self._lendingPool.get(),"LendingPoolDataProvider": self._lendingPoolDataProvider.get()}
-
+    def getAllAddresses(self) -> dict:
+        response = {"collateral" : {
+                    "USDb":self._USDb.get(),
+                    "sICX":self._sICX.get()
+                    },
+                    "oTokens": {
+                        "oUSDb": self._oUSDb.get(),
+                        "oICX": self._oICX.get()
+                    },
+                    "systemContract":{
+                        "LendingPool": self._lendingPool.get(),
+                        "LendingPoolDataProvider": self._lendingPoolDataProvider.get()
+                    }
+                    }
+      
         return response
 
 

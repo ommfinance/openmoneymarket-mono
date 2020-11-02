@@ -204,13 +204,12 @@ class OToken(IconScoreBase, TokenStandard):
     @external
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
         core = self.create_interface_score(self.getCoreAddress(), LendingPoolCoreInterface)
-        balance = exaDiv(exaMul(_balance, core.getNormalizedIncome(self.getReserveAddress())),
+        if self._userIndexes[_user] == 0:
+            return 0
+        else:
+            balance = exaDiv(exaMul(_balance, core.getNormalizedIncome(self.getReserveAddress())),
                          self._userIndexes[_user])
-        # balance = exaDiv(exaMul(_balance, 1000001234 * 10 ** 10),
-        #                  self._userIndexes[_user])
-        # balance=exaMul(_balance,exaDiv(core.getNormalizedIncome(self._reserve_address),self._userIndexes[_user]))
-        # balance=_balance*core.getNormalizedIncome(self._reserve_address)//self._userIndexes[_user]
-        return balance
+            return balance
 
     @external
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
@@ -243,6 +242,7 @@ class OToken(IconScoreBase, TokenStandard):
     @external(readonly=True)
     def balanceOf(self, _owner: Address) -> int:
         currentPrincipalBalance = self.principalBalanceOf(_owner)
+    
         balance = self._calculateCumulatedBalanceInternal(_owner, currentPrincipalBalance)
         return balance
 
@@ -250,7 +250,7 @@ class OToken(IconScoreBase, TokenStandard):
     @external(readonly=True)
     def principalBalanceOf(self, _user: Address) -> int:
         return self._balances[_user]
-        pass
+       
 
     # The transfer is only allowed if transferring this amount of the underlying collateral doesn't bring the health factor below 1
     @external(readonly=True)
@@ -300,6 +300,7 @@ class OToken(IconScoreBase, TokenStandard):
     @external
     def mintOnDeposit(self, _user: Address, _amount: int) -> None:
         cumulated = self._cumulateBalanceInternal(_user)
+        
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
         self._mint(_user, _amount)
@@ -393,7 +394,7 @@ class OToken(IconScoreBase, TokenStandard):
 
         """
 
-        if amount <= 0:
+        if amount < 0:
             revert(f"Invalid Value")
 
         self._totalSupply.set(self._totalSupply.get() + amount)

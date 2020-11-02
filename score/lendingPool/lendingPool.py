@@ -8,6 +8,10 @@ class OTokenInterface(InterfaceScore):
     def balanceOf(self, _owner: Address) -> int:
         pass
 
+    @interface
+    def mintOnDeposit(self, _user: Address, _amount: int) -> None:
+        pass
+
 # An interface to USDb contract
 class USDbInterface(InterfaceScore):
     @interface
@@ -29,6 +33,18 @@ class CoreInterface(InterfaceScore):
     def getReserveConfiguration(self, _reserve: Address) -> dict:
         pass
 
+    @interface
+    def getReserveData(self, _reserveAddress: Address) -> dict:
+        pass
+
+    @interface
+    def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
+        pass
+
+    @interface
+    def mintOnDeposit(self, _user: Address, _amount: int) -> None:
+        pass
+
 
 class LendingPool(IconScoreBase):
 
@@ -42,6 +58,10 @@ class LendingPool(IconScoreBase):
 
     def on_update(self) -> None:
         super().on_update()
+
+    @eventlog
+    def Test(self, check: str) -> None:
+        pass
 
     @external
     def setLendingPoolCoreAddress(self, _address: Address) -> None:
@@ -83,12 +103,15 @@ class LendingPool(IconScoreBase):
 
         if oToken.balanceOf(self.tx.origin) == 0:
             isFirstDeposit = True
+
+        
         
         core.updateStateOnDeposit(_reserve, self.tx.origin, _amount, isFirstDeposit)
+       
 
         oToken.mintOnDeposit(self.tx.origin, _amount)
 
-        USDb.transfer( self._lendingPoolCoreAddress.get(), _amount)
+        USDb.transfer(self._lendingPoolCoreAddress.get(), _amount)
 
     @external
     def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _balanceAfterRedeem: int):
@@ -100,6 +123,7 @@ class LendingPool(IconScoreBase):
         :param _balanceAfterRedeem:the remaining balance of _user after the redeem is successful
         :return:
         """
+        pass
 
     @external
     def borrow(self, _reserve: Address, _amount: int):
@@ -109,6 +133,7 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to be borrowed
         :return:
         """
+        pass
 
     @payable
     @external
@@ -119,6 +144,7 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to repay,should be -1 if the user wants to repay everything
         :return:
         """
+        pass
 
     @payable
     @external
@@ -131,12 +157,14 @@ class LendingPool(IconScoreBase):
         :param _purchaseAmount:the amount to liquidate
         :return:
         """
+        pass
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
 
         try:
             d = json_loads(_data.decode("utf-8"))
+            self.Test(_data.decode("utf-8"))
         except BaseException as e:
             revert(f'Invalid data: {_data}. Exception: {e}')
 
