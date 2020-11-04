@@ -18,7 +18,7 @@ class ReserveAttributes(TypedDict):
     liquidityRate: int
     borrowRate: int
     liquidityCumulativeIndex: int
-    borrowCumulativeIndex:int
+    borrowCumulativeIndex: int
     baseLTVasCollateral: int
     liquidationThreshold: int
     liquidationBonus: int
@@ -28,21 +28,24 @@ class ReserveAttributes(TypedDict):
     isFreezed: bool
     isActive: bool
 
+
 class UserDataAttributes(TypedDict):
     reserveAddress: Address
     userAddress: Address
     principalBorrowBalance: int
-    userBorrowCumulativeIndex:int
+    userBorrowCumulativeIndex: int
     lastUpdateTimestamp: int
     originationFee: int
     useAsCollateral: bool
+
 
 class Constant(TypedDict):
     reserve: Address
     optimalUtilizationRate: int
     baseBorrowRate: int
     slopeRate1: int
-    slopeRate2:int
+    slopeRate2: int
+
 
 # An interface to oToken
 class oTokenInterface(InterfaceScore):
@@ -50,24 +53,29 @@ class oTokenInterface(InterfaceScore):
     def balanceOf(self, _owner: Address) -> int:
         pass
 
+
 # An interface to Reserve
 class ReserveInterface(InterfaceScore):
     @interface
     def balanceOf(self, _owner: Address) -> int:
         pass
 
+    @interface
+    def transfer(self, _to: Address, _amount: int):
+        pass
+
 
 class LendingPoolCore(IconScoreBase):
- 
     ID = 'id'
     RESERVE_LIST = 'reserveList'
     CONSTANTS = 'constants'
-     
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self.id = VarDB(self.ID, db, str)
-        self.reserveList = ArrayDB(self.RESERVE_LIST, db, value_type = Address)
-        self._constants = DictDB(self.CONSTANTS, db, value_type = int , depth = 2)
+        self.reserveList = ArrayDB(self.RESERVE_LIST, db, value_type=Address)
+        self._lendingPool = VarDB('lendingPool', db, value_type=Address)
+        self._constants = DictDB(self.CONSTANTS, db, value_type=int, depth=2)
         self.reserve = ReserveDataDB(db)
         self.userReserve = UserReserveDataDB(db)
 
@@ -77,8 +85,9 @@ class LendingPoolCore(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
-    @eventlog(indexed = 3)
-    def ReserveUpdated(self, _reserve: Address, _liquidityRate: int, _borrowRate: int, _liquidityCumulativeIndex: int, _borrowCumulativeIndex: int ):
+    @eventlog(indexed=3)
+    def ReserveUpdated(self, _reserve: Address, _liquidityRate: int, _borrowRate: int, _liquidityCumulativeIndex: int,
+                       _borrowCumulativeIndex: int):
         pass
 
     @external
@@ -88,6 +97,14 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def get_id(self) -> str:
         return self.id.get()
+
+    @external
+    def setLendingPool(self, _val: str):
+        self._lendingPool.set(_val)
+
+    @external(readonly=True)
+    def getLendingPool(self) -> str:
+        return self._lendingPool.get()
 
     def reservePrefix(self, _reserveAddress: Address) -> bytes:
         return b'|'.join([RESERVE_DB_PREFIX, self.id.get().encode(), str(_reserveAddress).encode()])
@@ -169,19 +186,19 @@ class LendingPoolCore(IconScoreBase):
     # Update methods for user attributes for a specific reserve
     @external
     def updateUserPrincipalBorrowBalance(self, _reserveAddress: Address, _userAddress: Address,
-                                          _principalBorrowBalance: int):
+                                         _principalBorrowBalance: int):
         prefix = self.userReservePrefix(_reserveAddress, _userAddress)
         self.userReserve[prefix].principalBorrowBalance.set(_principalBorrowBalance)
-    
+
     @external
     def updateUserBorrowCumulativeIndex(self, _reserveAddress: Address, _userAddress: Address,
-                                          _userBorrowCumulativeIndex: int):
+                                        _userBorrowCumulativeIndex: int):
         prefix = self.userReservePrefix(_reserveAddress, _userAddress)
         self.userReserve[prefix].userBorrowCumulativeIndex.set(_userBorrowCumulativeIndex)
 
     @external
     def updateUserLastUpdateTimestamp(self, _reserveAddress: Address, _userAddress: Address,
-                                       _lastUpdateTimestamp: int):
+                                      _lastUpdateTimestamp: int):
         prefix = self.userReservePrefix(_reserveAddress, _userAddress)
         self.userReserve[prefix].lastUpdateTimestamp.set(_lastUpdateTimestamp)
 
@@ -210,6 +227,10 @@ class LendingPoolCore(IconScoreBase):
 
     def _addNewReserve(self, _res: Address):
         self.reserveList.put(_res)
+
+    @external
+    def isReserveBorrowingEnabled(self, _reserve: Address) -> bool:
+        return self.getReserveData['borrowingEnabled']
 
     @external
     def addReserveData(self, _reserve: ReserveAttributes):
@@ -246,10 +267,11 @@ class LendingPoolCore(IconScoreBase):
             return response
 
     @external
-    def enableAsCollateral(self, _reserve: Address, _baseLTVasCollateral: int, _liquidationThreshold: int, _liquidationBonus: int  ) -> None:
+    def enableAsCollateral(self, _reserve: Address, _baseLTVasCollateral: int, _liquidationThreshold: int,
+                           _liquidationBonus: int) -> None:
         self.updateUsageAsCollateralEnabled(_reserve, True)
         self.updateBaseLTVasCollateral(_reserve, _base_reserveLTVasCollateral)
-        self.updateLiquidationThreshold(_reserve, _liquidationThreshold) 
+        self.updateLiquidationThreshold(_reserve, _liquidationThreshold)
         self.updateLiquidationBonus(_reserve, _liquidationBonus)
 
         reserveData = self.getReserveData(_reserve)
@@ -268,99 +290,104 @@ class LendingPoolCore(IconScoreBase):
     def disableBorrowing(self, _reserve: Address) -> None:
         self.updateBorrowingEnabled(_reserve, False)
 
-
     # Internal calculations
-    @external(readonly = True)
-    def calculateLinearInterest(self, _rate: int, _lastUpdateTimestamp: int) ->int:
-        timeDifference = (self.now() - _lastUpdateTimestamp) // 10**6
-        timeDelta =  exaDiv(timeDifference, SECONDS_PER_YEAR)
+    @external(readonly=True)
+    def calculateLinearInterest(self, _rate: int, _lastUpdateTimestamp: int) -> int:
+        timeDifference = (self.now() - _lastUpdateTimestamp) // 10 ** 6
+        timeDelta = exaDiv(timeDifference, SECONDS_PER_YEAR)
         return exaMul(_rate, timeDelta) + EXA
-    
-    @external(readonly = True)
+
+    @external(readonly=True)
     def getPresentTimestamp(self) -> int:
         return self.now()
 
-    @external(readonly = True)
-    def calculateCompoundedInterest(self, _rate: int, _lastUpdateTimestamp: int) ->int:
-        timeDifference = (self.now() - _lastUpdateTimestamp) // 10**6
-        ratePerSecond =  _rate // SECONDS_PER_YEAR
+    @external(readonly=True)
+    def calculateCompoundedInterest(self, _rate: int, _lastUpdateTimestamp: int) -> int:
+        timeDifference = (self.now() - _lastUpdateTimestamp) // 10 ** 6
+        ratePerSecond = _rate // SECONDS_PER_YEAR
         return exaPow((ratePerSecond + EXA), timeDifference)
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getNormalizedIncome(self, _reserve: Address) -> int:
         reserveData = self.getReserveData(_reserve)
-        interest = self.calculateLinearInterest(reserveData['liquidityRate'],reserveData['lastUpdateTimestamp'])
-        cumulated = exaMul( interest, reserveData['liquidityCumulativeIndex'])
+        interest = self.calculateLinearInterest(reserveData['liquidityRate'], reserveData['lastUpdateTimestamp'])
+        cumulated = exaMul(interest, reserveData['liquidityCumulativeIndex'])
         return cumulated
 
     @external
     def updateCumulativeIndexes(self, _reserve: Address) -> None:
         reserveData = self.getReserveData(_reserve)
-        totalBorrows =  reserveData['totalBorrows']
+        totalBorrows = reserveData['totalBorrows']
 
         if totalBorrows > 0:
-            cummulatedLiquidityInterest = self.calculateLinearInterest(reserveData['liquidityRate'],reserveData['lastUpdateTimestamp'])
-            self.updateLiquidityCumulativeIndex(_reserve, exaMul(cummulatedLiquidityInterest, reserveData['liquidityCumulativeIndex']))
-            cummulatedBorrowInterest = self.calculateCompoundedInterest(reserveData['borrowRate'],reserveData['lastUpdateTimestamp'])
-            self.updateBorrowCumulativeIndex(_reserve, exaMul(cummulatedBorrowInterest, reserveData['borrowCumulativeIndex']) )
+            cummulatedLiquidityInterest = self.calculateLinearInterest(reserveData['liquidityRate'],
+                                                                       reserveData['lastUpdateTimestamp'])
+            self.updateLiquidityCumulativeIndex(_reserve, exaMul(cummulatedLiquidityInterest,
+                                                                 reserveData['liquidityCumulativeIndex']))
+            cummulatedBorrowInterest = self.calculateCompoundedInterest(reserveData['borrowRate'],
+                                                                        reserveData['lastUpdateTimestamp'])
+            self.updateBorrowCumulativeIndex(_reserve,
+                                             exaMul(cummulatedBorrowInterest, reserveData['borrowCumulativeIndex']))
 
     def _increaseTotalBorrows(self, _reserve: Address, _amount: int) -> None:
         reserveData = self.getReserveData(_reserve)
-        self.updateTotalBorrows(_reserve, reserveData['totalBorrows'] + _amount )
+        self.updateTotalBorrows(_reserve, reserveData['totalBorrows'] + _amount)
 
     def _decreaseTotalBorrows(self, _reserve: Address, _amount: int) -> None:
         reserveData = self.getReserveData(_reserve)
-        self.updateTotalBorrows(_reserve, reserveData['totalBorrows'] - _amount )
+        self.updateTotalBorrows(_reserve, reserveData['totalBorrows'] - _amount)
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getCompoundedBorrowBalance(self, _reserve: Address, _user: Address) -> int:
-        userReserveData = self.getUserReserveData(_reserve , _user)
+        userReserveData = self.getUserReserveData(_reserve, _user)
         reserveData = self.getReserveData(_reserve)
         if userReserveData['principalBorrowBalance'] == 0:
             return 0
-        
-        cumulatedInterest = exaDiv( exaMul(self.calculateCompoundedInterest(reserveData['borrowRate'], reserveData['lastUpdateTimestamp']), reserveData['borrowCumulativeIndex']) , userReserveData['userBorrowCumulativeIndex'])
+
+        cumulatedInterest = exaDiv(
+            exaMul(self.calculateCompoundedInterest(reserveData['borrowRate'], reserveData['lastUpdateTimestamp']),
+                   reserveData['borrowCumulativeIndex']), userReserveData['userBorrowCumulativeIndex'])
         compoundedBalance = exaMul(userReserveData['principalBorrowBalance'], cumulatedInterest)
-        
+
         if compoundedBalance == userReserveData['principalBorrowBalance']:
             if userReserveData['lastUpdateTimestamp'] != self.block.timestamp:
                 return userReserveData['principalBorrowBalance'] + 1
 
         return compoundedBalance
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
         reserveScore = self.create_interface_score(_reserve, ReserveInterface)
         balance = reserveScore.balanceOf(self.address)
         return balance
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getReserveTotalLiquidity(self, _reserve: Address) -> int:
         # reserveData = self.getReserveData(_reserve)
         prefix = self.reservePrefix(_reserve)
         reserveData = getDataFromReserve(prefix, self.reserve)
         return self.getReserveAvailableLiquidity(_reserve) + reserveData['totalBorrows']
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getReserveNormalizedIncome(self, _reserve: Address) -> int:
         return self.getNormalizedIncome(_reserve)
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getReserveUtilizationRate(self, _reserve: Address) -> int:
         reserveData = self.getReserveData(_reserve)
         totalBorrows = reserveData['totalBorrows']
-        
+
         if totalBorrows == 0:
             return 0
-        
+
         totalLiquidity = self.getReserveTotalLiquidity(_reserve)
 
         return exaDiv(totalBorrows, perTotalLiquidity)
-    
-    @external(readonly = True)
+
+    @external(readonly=True)
     def getReserveConfiguration(self, _reserve: Address) -> dict:
         reserveData = self.getReserveData(_reserve)
-        response ={
+        response = {
             'decimals': reserveData['decimals'],
             'baseLTVasCollateral': reserveData['baseLTVasCollateral'],
             'liquidationThreshold': reserveData['liquidationThreshold'],
@@ -373,15 +400,18 @@ class LendingPoolCore(IconScoreBase):
         return response
 
     @external
-    def updateReserveInterestRatesAndTimestampInternal(self, _reserve: Address, _liquidityAdded: int, _liquidityTaken: int) -> None:
+    def updateReserveInterestRatesAndTimestampInternal(self, _reserve: Address, _liquidityAdded: int,
+                                                       _liquidityTaken: int) -> None:
         reserveData = self.getReserveData(_reserve)
-        rate = self.calculateInterestRates(_reserve, self.getReserveAvailableLiquidity(_reserve) + _liquidityAdded - _liquidityTaken, reserveData['totalBorrows'] )
+        rate = self.calculateInterestRates(_reserve, self.getReserveAvailableLiquidity(
+            _reserve) + _liquidityAdded - _liquidityTaken, reserveData['totalBorrows'])
         self.updateLiquidityRate(_reserve, rate['liquidityRate'])
         self.updateBorrowRate(_reserve, rate['borrowRate'])
         self.updateLastUpdateTimestamp(_reserve, self.block.timestamp)
 
-        self.ReserveUpdated(_reserve, rate['liquidityRate'], rate['borrowRate'], reserveData['liquidityCumulativeIndex'], reserveData['borrowCumulativeIndex'] )
-    
+        self.ReserveUpdated(_reserve, rate['liquidityRate'], rate['borrowRate'],
+                            reserveData['liquidityCumulativeIndex'], reserveData['borrowCumulativeIndex'])
+
     @external
     def setReserveConstants(self, _constants: List[Constant]) -> None:
         for constants in _constants:
@@ -389,28 +419,73 @@ class LendingPoolCore(IconScoreBase):
             self._constants[(constants['reserve'])]['baseBorrowRate'] = constants['baseBorrowRate']
             self._constants[(constants['reserve'])]['slopeRate1'] = constants['slopeRate1']
             self._constants[(constants['reserve'])]['slopeRate2'] = constants['slopeRate2']
-    
-   
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getReserveConstants(self, _reserve: Address) -> dict:
         data = {
-            'optimalUtilizationRate' : self._constants[_reserve]['optimalUtilizationRate'],
-            'baseBorrowRate' : self._constants[_reserve]['baseBorrowRate'],
-            'slopeRate1' : self._constants[_reserve]['slopeRate1'],
-            'slopeRate2' : self._constants[_reserve]['slopeRate2'] 
+            'optimalUtilizationRate': self._constants[_reserve]['optimalUtilizationRate'],
+            'baseBorrowRate': self._constants[_reserve]['baseBorrowRate'],
+            'slopeRate1': self._constants[_reserve]['slopeRate1'],
+            'slopeRate2': self._constants[_reserve]['slopeRate2']
         }
 
         return data
 
+    
     @external
     def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
         self.updateCumulativeIndexes(_reserve)
-        self.updateReserveInterestRatesAndTimestampInternal(_reserve,_amount,0)
-        
+        self.updateReserveInterestRatesAndTimestampInternal(_reserve, _amount, 0)
+
         if _isFirstDeposit:
             self.setUserUseReserveAsCollateral(_reserve, _user, True)
-       
+
+    
+    @external
+    def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int):
+        borrowData = self.getUserBorrowBalances(_reserve, _user)
+        principalBorrowBalance = borrowData['principalBorrowBalance']
+        balanceIncrease = borrowData['borrowBalanceIncrease']
+        self.updateReserveStateOnBorrowInternal(_reserve, balanceIncrease, _amountBorrowed)
+        self.updataUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
+        self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountBorrowed)
+        currentBorrowRate = self.getCurrentBorrowRate(_reserve)
+        return (
+            {
+                "currentBorrowRate": currentBorrowRate,
+                "balanceIncrease": balanceIncrease
+            }
+        )
+
+    def updateReserveStateOnBorrowInternal(self, _reserve: Address, _balanceIncrease: int, _amountBorrowed: int):
+        self.updateCumulativeIndexes(_reserve)
+        self.updateReserveTotalBorrows(_reserve, _balanceIncrease, _amountBorrowed)
+
+    def updateReserveTotalBorrows(self, _reserve: Address, _balanceIncrease: int, _amountBorrowed: int):
+        reserveData = self.getReserveData(_reserve)
+        reserveBorrows = reserveData['totalBorrows']
+        newTotalBorrows = reserveBorrows + _balanceIncrease + _amountBorrowed
+        self.updateReserveTotalBorrows(_reserve, newTotalBorrows)
+
+    def getCurrentBorrowRate(self, _reserve: Address) -> int:
+        reserveData = self.getReserveData(_reserve)
+        return reserveData['borrowRate']
+
+    def updateUserStateOnBorrowInternal(self, _reserve: Address, _user: Address, _amountBorrowed: int,
+                                        _balanceIncrease: int, _borrowFee: int):
+        reserveData = self.getReserveData(_reserve)
+        userReserveData = self.getUserReserveData(_reserve, _user)
+        userPreviousOriginationFee = userReserveData['originationFee']
+        lastReserveBorrowCumulativeIndex = reserveData['borrowCumulativeIndex']
+        self.updateUserBorrowCumulativeIndex(_reserve, _user, lastReserveBorrowCumulativeIndex)
+        self.updateUserOriginationFee(_reserve, _user, userPreviousOriginationFee + _borrowFee)
+        self.updateUserLastUpdateTimestamp(_reserve, _user, self.block.timestamp)
+
+    
+    @external
+    def transferToUser(self, _reserve: Address, _user: Address, _amount):
+        token = self.create_interface_score(_reserve, ReserveInterface)
+        token.transfer(_user, _amount)
 
     @external
     def setUserUseReserveAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: bool) -> None:
@@ -423,12 +498,12 @@ class LendingPoolCore(IconScoreBase):
         balance = oToken.balanceOf(_user)
         return balance
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getUserBasicReserveData(self, _reserve: Address, _user: Address) -> dict:
         userReserveData = self.getUserReserveData(_reserve, _user)
         underlyingBalance = self.getUserUnderlyingAssetBalance(_reserve, _user)
         if userReserveData['principalBorrowBalance'] == 0:
-            response ={
+            response = {
                 'underlyingBalance': underlyingBalance,
                 'compoundedBorrowBalance': 0,
                 'originationFee': 0,
@@ -437,47 +512,56 @@ class LendingPoolCore(IconScoreBase):
             return response
 
         compoundedBorrowBalance = self.getCompoundedBorrowBalance(_reserve, _user)
-        response ={
-                'underlyingBalance': underlyingBalance,
-                'compoundedBorrowBalance': compoundedBorrowBalance,
-                'originationFee': userReserveData['priginationFee'],
-                'useAsCollateral': userReserveData['useAsCollateral']
-            }
+        response = {
+            'underlyingBalance': underlyingBalance,
+            'compoundedBorrowBalance': compoundedBorrowBalance,
+            'originationFee': userReserveData['priginationFee'],
+            'useAsCollateral': userReserveData['useAsCollateral']
+        }
         return response
 
-    
-    @external(readonly = True)
-    def calculateInterestRates(self, _reserve: Address, _availableLiquidity: int, _totalBorrows: int  )-> dict:
+    @external(readonly=True)
+    def getUserBorrowBalances(self, _reserve: Address, _user: Address):
+        userReserveData = self.getUserReserveData(_reserve, _user)
+        principalBorrowBalance = userReserveData['principalBorrowBalance']
+        if principalBorrowBalance == 0:
+            return ({
+                "principalBorrowBalance": 0,
+                "compoundedBorrowBalance": 0,
+                "borrowBalanceIncrease": 0
+            })
+        compoundedBorrowBalance = self.getCompoundedBorrowBalance(_reserve, _user)
+        borrowBalanceIncrease = compoundedBorrowBalance - principalBorrowBalance
+        return (
+            {
+                "principalBorrowBalance": principalBorrowBalance,
+                "compoundedBorrowBalance": compoundedBorrowBalance,
+                "borrowBalanceIncrease": borrowBalanceIncrease
+            }
+        )
+
+    @external(readonly=True)
+    def calculateInterestRates(self, _reserve: Address, _availableLiquidity: int, _totalBorrows: int) -> dict:
         constants = self.getReserveConstants(_reserve)
         rate = {}
-           
-        if(_totalBorrows == 0 and _availableLiquidity == 0 ):
+
+        if (_totalBorrows == 0 and _availableLiquidity == 0):
             utilizationRate = 0
         else:
-            utilizationRate = exaDiv(_totalBorrows , (_totalBorrows + _availableLiquidity))
+            utilizationRate = exaDiv(_totalBorrows, (_totalBorrows + _availableLiquidity))
 
         if utilizationRate < constants['optimalUtilizationRate']:
-            rate['borrowRate'] = constants['baseBorrowRate'] + exaMul( exaDiv(utilizationRate , constants['optimalUtilizationRate']), constants['slopeRate1'])
+            rate['borrowRate'] = constants['baseBorrowRate'] + exaMul(
+                exaDiv(utilizationRate, constants['optimalUtilizationRate']), constants['slopeRate1'])
         else:
-            rate['borrowRate'] =  constants['baseBorrowRate'] + constants['slopeRate1']+ exaMul(exaDiv((utilizationRate - constants['optimalUtilizationRate'] ), (EXA - constants['optimalUtilizationRate'])), constants['slopeRate2'])
-        
-        rate['liquidityRate'] = exaMul( exaMul(rate['borrowRate'], utilizationRate), 9 * EXA // 10 )
+            rate['borrowRate'] = constants['baseBorrowRate'] + constants['slopeRate1'] + exaMul(
+                exaDiv((utilizationRate - constants['optimalUtilizationRate']),
+                       (EXA - constants['optimalUtilizationRate'])), constants['slopeRate2'])
+
+        rate['liquidityRate'] = exaMul(exaMul(rate['borrowRate'], utilizationRate), 9 * EXA // 10)
 
         return rate
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
         pass
-
-      
-
-        
-
-        
-  
-
-
-    
-
-
-
