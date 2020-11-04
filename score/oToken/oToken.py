@@ -353,7 +353,7 @@ class OToken(IconScoreBase, TokenStandard):
         """
         if _data is None:
             _data = b'None'
-        self._transfer(self.msg.sender, _to, _value, b'')
+        self._transfer(self.msg.sender, _to, _value, _data)
 
     def _transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         """
@@ -368,7 +368,7 @@ class OToken(IconScoreBase, TokenStandard):
             revert(f"Transferring value cannot be less than 0.")
 
         if self._balances[_from] < _value:
-            revert(f"Insufficient balance.")
+            revert(f"Token transfer error:Insufficient balance.")
 
         self._balances[_from] -= _value
         self._balances[_to] += _value
