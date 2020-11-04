@@ -8,6 +8,7 @@ class FeeProvider(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
+        self._originationFeePercent = VarDB('originationFeePercent', db , value_type = int)
 
     def on_install(self) -> None:
         super().on_install()
@@ -15,22 +16,23 @@ class FeeProvider(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
-    @external
-    def distribute(self, _tokens: list) -> None:
-        pass
+    # @external
+    # def distribute(self, _tokens: str) -> None:
+    #     pass
 
     @external
     def setLoanOriginationFeePercentage(self, _percentage: int) -> None:
-        pass
+        self._originationFeePercent.set(_percentage)
+        
 
     @external(readonly = True)
     def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
-        return examul(_amount,self.getLoanOriginationFeePercentage)
-        pass
+        return exaMul(_amount, self.getLoanOriginationFeePercentage())
+        
     
     @external(readonly = True)
     def getLoanOriginationFeePercentage(self) -> int:
-        pass
+        return self._originationFeePercent.get()
         
     @external(readonly = True)
     def getDistribution(self) -> dict:
