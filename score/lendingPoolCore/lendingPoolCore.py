@@ -61,9 +61,8 @@ class ReserveInterface(InterfaceScore):
         pass
 
     @interface
-    def transfer(self, _to: Address, _amount: int):
+    def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
-
 
 class LendingPoolCore(IconScoreBase):
     ID = 'id'
@@ -432,6 +431,12 @@ class LendingPoolCore(IconScoreBase):
         return data
 
     
+    @external
+    def transferToUser(self, _reserve: Address, _user: Address, _amount: int) -> None:
+        reserveScore = self.create_interface_score(_reserve, ReserveInterface)
+        reserveScore.transfer(_user, _amount)
+
+
     @external
     def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
         self.updateCumulativeIndexes(_reserve)

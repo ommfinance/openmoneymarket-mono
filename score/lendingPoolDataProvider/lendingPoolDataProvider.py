@@ -117,8 +117,13 @@ class LendingPoolDataProvider(IconScoreBase):
             reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(self._symbol[_reserve], 'USD')
 
             if userBasicReserveData['underlyingBalance'] > 0:
+<<<<<<< Updated upstream
                 liquidityBalanceUSD = exaMul(reserveConfiguration['reserveUnitPrice'],
                                              userBasicReserveData['underlyingBalance'])
+=======
+                liquidityBalanceUSD = exaMul(reserveConfiguration['reserveUnitPrice'],userBasicReserveData['underlyingBalance'])
+                totalLiquidityBalanceUSD += liquidityBalanceUSD
+>>>>>>> Stashed changes
 
                 if reserveConfiguration['usageAsCollateralEnabled'] and userBasicReserveData['useAsCollateral']:
                     totalCollateralBalanceUSD += liquidityBalanceUSD

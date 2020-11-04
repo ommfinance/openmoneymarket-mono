@@ -77,6 +77,11 @@ class DataProviderInterface(InterfaceScore):
 class FeeProviderInterface(InterfaceScore):
     @interface
     def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
+    def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
+        pass
+
+    @interface
+    def transferToUser(self, _reserve: Address, _user: Address, _amount: int) -> None:
         pass
 
 
@@ -98,6 +103,8 @@ class LendingPool(IconScoreBase):
     @eventlog(indexed=3)
     def Borrow(self, _reserve: Address, _user: Address, _amount: int, _borrowRate: int, _borrowFee: int,
                _borrowBalanceIncrease: int, _timestamp: int):
+    @eventlog(indexed = 3)
+    def RedeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _timestamp: int):
         pass
 
     @external
@@ -169,7 +176,7 @@ class LendingPool(IconScoreBase):
         USDb.transfer(self._lendingPoolCoreAddress.get(), _amount)
 
     @external
-    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _balanceAfterRedeem: int):
+    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int):
         """
         redeems the underlying amount of assets requested by the _user.This method is called from the oToken contract
         :param _reserve:the address of the reserve
@@ -178,7 +185,20 @@ class LendingPool(IconScoreBase):
         :param _balanceAfterRedeem:the remaining balance of _user after the redeem is successful
         :return:
         """
-        pass
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        if core.getReserveAvailableLiquidity(_reserve) < _amount:
+            revert(f'There is not enough liquidity available to redeem')
+
+        core.updateStateOnDeposit(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
+        core.transferToUser(_reserve, _user, _amount)
+
+        self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
+
+
+
+
+        
+        
 
     def _require(self, _condition: bool, _message: str):
         if not _condition:
@@ -248,6 +268,7 @@ class LendingPool(IconScoreBase):
 
         try:
             d = json_loads(_data.decode("utf-8"))
+
         except BaseException as e:
             revert(f'Invalid data: {_data}. Exception: {e}')
 

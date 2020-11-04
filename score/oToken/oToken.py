@@ -271,6 +271,8 @@ class OToken(IconScoreBase, TokenStandard):
         :param _amount: The amount of oToken.
 
         """
+        if _amount <= 0:
+            revert(f'Amount to redeem needs to be greater than zero')
         cumulated = self._cumulateBalanceInternal(self.msg.sender)
         currentBalance = cumulated['principalBalance']
         balanceIncrease = cumulated['balanceIncrease']
