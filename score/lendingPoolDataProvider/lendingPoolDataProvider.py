@@ -5,6 +5,7 @@ TAG = 'LendingPoolDataProvider'
 
 HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 10 ** 18
 
+
 # An interface to LendingPoolCore
 class CoreInterface(InterfaceScore):
     @interface
@@ -18,7 +19,7 @@ class CoreInterface(InterfaceScore):
     @interface
     def getReserveConfiguration(self, _reserve: Address) -> dict:
         pass
-        
+
     @interface
     def getReserveData(self, _reserve: Address) -> dict:
         pass
@@ -35,11 +36,13 @@ class CoreInterface(InterfaceScore):
     def getCompoundedBorrowBalance(self, _reserve: Address, _user: Address) -> int:
         pass
 
+
 # An interface to PriceOracle
 class OracleInterface(InterfaceScore):
     @interface
     def get_reference_data(self, _base: str, _quote: str) -> int:
         pass
+
 
 # An interface to oToken
 class oTokenInterface(InterfaceScore):
@@ -47,13 +50,14 @@ class oTokenInterface(InterfaceScore):
     def balanceOf(self, _owner: Address) -> int:
         pass
 
+
 class LendingPoolDataProvider(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._symbol = DictDB('symbol', db , value_type = str)
-        self._lendingPoolCoreAddress = VarDB('lendingPoolCore', db, value_type = Address)
-        self._oracleAddress = VarDB('oracleAddress', db, value_type = Address)
+        self._symbol = DictDB('symbol', db, value_type=str)
+        self._lendingPoolCoreAddress = VarDB('lendingPoolCore', db, value_type=Address)
+        self._oracleAddress = VarDB('oracleAddress', db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -82,14 +86,13 @@ class LendingPoolDataProvider(IconScoreBase):
 
         self._oracleAddress.set(_address)
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getLendingPoolCoreAddress(self) -> Address:
         return self._lendingPoolCoreAddress.get()
-    
-    @external(readonly = True)
+
+    @external(readonly=True)
     def getOracleAddress(self) -> Address:
         return self._oracleAddress.get()
-    
 
     @external(readonly=True)
     def getUserAccountData(self, _user: Address) -> dict:
@@ -110,40 +113,43 @@ class LendingPoolDataProvider(IconScoreBase):
                 continue
 
             reserveConfiguration = core.getReserveConfiguration(_reserve)
-            
+
             reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(self._symbol[_reserve], 'USD')
 
             if userBasicReserveData['underlyingBalance'] > 0:
-                liquidityBalanceUSD = exaMul(reserveConfiguration['reserveUnitPrice'],userBasicReserveData['underlyingBalance'])
+                liquidityBalanceUSD = exaMul(reserveConfiguration['reserveUnitPrice'],
+                                             userBasicReserveData['underlyingBalance'])
 
                 if reserveConfiguration['usageAsCollateralEnabled'] and userBasicReserveData['useAsCollateral']:
                     totalCollateralBalanceUSD += liquidityBalanceUSD
                     currentLtv += exaMul(liquidityBalanceUSD, reserveConfiguration['baseLTVasCollateral'])
-                    currentLiquidationThreshold += exaMul(liquidityBalanceUSD, reserveConfiguration['liquidationThreshold'])
+                    currentLiquidationThreshold += exaMul(liquidityBalanceUSD,
+                                                          reserveConfiguration['liquidationThreshold'])
 
             if userBasicReserveData['compoundedBorrowBalance'] > 0:
-                totalBorrowBalanceUSD += exaMul(reserveConfiguration['reserveUnitPrice'],userBasicReserveData['compoundedBorrowBalance'])
+                totalBorrowBalanceUSD += exaMul(reserveConfiguration['reserveUnitPrice'],
+                                                userBasicReserveData['compoundedBorrowBalance'])
                 totalFeesUSD += exaMul(reserveConfiguration['reserveUnitPrice'], userBasicReserveData['originationFee'])
-
 
         if totalCollateralBalanceUSD > 0:
             currentLtv = (currentLtv // totalCollateralBalanceUSD)
         else:
             currentLtv = 0
 
-        healthFactor = self.calculateHealthFactorFromBalancesInternal(totalCollateralBalanceUSD,totalBorrowBalanceUSD,totalFeesUSD,currentLiquidationThreshold)
+        healthFactor = self.calculateHealthFactorFromBalancesInternal(totalCollateralBalanceUSD, totalBorrowBalanceUSD,
+                                                                      totalFeesUSD, currentLiquidationThreshold)
         if healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD:
             healthFactorBelowThreshold = True
 
-        response ={
+        response = {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
-            'totalBorrowBalanceUSD' : totalBorrowBalanceUSD,
-            'totalFeesUSD' : totalFeesUSD,
-            'currentLtv' : currentLtv,
-            'currentLiquidationThreshold' : currentLiquidationThreshold,
-            'healthFactor' : healthFactor,
-            'healthFactorBelowThreshold' : healthFactorBelowThreshold
+            'totalBorrowBalanceUSD': totalBorrowBalanceUSD,
+            'totalFeesUSD': totalFeesUSD,
+            'currentLtv': currentLtv,
+            'currentLiquidationThreshold': currentLiquidationThreshold,
+            'healthFactor': healthFactor,
+            'healthFactorBelowThreshold': healthFactorBelowThreshold
         }
 
         return response
@@ -165,9 +171,9 @@ class LendingPoolDataProvider(IconScoreBase):
         useAsCollateral = userReserveData['useAsCollateral']
         price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
-        currentOTokenBalanceUSD=exaMul(currentOTokenBalance,price)
-        currentBorrowBalanceUSD=exaMul(currentBorrowBalance,price)
-        principalBorrowBalanceUSD=exaMul(principalBorrowBalance,price)
+        currentOTokenBalanceUSD = exaMul(currentOTokenBalance, price)
+        currentBorrowBalanceUSD = exaMul(currentBorrowBalance, price)
+        principalBorrowBalanceUSD = exaMul(principalBorrowBalance, price)
         response = {
             'currentOTokenBalance': currentOTokenBalance,
             'currentOTokenBalanceUSD': currentOTokenBalanceUSD,
@@ -186,6 +192,18 @@ class LendingPoolDataProvider(IconScoreBase):
         return response
 
     @external(readonly=True)
+    def calculateCollateralNeededUSD(self, _reserve: Address, _amount: int, _fee: int, _userCurrentBorrowBalanceUSD: int,
+                                     _userCurrentFeesUSD: int, _userCurrentLtv: int) -> int:
+
+        price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
+        price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
+        requestedBorrowUSD=exaMul(price,_amount)
+
+        collateralNeededInUSD=exaDiv(_userCurrentBorrowBalanceUSD+_userCurrentFeesUSD+requestedBorrowUSD,_userCurrentLtv)
+        return collateralNeededInUSD
+
+
+    @external(readonly=True)
     def getUserAllReserveData(self, _user: Address) -> dict:
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserves = core.getReserves()
@@ -194,15 +212,17 @@ class LendingPoolDataProvider(IconScoreBase):
             userData[self._symbol[reserve]] = self.getUserReserveData(reserve, _user)
 
         return userData
-    def calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int, _totalFeesUSD: int, _liquidationThreshold: int) -> int:
+
+    def calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
+                                                  _totalFeesUSD: int, _liquidationThreshold: int) -> int:
         if _borrowBalanceUSD == 0:
             return -1
-        healthFactor = (_collateralBalanceUSD * _liquidationThreshold // 100)  // (_borrowBalanceUSD + _totalFeesUSD)
+        healthFactor = (_collateralBalanceUSD * _liquidationThreshold // 100) // (_borrowBalanceUSD + _totalFeesUSD)
         return healthFactor
 
-
-    def calculateBorrowingPowerFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int, _totalFeesUSD: int, _ltv: int) -> int:
-        borrowingPower = (_borrowBalanceUSD + _totalFeesUSD) // (_collateralBalanceUSD * _ltv // 100) 
+    def calculateBorrowingPowerFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
+                                                    _totalFeesUSD: int, _ltv: int) -> int:
+        borrowingPower = (_borrowBalanceUSD + _totalFeesUSD) // (_collateralBalanceUSD * _ltv // 100)
         return borrowingPower
 
     @external(readonly=True)
@@ -216,8 +236,8 @@ class LendingPoolDataProvider(IconScoreBase):
         reserves = core.getReserves()
         response = {}
         for reserve in reserves:
-            response[self._symbol[reserve]] = core.getReserveData(reserve) 
-            
+            response[self._symbol[reserve]] = core.getReserveData(reserve)
+
         return response
 
     @external(readonly=True)
@@ -234,15 +254,3 @@ class LendingPoolDataProvider(IconScoreBase):
             response[self._symbol[reserve]] = core.getReserveConfiguration(reserve)
 
         return response
-
-    
-    
-
-
-
-
-
-
-
-
-
