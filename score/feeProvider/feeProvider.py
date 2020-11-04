@@ -1,4 +1,5 @@
 from iconservice import *
+from .Math import *
 
 TAG = 'FeeProvider'
 
@@ -24,6 +25,7 @@ class FeeProvider(IconScoreBase):
 
     @external(readonly = True)
     def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
+        return examul(_amount,self.getLoanOriginationFeePercentage)
         pass
     
     @external(readonly = True)
