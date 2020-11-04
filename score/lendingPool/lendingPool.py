@@ -2,6 +2,7 @@ from iconservice import *
 
 TAG = 'LendingPool'
 
+
 # An interface to oToken
 class OTokenInterface(InterfaceScore):
     @interface
@@ -12,10 +13,11 @@ class OTokenInterface(InterfaceScore):
     def mintOnDeposit(self, _user: Address, _amount: int) -> None:
         pass
 
+
 # An interface to USDb contract
 class USDbInterface(InterfaceScore):
     @interface
-    def transfer(self, _to: Address, _value: int, _data: bytes=None):
+    def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
 
 
@@ -42,7 +44,39 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
+    def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int):
+        pass
+
+    @interface
     def mintOnDeposit(self, _user: Address, _amount: int) -> None:
+        pass
+
+    @interface
+    def isReserveBorrowingEnabled(self, _reserve: Address) -> bool:
+        pass
+
+    @interface
+    def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
+        pass
+
+
+# An interface to USDb contract
+class DataProviderInterface(InterfaceScore):
+    @interface
+    def getUserAccountData(self, _user: Address) -> dict:
+        pass
+
+    @interface
+    def calculateCollateralNeededUSD(self, _reserve: Address, _amount: int, _fee: int,
+                                     _userCurrentBorrowBalanceUSD: int,
+                                     _userCurrentFeesUSD: int, _userCurrentLtv: int) -> int:
+        pass
+
+
+# An interface to fee provider
+class FeeProviderInterface(InterfaceScore):
+    @interface
+    def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
         pass
 
 
@@ -50,8 +84,10 @@ class LendingPool(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._lendingPoolCoreAddress = VarDB('lendingPoolCore', db, value_type = Address)
-        self._USDbAddress = VarDB('USDbAddress', db, value_type = Address)
+        self._lendingPoolCoreAddress = VarDB('lendingPoolCore', db, value_type=Address)
+        self._dataProviderAddress = VarDB('lendingPoolDataProvider', db, value_type=Address)
+        self._feeProviderAddress = VarDB('feeProvider', db, value_type=Address)
+        self._USDbAddress = VarDB('USDbAddress', db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -59,8 +95,9 @@ class LendingPool(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
-    @eventlog
-    def Test(self, check: str) -> None:
+    @eventlog(indexed=3)
+    def Borrow(self, _reserve: Address, _user: Address, _amount: int, _borrowRate: int, _borrowFee: int,
+               _borrowBalanceIncrease: int, _timestamp: int):
         pass
 
     @external
@@ -70,8 +107,7 @@ class LendingPool(IconScoreBase):
 
         self._lendingPoolCoreAddress.set(_address)
 
-
-    @external(readonly = True)
+    @external(readonly=True)
     def getLendingPoolCoreAddress(self) -> Address:
         return self._lendingPoolCoreAddress.get()
 
@@ -82,10 +118,32 @@ class LendingPool(IconScoreBase):
 
         self._USDbAddress.set(_address)
 
-    @external(readonly = True)
+    @external(readonly=True)
     def getUSDbAddress(self) -> Address:
         return self._USDbAddress.get()
-    
+
+    @external
+    def setDataProvider(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._dataProviderAddress.set(_address)
+
+    @external(readonly=True)
+    def getDataProvider(self) -> Address:
+        return self._dataProviderAddress.get()
+
+    @external
+    def setFeeProvider(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._feeProviderAddress.set(_address)
+
+    @external(readonly=True)
+    def getFeeProvider(self) -> Address:
+        return self._feeProviderAddress.get()
+
     @payable
     @external
     def deposit(self, _reserve: Address, _amount: int):
@@ -100,14 +158,11 @@ class LendingPool(IconScoreBase):
         reserveData = core.getReserveData(_reserve)
         oTokenAddress = reserveData['oTokenAddress']
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
-
+        isFirstDeposit = False
         if oToken.balanceOf(self.tx.origin) == 0:
             isFirstDeposit = True
 
-        
-        
         core.updateStateOnDeposit(_reserve, self.tx.origin, _amount, isFirstDeposit)
-       
 
         oToken.mintOnDeposit(self.tx.origin, _amount)
 
@@ -125,6 +180,10 @@ class LendingPool(IconScoreBase):
         """
         pass
 
+    def _require(self, _condition: bool, _message: str):
+        if not _condition:
+            revert(_message)
+
     @external
     def borrow(self, _reserve: Address, _amount: int):
         """
@@ -133,7 +192,32 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to be borrowed
         :return:
         """
-        pass
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        dataProvider = self.create_interface_score(self._dataProviderAddress.get(), DataProviderInterface)
+        feeProvider = self.create_interface_score(self._feeProviderAddress.get(), FeeProviderInterface)
+        self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in  the reserve")
+        availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
+        self._require(availableLiquidity >= _amount, "Borrow error:Not enough available liquidity in the reserve")
+        userData = dataProvider.getUserAccountData(self.msg.sender)
+        userCollateralBalanceUSD = userData['totalCollateralBalanceUSD']
+        userBorrowBalanceUSD = userData['totalBorrowBalanceUSD']
+        userTotalFeesUSD = userData['totalFeesUSD']
+        currentLTV = userData['currentLtv']
+        currentLiquidationThreshold = userData['currentLiquidationThreshold']
+        healthFactorBelowThreshold = userData['healthFactorBelowThreshold']
+        self._require(userCollateralBalanceUSD > 0, "Borrow error:The user dont have any collateral")
+        self._require(not healthFactorBelowThreshold, "Borrow error:Health factor is below threshold")
+        borrowFee = feeProvider.calculateOriginationFee(self.msg.sender, _amount)
+        self._require(borrowFee > 0, "Borrow error:borrow amount is very small")
+        amountOfCollateralNeededUSD = dataProvider.calculateCollateralNeededUSD(_reserve, _amount, borrowFee,
+                                                                                userBorrowBalanceUSD,
+                                                                                userTotalFeesUSD, currentLTV)
+        self._require(amountOfCollateralNeededUSD <= userCollateralBalanceUSD,
+                      "Borrow error:Insufficient collateral to cover new borrow")
+        borrowData = core.updateStateOnBorrow(_reserve, self.msg.sender, _amount, borrowFee)
+        core.transferToUser(_reserve, self.msg.sender, _amount)
+        self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
+                    borrowData['balanceIncrease'], self.block.timestamp)
 
     @payable
     @external
@@ -164,7 +248,6 @@ class LendingPool(IconScoreBase):
 
         try:
             d = json_loads(_data.decode("utf-8"))
-            self.Test(_data.decode("utf-8"))
         except BaseException as e:
             revert(f'Invalid data: {_data}. Exception: {e}')
 
