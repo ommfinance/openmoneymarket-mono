@@ -229,7 +229,7 @@ class LendingPoolCore(IconScoreBase):
 
     @external
     def isReserveBorrowingEnabled(self, _reserve: Address) -> bool:
-        return self.getReserveData['borrowingEnabled']
+        return self.getReserveData(_reserve)['borrowingEnabled']
 
     @external
     def addReserveData(self, _reserve: ReserveAttributes):
@@ -452,7 +452,7 @@ class LendingPoolCore(IconScoreBase):
         principalBorrowBalance = borrowData['principalBorrowBalance']
         balanceIncrease = borrowData['borrowBalanceIncrease']
         self.updateReserveStateOnBorrowInternal(_reserve, balanceIncrease, _amountBorrowed)
-        self.updataUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
+        self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountBorrowed)
         currentBorrowRate = self.getCurrentBorrowRate(_reserve)
         return (
@@ -470,7 +470,7 @@ class LendingPoolCore(IconScoreBase):
         reserveData = self.getReserveData(_reserve)
         reserveBorrows = reserveData['totalBorrows']
         newTotalBorrows = reserveBorrows + _balanceIncrease + _amountBorrowed
-        self.updateReserveTotalBorrows(_reserve, newTotalBorrows)
+        self.updateTotalBorrows(_reserve, newTotalBorrows)
 
     def getCurrentBorrowRate(self, _reserve: Address) -> int:
         reserveData = self.getReserveData(_reserve)
@@ -480,15 +480,17 @@ class LendingPoolCore(IconScoreBase):
                                         _balanceIncrease: int, _borrowFee: int):
         reserveData = self.getReserveData(_reserve)
         userReserveData = self.getUserReserveData(_reserve, _user)
+        principalBorrowBalance=userReserveData['principalBorrowBalance']
         userPreviousOriginationFee = userReserveData['originationFee']
         lastReserveBorrowCumulativeIndex = reserveData['borrowCumulativeIndex']
         self.updateUserBorrowCumulativeIndex(_reserve, _user, lastReserveBorrowCumulativeIndex)
+        self.updateUserPrincipalBorrowBalance(_reserve,_user,principalBorrowBalance+_amountBorrowed+_balanceIncrease)
         self.updateUserOriginationFee(_reserve, _user, userPreviousOriginationFee + _borrowFee)
         self.updateUserLastUpdateTimestamp(_reserve, _user, self.block.timestamp)
 
     
     @external
-    def transferToUser(self, _reserve: Address, _user: Address, _amount):
+    def transferToUser(self, _reserve: Address, _user: Address, _amount:int):
         token = self.create_interface_score(_reserve, ReserveInterface)
         token.transfer(_user, _amount)
 
@@ -520,7 +522,7 @@ class LendingPoolCore(IconScoreBase):
         response = {
             'underlyingBalance': underlyingBalance,
             'compoundedBorrowBalance': compoundedBorrowBalance,
-            'originationFee': userReserveData['priginationFee'],
+            'originationFee': userReserveData['originationFee'],
             'useAsCollateral': userReserveData['useAsCollateral']
         }
         return response
