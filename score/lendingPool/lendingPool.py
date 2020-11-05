@@ -59,6 +59,9 @@ class CoreInterface(InterfaceScore):
     def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
         pass
 
+    @interface
+    def transferToUser(self, _reserve: Address, _user: Address, _amount: int) -> None:
+        pass
 
 # An interface to USDb contract
 class DataProviderInterface(InterfaceScore):
@@ -77,6 +80,9 @@ class DataProviderInterface(InterfaceScore):
 class FeeProviderInterface(InterfaceScore):
     @interface
     def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
+        pass
+
+    @interface
     def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
         pass
 
@@ -103,6 +109,8 @@ class LendingPool(IconScoreBase):
     @eventlog(indexed=3)
     def Borrow(self, _reserve: Address, _user: Address, _amount: int, _borrowRate: int, _borrowFee: int,
                _borrowBalanceIncrease: int, _timestamp: int):
+        pass
+            
     @eventlog(indexed = 3)
     def RedeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _timestamp: int):
         pass
@@ -228,16 +236,18 @@ class LendingPool(IconScoreBase):
         self._require(userCollateralBalanceUSD > 0, "Borrow error:The user dont have any collateral")
         self._require(not healthFactorBelowThreshold, "Borrow error:Health factor is below threshold")
         borrowFee = feeProvider.calculateOriginationFee(self.msg.sender, _amount)
+        
         self._require(borrowFee > 0, "Borrow error:borrow amount is very small")
         amountOfCollateralNeededUSD = dataProvider.calculateCollateralNeededUSD(_reserve, _amount, borrowFee,
                                                                                 userBorrowBalanceUSD,
-                                                                                userTotalFeesUSD, currentLTV)
+                                                                               userTotalFeesUSD, currentLTV)
+
+        # revert("Reached here")
         self._require(amountOfCollateralNeededUSD <= userCollateralBalanceUSD,
                       "Borrow error:Insufficient collateral to cover new borrow")
         borrowData = core.updateStateOnBorrow(_reserve, self.msg.sender, _amount, borrowFee)
         core.transferToUser(_reserve, self.msg.sender, _amount)
-        self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
-                    borrowData['balanceIncrease'], self.block.timestamp)
+        # self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,borrowData['balanceIncrease'], self.block.timestamp)
 
     @payable
     @external
