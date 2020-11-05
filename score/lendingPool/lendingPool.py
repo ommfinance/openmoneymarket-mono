@@ -86,11 +86,6 @@ class FeeProviderInterface(InterfaceScore):
     def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
         pass
 
-    @interface
-    def transferToUser(self, _reserve: Address, _user: Address, _amount: int) -> None:
-        pass
-
-
 class LendingPool(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -110,7 +105,7 @@ class LendingPool(IconScoreBase):
     def Borrow(self, _reserve: Address, _user: Address, _amount: int, _borrowRate: int, _borrowFee: int,
                _borrowBalanceIncrease: int, _timestamp: int):
         pass
-            
+    
     @eventlog(indexed = 3)
     def RedeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _timestamp: int):
         pass
@@ -196,6 +191,7 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         if core.getReserveAvailableLiquidity(_reserve) < _amount:
             revert(f'There is not enough liquidity available to redeem')
+
 
         core.updateStateOnDeposit(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
         core.transferToUser(_reserve, _user, _amount)

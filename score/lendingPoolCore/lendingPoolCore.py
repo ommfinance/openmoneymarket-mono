@@ -490,11 +490,6 @@ class LendingPoolCore(IconScoreBase):
 
     
     @external
-    def transferToUser(self, _reserve: Address, _user: Address, _amount:int):
-        token = self.create_interface_score(_reserve, ReserveInterface)
-        token.transfer(_user, _amount)
-
-    @external
     def setUserUseReserveAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: bool) -> None:
         self.updateUserReserveUseAsCollateral(_reserve, _user, _useAsCollateral)
 
