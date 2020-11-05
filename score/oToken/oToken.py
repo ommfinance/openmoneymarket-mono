@@ -19,7 +19,7 @@ class DataProviderInterface(InterfaceScore):
 
 class LendingPoolInterface(InterfaceScore):
     @interface
-    def redeemUnderlying(self):
+    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int):
         pass
 
 
@@ -288,6 +288,7 @@ class OToken(IconScoreBase, TokenStandard):
         userIndexReset = False
         if currentBalance - amountToRedeem == 0:
             userIndexReset = self._resetDataOnZeroBalanceInternal(self.msg.sender)
+        
         pool = self.create_interface_score(self.getLendingPoolAddress(), LendingPoolInterface)
         pool.redeemUnderlying(self.getReserveAddress(), self.msg.sender, amountToRedeem,
                               currentBalance - amountToRedeem)
