@@ -65,7 +65,9 @@ class LendingPoolDataProvider(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
         self._symbol[Address.from_string("cx072d8f95877a53df350e3dc3d8dba2f379037d42")] = "USDb"
-
+    @eventlog(indexed=3)
+    def Print(self,_val1:int,_val2:int,val3:int):
+        pass
     @external
     def setSymbol(self, _reserveAddress: Address, _sym: str):
         if self.msg.sender != self.owner:
@@ -93,7 +95,7 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def getOracleAddress(self) -> Address:
         return self._oracleAddress.get()
-
+    
     @external(readonly=True)
     def getUserAccountData(self, _user: Address) -> dict:
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
@@ -121,8 +123,10 @@ class LendingPoolDataProvider(IconScoreBase):
                 totalLiquidityBalanceUSD += liquidityBalanceUSD
 
                 if reserveConfiguration['usageAsCollateralEnabled'] and userBasicReserveData['useAsCollateral']:
+                    
                     totalCollateralBalanceUSD += liquidityBalanceUSD
                     currentLtv += exaMul(liquidityBalanceUSD, reserveConfiguration['baseLTVasCollateral'])
+                    # revert("Reached data provider")
                     currentLiquidationThreshold += exaMul(liquidityBalanceUSD,
                                                           reserveConfiguration['liquidationThreshold'])
 
@@ -132,15 +136,15 @@ class LendingPoolDataProvider(IconScoreBase):
                 totalFeesUSD += exaMul(reserveConfiguration['reserveUnitPrice'], userBasicReserveData['originationFee'])
 
         if totalCollateralBalanceUSD > 0:
-            currentLtv = (currentLtv // totalCollateralBalanceUSD)
+            currentLtv = exaDiv(currentLtv,totalCollateralBalanceUSD)
         else:
             currentLtv = 0
 
         healthFactor = self.calculateHealthFactorFromBalancesInternal(totalCollateralBalanceUSD, totalBorrowBalanceUSD,
                                                                       totalFeesUSD, currentLiquidationThreshold)
-        if healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD:
+        if healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD and  healthFactor !=- 1:
             healthFactorBelowThreshold = True
-
+        
         response = {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
@@ -255,7 +259,7 @@ class LendingPoolDataProvider(IconScoreBase):
                                                   _totalFeesUSD: int, _liquidationThreshold: int) -> int:
         if _borrowBalanceUSD == 0:
             return -1
-        healthFactor = (_collateralBalanceUSD * _liquidationThreshold // 100) // (_borrowBalanceUSD + _totalFeesUSD)
+        healthFactor =exaDiv(_collateralBalanceUSD * _liquidationThreshold // 100,_borrowBalanceUSD + _totalFeesUSD) 
         return healthFactor
 
     def calculateBorrowingPowerFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
