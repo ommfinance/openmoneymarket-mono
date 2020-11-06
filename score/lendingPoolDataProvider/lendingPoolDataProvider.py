@@ -65,8 +65,10 @@ class LendingPoolDataProvider(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
         self._symbol[Address.from_string("cx072d8f95877a53df350e3dc3d8dba2f379037d42")] = "USDb"
+        
     @eventlog(indexed=3)
     def Print(self,_val1:int,_val2:int,val3:int):
+
         pass
     @external
     def setSymbol(self, _reserveAddress: Address, _sym: str):
