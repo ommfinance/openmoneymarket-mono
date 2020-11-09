@@ -64,12 +64,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
     def on_update(self) -> None:
         super().on_update()
-        self._symbol[Address.from_string("cx072d8f95877a53df350e3dc3d8dba2f379037d42")] = "USDb"
-        
-    @eventlog(indexed=3)
-    def Print(self,_val1:int,_val2:int,val3:int):
 
-        pass
     @external
     def setSymbol(self, _reserveAddress: Address, _sym: str):
         if self.msg.sender != self.owner:
@@ -220,13 +215,13 @@ class LendingPoolDataProvider(IconScoreBase):
 
             oracle = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
             
-            amountToDecreaseUSD = exaMul( oracle.get_reference_data[self._symbol[_reserve], 'USD'] , _amount )
+            amountToDecreaseUSD = exaMul( oracle.get_reference_data(self._symbol[_reserve], 'USD') , _amount )
             collateralBalanceAfterDecreaseUSD = collateralBalanceUSD - amountToDecreaseUSD
 
             if collateralBalanceAfterDecreaseUSD == 0:
                 return False
 
-            liquidationThresholdAfterDecrease = (exaMul(collateralBalanceUSD, currentLiquidationThreshold) - exaMul( amountToDecreaseUSD , reserveLiquidationThreshold)) // collateralBalanceAfterDecreaseUSD
+            liquidationThresholdAfterDecrease =exaDiv( (exaMul(collateralBalanceUSD, currentLiquidationThreshold) - exaMul( amountToDecreaseUSD , reserveLiquidationThreshold)), collateralBalanceAfterDecreaseUSD )
 
             healthFactorAfterDecrease = self.calculateHealthFactorFromBalancesInternal( collateralBalanceAfterDecreaseUSD , borrowBalanceUSD , totalFeesUSD , liquidationThresholdAfterDecrease)
 
