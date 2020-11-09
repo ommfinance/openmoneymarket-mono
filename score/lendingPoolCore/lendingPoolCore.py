@@ -232,7 +232,7 @@ class LendingPoolCore(IconScoreBase):
         return self.getReserveData(_reserve)['borrowingEnabled']
 
     @external
-    def addReserveData(self, _reserve: ReserveAttributes):
+    def addReserveData(self, _reserve: ReserveAttributes): 
         reserve_data_obj = createReserveDataObject(_reserve)
         if not self._check_reserve(reserve_data_obj.reserveAddress):
             self._addNewReserve(reserve_data_obj.reserveAddress)
