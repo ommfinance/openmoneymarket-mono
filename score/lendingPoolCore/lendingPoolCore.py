@@ -422,6 +422,7 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def getReserveConstants(self, _reserve: Address) -> dict:
         data = {
+            'reserve':_reserve,
             'optimalUtilizationRate': self._constants[_reserve]['optimalUtilizationRate'],
             'baseBorrowRate': self._constants[_reserve]['baseBorrowRate'],
             'slopeRate1': self._constants[_reserve]['slopeRate1'],
