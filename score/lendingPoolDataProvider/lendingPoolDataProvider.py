@@ -256,12 +256,12 @@ class LendingPoolDataProvider(IconScoreBase):
                                                   _totalFeesUSD: int, _liquidationThreshold: int) -> int:
         if _borrowBalanceUSD == 0:
             return -1
-        healthFactor =exaDiv(_collateralBalanceUSD * _liquidationThreshold // 100,_borrowBalanceUSD + _totalFeesUSD) 
+        healthFactor =exaDiv(exaMul(_collateralBalanceUSD, _liquidationThreshold),_borrowBalanceUSD + _totalFeesUSD) 
         return healthFactor
 
     def calculateBorrowingPowerFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
                                                     _totalFeesUSD: int, _ltv: int) -> int:
-        borrowingPower = (_borrowBalanceUSD + _totalFeesUSD) // (_collateralBalanceUSD * _ltv // 100)
+        borrowingPower = exaDiv((_borrowBalanceUSD + _totalFeesUSD), exaMul(_collateralBalanceUSD , _ltv))
         return borrowingPower
 
     @external(readonly=True)
