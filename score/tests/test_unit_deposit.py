@@ -136,3 +136,12 @@ class TestSimpleDeposit(ScoreTestCase):
         self.assertEqual(addresses['oTokens']['oUSDb'],self.oToken.address)
         self.assertEqual(addresses['systemContract']['LendingPool'],self.lendingPool.address)
         self.assertEqual(addresses['systemContract']['LendingPoolDataProvider'],self.lendingPoolDataProvider.address)
+
+    # def test_deposit(self):
+    #     self.USDb.transfer(self.test_account2,1000 * 10**18)
+    #     depositAmount = 100*10**18
+    #     data = "{\"method\": \"deposit\", \"params\": {\"amount\": 100000000000000000000}}".encode("utf-8")
+    #     self.set_msg(self.test_account2)
+    #     self.USDb.transfer(self.lendingPool.address,depositAmount,data)
+        
+       
