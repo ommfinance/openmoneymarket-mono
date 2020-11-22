@@ -243,7 +243,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         reserveConfigs = self.process_call(_call)
-        #print(reserveConfigs)
+        # print(reserveConfigs)
 
         # testing and asserting reserve configuration data
         self.assertEqual(reserveConfigs['baseLTVasCollateral'], self.baseLTVasCollateral)
@@ -340,7 +340,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         userAccountData = self.process_call(_call)
-        print(userAccountData)
+        # print(userAccountData)
 
         # testing and asserting user data for  all reserves
 

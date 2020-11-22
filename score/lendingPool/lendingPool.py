@@ -14,10 +14,17 @@ class OTokenInterface(InterfaceScore):
         pass
 
 
-# An interface to USDb contract
+# An interface to reserves
 class USDbInterface(InterfaceScore):
     @interface
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
+        pass
+
+
+# An interface for sicx
+class SicxInterface(InterfaceScore):
+    @interface
+    def add_collateral(self, _to: Address, _data: bytes = None) -> None:
         pass
 
 
@@ -67,12 +74,16 @@ class CoreInterface(InterfaceScore):
     def getUserBorrowBalances(self, _reserve: Address, _user: Address):
         pass
 
-
     @interface
-    def updateStateOnRepay(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int, _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool ):
+    def updateStateOnRepay(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
+                           _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
         pass
 
-    
+    @interface
+    def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int,
+                            _userRedeemEverything: bool) -> None:
+        pass
+
 
 # An interface to USDb contract
 class DataProviderInterface(InterfaceScore):
@@ -97,6 +108,7 @@ class FeeProviderInterface(InterfaceScore):
     def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
         pass
 
+
 class LendingPool(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -105,12 +117,17 @@ class LendingPool(IconScoreBase):
         self._dataProviderAddress = VarDB('lendingPoolDataProvider', db, value_type=Address)
         self._feeProviderAddress = VarDB('feeProvider', db, value_type=Address)
         self._USDbAddress = VarDB('USDbAddress', db, value_type=Address)
+        self._sIcxAddress = VarDB('SicxAddress', db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
 
     def on_update(self) -> None:
         super().on_update()
+
+    @eventlog(indexed=3)
+    def PrintData(self, _topic: str, _d1: int, _d2: int, _d3: int):
+        pass
 
     @eventlog(indexed=3)
     def Deposit(self, _reserve: Address, _sender: Address, _amount: int, _timestamp: int):
@@ -120,13 +137,14 @@ class LendingPool(IconScoreBase):
     def Borrow(self, _reserve: Address, _user: Address, _amount: int, _borrowRate: int, _borrowFee: int,
                _borrowBalanceIncrease: int, _timestamp: int):
         pass
-    
+
     @eventlog(indexed=3)
     def RedeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _timestamp: int):
         pass
 
     @eventlog(indexed=3)
-    def Repay( self, _reserve: Address, _user: Address, _paybackAmount: int, _originationFee: int, _borrowBalanceIncrease: int, _timestamp: int):
+    def Repay(self, _reserve: Address, _user: Address, _paybackAmount: int, _originationFee: int,
+              _borrowBalanceIncrease: int, _timestamp: int):
         pass
 
     @external
@@ -150,6 +168,17 @@ class LendingPool(IconScoreBase):
     @external(readonly=True)
     def getUSDbAddress(self) -> Address:
         return self._USDbAddress.get()
+
+    @external
+    def setSicxAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._sIcxAddress.set(_address)
+
+    @external(readonly=True)
+    def getSicxAddress(self) -> Address:
+        return self._sIcxAddress.get()
 
     @external
     def setDataProvider(self, _address: Address) -> None:
@@ -183,7 +212,8 @@ class LendingPool(IconScoreBase):
         :return:
         """
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
-        USDb = self.create_interface_score(self._USDbAddress.get(), USDbInterface)
+        reserve = self.create_interface_score(_reserve, USDbInterface)
+        sicx = self.create_interface_score(self.getSicxAddress(), SicxInterface)
         reserveData = core.getReserveData(_reserve)
         oTokenAddress = reserveData['oTokenAddress']
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
@@ -192,10 +222,12 @@ class LendingPool(IconScoreBase):
             isFirstDeposit = True
 
         core.updateStateOnDeposit(_reserve, self.tx.origin, _amount, isFirstDeposit)
-
         oToken.mintOnDeposit(self.tx.origin, _amount)
+        if _reserve == self.address:
+            sicx.icx(self.msg.value).add_collateral(self.msg.sender, self.msg.value)
 
-        USDb.transfer(self._lendingPoolCoreAddress.get(), _amount)
+        else:
+            reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
 
         self.Deposit(_reserve, self.tx.origin, _amount, self.block.timestamp)
 
@@ -206,15 +238,14 @@ class LendingPool(IconScoreBase):
         :param _reserve:the address of the reserve
         :param _user:the address of the user requesting the redeem
         :param _amount:the amount to be deposited, should be -1 if the user wants to redeem everything
-        :param _balanceAfterRedeem:the remaining balance of _user after the redeem is successful
+        :param _oTokenbalanceAfterRedeem:the remaining balance of _user after the redeem is successful
         :return:
         """
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         if core.getReserveAvailableLiquidity(_reserve) < _amount:
             revert(f'There is not enough liquidity available to redeem')
 
-
-        core.updateStateOnDeposit(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
+        core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
         core.transferToUser(_reserve, _user, _amount)
 
         self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
@@ -238,6 +269,7 @@ class LendingPool(IconScoreBase):
         self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in  the reserve")
 
         availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
+        self.PrintData("available liquidity at pool line 245", availableLiquidity, 0, 0)
 
         self._require(availableLiquidity >= _amount, "Borrow error:Not enough available liquidity in the reserve")
 
@@ -248,23 +280,25 @@ class LendingPool(IconScoreBase):
         currentLTV = userData['currentLtv']
         currentLiquidationThreshold = userData['currentLiquidationThreshold']
         healthFactorBelowThreshold = userData['healthFactorBelowThreshold']
+        self.PrintData("data at pool line 256", userCollateralBalanceUSD, userBorrowBalanceUSD, userTotalFeesUSD)
 
         self._require(userCollateralBalanceUSD > 0, "Borrow error:The user dont have any collateral")
         self._require(not healthFactorBelowThreshold, "Borrow error:Health factor is below threshold")
-        
+
         borrowFee = feeProvider.calculateOriginationFee(self.msg.sender, _amount)
-        
+
         self._require(borrowFee > 0, "Borrow error:borrow amount is very small")
         amountOfCollateralNeededUSD = dataProvider.calculateCollateralNeededUSD(_reserve, _amount, borrowFee,
                                                                                 userBorrowBalanceUSD,
-                                                                               userTotalFeesUSD, currentLTV)
+                                                                                userTotalFeesUSD, currentLTV)
 
-    
+        self.PrintData("amout of collateral needed USD pool line 268", amountOfCollateralNeededUSD, 0, 0)
         self._require(amountOfCollateralNeededUSD <= userCollateralBalanceUSD,
                       "Borrow error:Insufficient collateral to cover new borrow")
         borrowData = core.updateStateOnBorrow(_reserve, self.msg.sender, _amount, borrowFee)
         core.transferToUser(_reserve, self.msg.sender, _amount)
-        self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,borrowData['balanceIncrease'], self.block.timestamp)
+        self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
+                    borrowData['balanceIncrease'], self.block.timestamp)
 
     @payable
     @external
@@ -278,9 +312,9 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         USDb = self.create_interface_score(self._USDbAddress.get(), USDbInterface)
         borrowData = core.getUserBorrowBalances(_reserve, self.tx.origin)
-        userBasicReserveData = core.getUserBasicReserveData( _reserve, self.tx.origin)
-        
-        self._require( borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending' )
+        userBasicReserveData = core.getUserBasicReserveData(_reserve, self.tx.origin)
+
+        self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
 
@@ -288,34 +322,27 @@ class LendingPool(IconScoreBase):
             paybackAmount = _amount
 
         if paybackAmount <= userBasicReserveData['originationFee']:
-            core.updateStateOnRepay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'], False)
+            core.updateStateOnRepay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
+                                    False)
             # core.transferToFeeCollectionAddress
             USDb.transfer(self._lendingPoolCoreAddress.get(), paybackAmount)
 
-            self.Repay( _reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'], self.block.timestamp )
+            self.Repay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
+                       self.block.timestamp)
             return
-        
+
         paybackAmountMinusFees = paybackAmount - userBasicReserveData['originationFee']
-        core.updateStateOnRepay(_reserve, self.tx.origin, paybackAmountMinusFees, userBasicReserveData['originationFee'], borrowData['borrowBalanceIncrease'], borrowData['compoundedBorrowBalance'] == paybackAmountMinusFees)
-        
+        core.updateStateOnRepay(_reserve, self.tx.origin, paybackAmountMinusFees,
+                                userBasicReserveData['originationFee'], borrowData['borrowBalanceIncrease'],
+                                borrowData['compoundedBorrowBalance'] == paybackAmountMinusFees)
+
         if userBasicReserveData['originationFee'] > 0:
             # core.transferToFeeCollectionAddress
             pass
 
-        USDb.transfer(self._lendingPoolCoreAddress.get(), paybackAmount)
-        self.Repay( _reserve, self.tx.origin, paybackAmountMinusFees, userBasicReserveData['originationFee'], borrowData['borrowBalanceIncrease'], self.block.timestamp )
-
-
-        
-
-
-        
-        
-        
-
-
-        
-        
+        USDb.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
+        self.Repay(_reserve, self.tx.origin, paybackAmountMinusFees, userBasicReserveData['originationFee'],
+                   borrowData['borrowBalanceIncrease'], self.block.timestamp)
 
     @payable
     @external

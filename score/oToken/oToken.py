@@ -208,7 +208,7 @@ class OToken(IconScoreBase, TokenStandard):
             return _balance
         else:
             balance = exaDiv(exaMul(_balance, core.getNormalizedIncome(self.getReserveAddress())),
-                         self._userIndexes[_user])
+                             self._userIndexes[_user])
             return balance
 
     @external
@@ -242,7 +242,7 @@ class OToken(IconScoreBase, TokenStandard):
     @external(readonly=True)
     def balanceOf(self, _owner: Address) -> int:
         currentPrincipalBalance = self.principalBalanceOf(_owner)
-    
+
         balance = self._calculateCumulatedBalanceInternal(_owner, currentPrincipalBalance)
         return balance
 
@@ -250,7 +250,6 @@ class OToken(IconScoreBase, TokenStandard):
     @external(readonly=True)
     def principalBalanceOf(self, _user: Address) -> int:
         return self._balances[_user]
-       
 
     # The transfer is only allowed if transferring this amount of the underlying collateral doesn't bring the health factor below 1
     @external(readonly=True)
@@ -288,7 +287,7 @@ class OToken(IconScoreBase, TokenStandard):
         userIndexReset = False
         if currentBalance - amountToRedeem == 0:
             userIndexReset = self._resetDataOnZeroBalanceInternal(self.msg.sender)
-        
+
         pool = self.create_interface_score(self.getLendingPoolAddress(), LendingPoolInterface)
         pool.redeemUnderlying(self.getReserveAddress(), self.msg.sender, amountToRedeem,
                               currentBalance - amountToRedeem)
@@ -303,7 +302,7 @@ class OToken(IconScoreBase, TokenStandard):
     @external
     def mintOnDeposit(self, _user: Address, _amount: int) -> None:
         cumulated = self._cumulateBalanceInternal(_user)
-        
+
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
         self._mint(_user, _amount)
