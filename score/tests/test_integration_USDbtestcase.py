@@ -95,8 +95,17 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self._repay(self.repayAmount)
 
         #Test Case 8 withdraw 100k
-        self.redeemAmount = 100000 * 10 ** 18
-        self._redeem(self.redeemAmount)
+        self.redeemAmount1 = 100000 * 10 ** 18
+        self._redeem(self.redeemAmount1)
+
+        #Test case 9 withdraw 100k
+        self.redeemAmount2 = 100000 * 10 ** 18
+        self._redeem(self.redeemAmount2)
+
+        #Test case 10 withdraw 128461 USDb, anything aboive this will not be allowed.
+        self.redeemAmount3 = 128461 * 10 ** 18
+        self._redeem(self.redeemAmount3)
+
 
     def _setVariablesAndInterfaces(self):
         settings = [{'contract': 'lendingPool', 'method': 'setLendingPoolCoreAddress',
@@ -426,7 +435,6 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         #Check User Account Data
         self.assertEqual(reserveData['availableLiquidity'], (self.depositAmount1 - self.borrowAmount))
         self.assertEqual(reserveData['baseLTVasCollateral'], self.baseLTVasCollateral)
-        #Need Subham Dai to verify the baseLTVasCollateral test
         self.assertEqual(reserveData['baseLTVasCollateral'], self.baseLTVasCollateral)
         self.assertEqual(reserveData['borrowRate'], rates['borrowRate'])
         self.assertEqual(reserveData['liquidityRate'], rates['liquidityRate'])
@@ -563,6 +571,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         print('rates:::', rates)
     """
 
+    """
     def test_Eigth_WithdrawTest(self):
         params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account2.get_address()}
         _call = CallBuilder() \
@@ -604,7 +613,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         originationFee = self.process_call(_call)
         print('originationFee', int(originationFee, 16))
 
-        params = {'_reserve': self.contracts['sample_token'], '_availableLiquidity': (self.depositAmount1 - self.borrowAmount + self.depositAmount2 + self.repayAmount - self.redeemAmount - int(originationFee, 16)) ,'_totalBorrows': (self.borrowAmount - (self.redeemAmount - int(originationFee, 16))) }
+        params = {'_reserve': self.contracts['sample_token'], '_availableLiquidity': (self.depositAmount1 - self.borrowAmount + self.depositAmount2 + self.repayAmount - self.redeemAmount1 - int(originationFee, 16)) ,'_totalBorrows': (self.borrowAmount - (self.repayAmount - int(originationFee, 16))) }
         _call = CallBuilder() \
             .from_(self._test1.get_address()) \
             .to(self.contracts['lendingPoolCore']) \
@@ -614,12 +623,12 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         rates = self.process_call(_call)
         print('rates:::', rates)
 
-        self.assertEqual(reserveData['availableLiquidity'], (self.depositAmount1 - self.borrowAmount - self.redeemAmount + self.depositAmount2 + self.repayAmount - int(originationFee, 16)))
-        #self.assertEqual(reserveData['totalLiquidity'], (self.depositAmount1 - self.redeemAmount + self.depositAmount2 )) #accuredinterest will fail asserEqual
+        self.assertEqual(reserveData['availableLiquidity'], (self.depositAmount1 - self.borrowAmount - self.redeemAmount1 + self.depositAmount2 + self.repayAmount - int(originationFee, 16)))
+        #self.assertEqual(reserveData['totalLiquidity'], (self.depositAmount1 - self.redeemAmount1 + self.depositAmount2 )) #accuredinterest will fail asserEqual
         #self.assertEqual(reserveData['totalBorrows'], (self.borrowAmount - self.repayAmount + int(originationFee, 16)))  #accuredinterest will fail asserEqual
         self.assertEqual(reserveData['borrowRate'], rates['borrowRate'])
         self.assertEqual(reserveData['liquidityRate'], rates['liquidityRate'])
-        self.assertEqual(int(balanceOfUser, 16), (self.userTestFundAmount - self.depositAmount1 + self.borrowAmount - self.depositAmount2 - self.repayAmount + self.redeemAmount ))
+        self.assertEqual(int(balanceOfUser, 16), (self.userTestFundAmount - self.depositAmount1 + self.borrowAmount - self.depositAmount2 - self.repayAmount + self.redeemAmount1 ))
 
         params = {'_user': self.test_account2.get_address()}
         _call = CallBuilder() \
@@ -630,6 +639,78 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .build() 
         userAccountData = self.process_call(_call)
         print('userAccountData', userAccountData)
+    """
+
+    """
+    def test_Ninth_WithdrawTest(self):
+        params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        userReserveData = self.process_call(_call)
+        print('userReserveData', userReserveData)
+
+        params = {'_owner': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['sample_token']) \
+            .method("balanceOf") \
+            .params(params) \
+            .build()
+        balanceOfUser = self.process_call(_call)
+        print('balanceOfUser', int(balanceOfUser, 16))
+
+        params = {'_reserve': self.contracts['sample_token']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveData = self.process_call(_call)
+        print('reserveData:::', reserveData)
+
+        params = {'_user': self.test_account2.get_address(), '_amount': self.borrowAmount}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['feeProvider']) \
+            .method("calculateOriginationFee") \
+            .params(params) \
+            .build()
+        originationFee = self.process_call(_call)
+        print('originationFee', int(originationFee, 16))
+
+        params = {'_reserve': self.contracts['sample_token'], '_availableLiquidity': (self.depositAmount1 - self.borrowAmount + self.depositAmount2 + self.repayAmount - self.redeemAmount1 - self.redeemAmount2 - int(originationFee, 16)) ,'_totalBorrows': (self.borrowAmount - (self.repayAmount - int(originationFee, 16))) }
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolCore']) \
+            .method("calculateInterestRates") \
+            .params(params) \
+            .build()
+        rates = self.process_call(_call)
+        print('rates:::', rates)
+
+        self.assertEqual(reserveData['availableLiquidity'], (self.depositAmount1 - self.borrowAmount - self.redeemAmount1 - self.redeemAmount2 + self.depositAmount2 + self.repayAmount - int(originationFee, 16)))
+        #self.assertEqual(reserveData['totalLiquidity'], (self.depositAmount1 - self.redeemAmount1 + self.depositAmount2 )) #accuredinterest will fail asserEqual
+        #self.assertEqual(reserveData['totalBorrows'], (self.borrowAmount - self.repayAmount + int(originationFee, 16)))  #accuredinterest will fail asserEqual
+        self.assertEqual(reserveData['borrowRate'], rates['borrowRate'])
+        self.assertEqual(reserveData['liquidityRate'], rates['liquidityRate'])
+        self.assertEqual(int(balanceOfUser, 16), (self.userTestFundAmount - self.depositAmount1 + self.borrowAmount - self.depositAmount2 - self.repayAmount + self.redeemAmount1 + self.redeemAmount2))
+
+        params = {'_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAccountData") \
+            .params(params) \
+            .build() 
+        userAccountData = self.process_call(_call)
+        print('userAccountData', userAccountData)
+        """
+
 
 
     
