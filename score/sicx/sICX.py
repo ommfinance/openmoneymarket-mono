@@ -48,6 +48,14 @@ class Sicx(IconScoreBase, TokenStandard):
     def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         pass
 
+    @eventlog(indexed=2)
+    def Mint(self, _account: Address, _amount: int):
+        pass
+
+    @eventlog(indexed=2)
+    def Burn(self, _account: Address, _amount: int):
+        pass
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._total_supply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
@@ -123,8 +131,9 @@ class Sicx(IconScoreBase, TokenStandard):
 
     @external
     @payable
-    def add_collateral(self, _to: Address, _data: bytes = None) -> None:
+    def add_collateral(self, _to: Address,_data: bytes = None) -> int:
         self._mint(_to, self.msg.value)
+        return self.msg.value
 
     def _mint(self, account: Address, amount: int) -> bool:
         """
@@ -139,8 +148,27 @@ class Sicx(IconScoreBase, TokenStandard):
         if amount < 0:
             revert(f"Invalid Value")
 
-        self._totalSupply.set(self._totalSupply.get() + amount)
+        self._total_supply.set(self._total_supply.get() + amount)
         self._balances[account] += amount
 
         # Emits an event log Mint
         self.Mint(account, amount)
+
+    def _burn(self, account: Address, amount: int) -> bool:
+        """
+        Creates amount number of tokens, and assigns to account
+        Increases the balance of that account and total supply.
+        This is an internal function.
+        :param account: The account at which token is to be created.
+        :param amount: Number of tokens to be created at the `account`.
+
+        """
+
+        if amount < 0:
+            revert(f"Invalid Value")
+
+        self._totalSupply.set(self._totalSupply.get() - amount)
+        self._balances[account] -= amount
+
+        # Emits an event log Mint
+        self.Burn(account, amount)

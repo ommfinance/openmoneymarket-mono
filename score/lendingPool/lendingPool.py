@@ -15,14 +15,14 @@ class OTokenInterface(InterfaceScore):
 
 
 # An interface to reserves
-class USDbInterface(InterfaceScore):
+class ReserveInterface(InterfaceScore):
     @interface
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
 
 
 # An interface for sicx
-class SicxInterface(InterfaceScore):
+class SICXInterface(InterfaceScore):
     @interface
     def add_collateral(self, _to: Address, _data: bytes = None) -> None:
         pass
@@ -117,7 +117,7 @@ class LendingPool(IconScoreBase):
         self._dataProviderAddress = VarDB('lendingPoolDataProvider', db, value_type=Address)
         self._feeProviderAddress = VarDB('feeProvider', db, value_type=Address)
         self._USDbAddress = VarDB('USDbAddress', db, value_type=Address)
-        self._sIcxAddress = VarDB('SicxAddress', db, value_type=Address)
+        self._sIcxAddress = VarDB('SICXAddress', db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -170,14 +170,14 @@ class LendingPool(IconScoreBase):
         return self._USDbAddress.get()
 
     @external
-    def setSicxAddress(self, _address: Address) -> None:
+    def setSICXAddress(self, _address: Address) -> None:
         if self.msg.sender != self.owner:
             revert(f'Method can only be invoked by the owner')
 
         self._sIcxAddress.set(_address)
 
     @external(readonly=True)
-    def getSicxAddress(self) -> Address:
+    def getSICXAddress(self) -> Address:
         return self._sIcxAddress.get()
 
     @external
@@ -202,9 +202,27 @@ class LendingPool(IconScoreBase):
     def getFeeProvider(self) -> Address:
         return self._feeProviderAddress.get()
 
+
     @payable
     @external
-    def deposit(self, _reserve: Address, _amount: int):
+    def deposit(self, _amount: int):
+        if self.msg.value != _amount:
+            revert(f'Amount param doesnt match with the icx sent to the Lending Pool')
+
+        # add_collateral must be a method in staking contract
+        # self.getSICXAddress() must be replaced by self.getStakingAddress()
+        staking = self.create_interface_score(self.getSICXAddress(), SICXInterface)
+
+        # _amount will now be equal to equivalent amt of sICX
+        _amount = staking.icx(self.msg.value).add_collateral(self.address)
+        
+        
+        # self.getSICXAddress() provides reserve address for ICX
+        _reserve = self.getSICXAddress()
+
+        self._deposit(_reserve, _amount)
+
+    def _deposit(self, _reserve: Address, _amount: int):
         """
         deposits the underlying asset to the reserve
         :param _reserve:the address of the reserve
@@ -212,8 +230,7 @@ class LendingPool(IconScoreBase):
         :return:
         """
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
-        reserve = self.create_interface_score(_reserve, USDbInterface)
-        sicx = self.create_interface_score(self.getSicxAddress(), SicxInterface)
+        reserve = self.create_interface_score(_reserve, ReserveInterface)
         reserveData = core.getReserveData(_reserve)
         oTokenAddress = reserveData['oTokenAddress']
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
@@ -223,16 +240,12 @@ class LendingPool(IconScoreBase):
 
         core.updateStateOnDeposit(_reserve, self.tx.origin, _amount, isFirstDeposit)
         oToken.mintOnDeposit(self.tx.origin, _amount)
-        if _reserve == self.address:
-            sicx.icx(self.msg.value).add_collateral(self.msg.sender, self.msg.value)
-
-        else:
-            reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
+        reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
 
         self.Deposit(_reserve, self.tx.origin, _amount, self.block.timestamp)
 
     @external
-    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int):
+    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int , _waitForUnstaking: bool = False):
         """
         redeems the underlying amount of assets requested by the _user.This method is called from the oToken contract
         :param _reserve:the address of the reserve
@@ -310,7 +323,7 @@ class LendingPool(IconScoreBase):
         :return:
         """
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
-        USDb = self.create_interface_score(self._USDbAddress.get(), USDbInterface)
+        USDb = self.create_interface_score(self._USDbAddress.get(), ReserveInterface)
         borrowData = core.getUserBorrowBalances(_reserve, self.tx.origin)
         userBasicReserveData = core.getUserBasicReserveData(_reserve, self.tx.origin)
 
@@ -369,7 +382,7 @@ class LendingPool(IconScoreBase):
         if set(d.keys()) != set(["method", "params"]):
             revert('Invalid parameters.')
         if d["method"] == "deposit":
-            self.deposit(self.msg.sender, d["params"].get("amount", -1))
+            self._deposit(self.msg.sender, d["params"].get("amount", -1))
         elif d["method"] == "repay":
             self.repay(self.msg.sender, d["params"].get("amount", -1))
         else:

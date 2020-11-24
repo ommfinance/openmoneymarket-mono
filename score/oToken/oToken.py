@@ -263,7 +263,7 @@ class OToken(IconScoreBase, TokenStandard):
         pass
 
     @external
-    def redeem(self, _amount: int) -> None:
+    def redeem(self, _amount: int , _waitForUnstaking: bool = False) -> None:
         """
         Redeems certain amount of tokens to get the equivalent amount of underlying asset.
 
@@ -272,6 +272,9 @@ class OToken(IconScoreBase, TokenStandard):
         """
         if _amount <= 0:
             revert(f'Amount to redeem needs to be greater than zero')
+        if _waitForUnstaking:
+            revert(f'Unstaking to be implemented')
+            
         cumulated = self._cumulateBalanceInternal(self.msg.sender)
         currentBalance = cumulated['principalBalance']
         balanceIncrease = cumulated['balanceIncrease']
@@ -290,7 +293,7 @@ class OToken(IconScoreBase, TokenStandard):
 
         pool = self.create_interface_score(self.getLendingPoolAddress(), LendingPoolInterface)
         pool.redeemUnderlying(self.getReserveAddress(), self.msg.sender, amountToRedeem,
-                              currentBalance - amountToRedeem)
+                              currentBalance - amountToRedeem, _waitForUnstaking)
         if userIndexReset:
             index = 0
         self.Redeem(self.msg.sender, amountToRedeem, balanceIncrease, index)
