@@ -598,12 +598,12 @@ class LendingPoolCore(IconScoreBase):
     def calculateInterestRates(self, _reserve: Address, _availableLiquidity: int, _totalBorrows: int) -> dict:
         constants = self.getReserveConstants(_reserve)
         rate = {}
-        self.PrintData("params check core line 593", _availableLiquidity, _totalBorrows, 0)
+        # self.PrintData("params check core line 593", _availableLiquidity, _totalBorrows, 0)
         if (_totalBorrows == 0 and _availableLiquidity == 0):
             utilizationRate = 0
         else:
             utilizationRate = exaDiv(_totalBorrows, (_totalBorrows + _availableLiquidity))
-        self.PrintData("Utilization rate core line 598", utilizationRate, 0, 0)
+        # self.PrintData("Utilization rate core line 598", utilizationRate, 0, 0)
 
         if utilizationRate < constants['optimalUtilizationRate']:
             rate['borrowRate'] = constants['baseBorrowRate'] + exaMul(
@@ -614,7 +614,7 @@ class LendingPoolCore(IconScoreBase):
                        (EXA - constants['optimalUtilizationRate'])), constants['slopeRate2'])
 
         rate['liquidityRate'] = exaMul(exaMul(rate['borrowRate'], utilizationRate), 9 * EXA // 10)
-        self.PrintData("rates check core line 609", rate['liquidityRate'], rate['borrowRate'], utilizationRate)
+        # self.PrintData("rates check core line 609", rate['liquidityRate'], rate['borrowRate'], utilizationRate)
 
         return rate
 
