@@ -96,7 +96,36 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def getOracleAddress(self) -> Address:
         return self._oracleAddress.get()
-    
+
+    @external(readonly=True)
+    def getReserveAccountData(self) -> dict:
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        oracle = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
+        totalLiquidityBalanceUSD = 0
+        totalCollateralBalanceUSD = 0
+        totalBorrowBalanceUSD = 0
+        availableLiquidityBalanceUSD=0
+        reserves = core.getReserves()
+        for _reserve in reserves:
+            reserveData=core.getReserveData(_reserve)
+            reservePrice=oracle.get_reference_data(self._symbol[_reserve],'USD')
+            reserveTotalLiquidity=reserveData['totalLiquidity']
+            reserveAvailableLiquidity=reserveData['availableLiquidity']
+            reserveTotalBorrows=reserveData['totalBorrows']
+            totalLiquidityBalanceUSD+=exaMul(reserveTotalLiquidity,reservePrice)
+            availableLiquidityBalanceUSD+=exaMul(reserveAvailableLiquidity,reservePrice)
+            totalBorrowBalanceUSD+=exaMul(reserveTotalBorrows,reservePrice)
+            if reserveData['usageAsCollateralEnabled']:
+                totalCollateralBalanceUSD+=exaMul(reserveTotalLiquidity,reservePrice)
+        response={
+            'totalLiquidityBalanceUSD':totalLiquidityBalanceUSD,
+            'availableLiquidityBalanceUSD':availableLiquidityBalanceUSD,
+            'totalBorrowsBalanceUSD':totalBorrowBalanceUSD,
+            'totalCollateralBalanceUSD':totalCollateralBalanceUSD
+        }
+
+        return response
+
     @external(readonly=True)
     def getUserAccountData(self, _user: Address) -> dict:
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
