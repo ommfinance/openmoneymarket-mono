@@ -214,11 +214,8 @@ class LendingPool(IconScoreBase):
         staking = self.create_interface_score(self.getSICXAddress(), SICXInterface)
 
         # _amount will now be equal to equivalent amt of sICX
-        _amount = staking.icx(self.msg.value).add_collateral(self.address)
-        
-        
-        # self.getSICXAddress() provides reserve address for ICX
-        _reserve = self.getSICXAddress()
+        _amount = staking.icx(self.msg.value).add_collateral(self._lendingPoolCoreAddress.get())
+        _reserve = self._sIcxAddress.get()
 
         self._deposit(_reserve, _amount)
 
@@ -240,7 +237,8 @@ class LendingPool(IconScoreBase):
 
         core.updateStateOnDeposit(_reserve, self.tx.origin, _amount, isFirstDeposit)
         oToken.mintOnDeposit(self.tx.origin, _amount)
-        reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
+        if _reserve != self._sIcxAddress.get():
+            reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
 
         self.Deposit(_reserve, self.tx.origin, _amount, self.block.timestamp)
 
