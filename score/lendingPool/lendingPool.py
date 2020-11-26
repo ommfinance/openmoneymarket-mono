@@ -311,7 +311,7 @@ class LendingPool(IconScoreBase):
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
                     borrowData['balanceIncrease'], self.block.timestamp)
 
-    @payable
+    
     @external
     def repay(self, _reserve: Address, _amount: int):
         """
@@ -321,7 +321,7 @@ class LendingPool(IconScoreBase):
         :return:
         """
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
-        USDb = self.create_interface_score(self._USDbAddress.get(), ReserveInterface)
+        reserve = self.create_interface_score(_reserve, ReserveInterface)
         borrowData = core.getUserBorrowBalances(_reserve, self.tx.origin)
         userBasicReserveData = core.getUserBasicReserveData(_reserve, self.tx.origin)
 
@@ -336,7 +336,7 @@ class LendingPool(IconScoreBase):
             core.updateStateOnRepay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                                     False)
             # core.transferToFeeCollectionAddress
-            USDb.transfer(self._lendingPoolCoreAddress.get(), paybackAmount)
+            reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmount)
 
             self.Repay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                        self.block.timestamp)
@@ -351,7 +351,7 @@ class LendingPool(IconScoreBase):
             # core.transferToFeeCollectionAddress
             pass
 
-        USDb.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
+        reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
         self.Repay(_reserve, self.tx.origin, paybackAmountMinusFees, userBasicReserveData['originationFee'],
                    borrowData['borrowBalanceIncrease'], self.block.timestamp)
 
