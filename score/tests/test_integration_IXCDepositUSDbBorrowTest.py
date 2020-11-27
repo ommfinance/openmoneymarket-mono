@@ -30,11 +30,11 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         # Reserve configurations
         self.feePercentage = 25 * 10 ** 14
         self.USDbRate = 1 * 10 ** 18
-        self.sIXCRate = 1 * 10 ** 18
-        self.IXCRate = 1 * 10 ** 18
+        self.sICXRate = 5 * 10 ** 17
+        self.ICXRate = 1 * 10 ** 18
         self.liquidationBonus = 10
         self.decimals = 18
-        self.baseLTVasCollateral = 6 * 10 ** 17
+        self.baseLTVasCollateral = 33 * 10 ** 16
         self.liquidationThreshold = 65 * 10 ** 16
 
         # Reserve constants of USDb
@@ -84,8 +84,8 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self._depositUSDb(self.depositUSDbAmount1)
 
         #Test Case 2
-        #test_account2 withdraws 40k ICX from sicx reserve
-        self.borrowUSDbAmount1 = 10000 * 10 ** 18
+        #test_account2 borrows 10k USDb from USDb reserve
+        self.borrowUSDbAmount1 = 5000 * 10 ** 18
         self._borrow(self.borrowUSDbAmount1)
 
     def _setVariablesAndInterfaces(self):
@@ -136,7 +136,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
                      'params': {'_base': 'USDb', '_quote': 'USD', '_rate': self.USDbRate}},
 
                     {'contract': 'priceOracle', 'method': 'set_reference_data',
-                     'params': {'_base': 'Sicx', '_quote': 'USD', '_rate': self.sIXCRate}},
+                     'params': {'_base': 'Sicx', '_quote': 'USD', '_rate': self.sICXRate}},
 
                     {'contract': 'addressProvider', 'method': 'setLendingPool',
                      'params': {'_address': self.contracts['lendingPool']}},
@@ -596,7 +596,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(user3ReserveDataUSDb['currentOTokenBalance'], self.depositUSDbAmount1)
         self.assertEqual(user3ReserveDatasICX['currentOTokenBalance'], 0)
         self.assertEqual(user3ReserveDataUSDb['borrowRate'], self.baseBorrowRateUSDb)
-        self.assertEqual(user2AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositICXAmount1, self.IXCRate))
+        self.assertEqual(user2AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositICXAmount1, self.sICXRate))
         self.assertEqual(user3AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositUSDbAmount1, self.USDbRate))
         self.assertEqual(user2AllReserveData['USDb']['currentOTokenBalance'] + user2AllReserveData['Sicx']['currentOTokenBalance'] , user2ReserveDataUSDb['currentOTokenBalance'] + user2ReserveDatasICX['currentOTokenBalance'])
         self.assertEqual(user3AllReserveData['USDb']['currentOTokenBalance'] + user3AllReserveData['Sicx']['currentOTokenBalance'] , user3ReserveDataUSDb['currentOTokenBalance'] + user3ReserveDatasICX['currentOTokenBalance'])
@@ -608,11 +608,11 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(reserveDatasICX['totalLiquidity'], self.depositICXAmount1)
         self.assertEqual(reserveDatasICX['availableLiquidity'], self.depositICXAmount1)
         self.assertEqual(reserveDatasICX['totalBorrows'], 0)
-        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.IXCRate))
-        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.IXCRate))
-        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.IXCRate))
-        self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.IXCRate))
-        self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.IXCRate))
+        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
     """
 
     def test_one_borrowTest(self):
@@ -757,7 +757,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         #print('originationFeeUser2USdbBorrow', int(originationFeeUser2USdbBorrow, 16))
 
         #healthfactor for user2
-        params = {'_collateralBalanceUSD': exaMul((self.depositICXAmount1), self.USDbRate),
+        params = {'_collateralBalanceUSD': exaMul((self.depositICXAmount1), self.sICXRate),
                  '_borrowBalanceUSD': exaMul(self.borrowUSDbAmount1, self.USDbRate),
                  '_totalFeesUSD': exaMul(int(originationFeeUser2USdbBorrow, 16), self.USDbRate),
                  '_liquidationThreshold': user2AccountData['currentLiquidationThreshold']}
@@ -782,7 +782,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(user3ReserveDataUSDb['liquidityRate'], ratesUSDb['liquidityRate'])
         self.assertEqual(user3ReserveDataUSDb['originationFee'], 0)
         self.assertEqual(user3ReserveDatasICX['currentOTokenBalance'], 0)  
-        self.assertEqual(user2AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositICXAmount1, self.IXCRate))
+        self.assertEqual(user2AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositICXAmount1, self.sICXRate))
         self.assertEqual(user2AccountData['totalBorrowBalanceUSD'], exaMul(self.borrowUSDbAmount1, self.USDbRate))
         self.assertEqual(user2AccountData['healthFactor'], int(healthFactorUser2, 16))
         self.assertEqual(user3AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositUSDbAmount1, self.USDbRate))
@@ -797,8 +797,8 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(reserveDatasICX['totalLiquidity'], self.depositICXAmount1)
         self.assertEqual(reserveDatasICX['availableLiquidity'], self.depositICXAmount1)
         self.assertEqual(reserveDatasICX['totalBorrows'], 0)
-        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.IXCRate))
-        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.IXCRate))
-        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.IXCRate))
-        self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.IXCRate))
-        self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.IXCRate))
+        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))

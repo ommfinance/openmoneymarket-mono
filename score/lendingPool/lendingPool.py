@@ -214,11 +214,8 @@ class LendingPool(IconScoreBase):
         staking = self.create_interface_score(self.getSICXAddress(), SICXInterface)
 
         # _amount will now be equal to equivalent amt of sICX
-        _amount = staking.icx(self.msg.value).add_collateral(self.address)
-        
-        
-        # self.getSICXAddress() provides reserve address for ICX
-        _reserve = self.getSICXAddress()
+        _amount = staking.icx(self.msg.value).add_collateral(self._lendingPoolCoreAddress.get())
+        _reserve = self._sIcxAddress.get()
 
         self._deposit(_reserve, _amount)
 
@@ -240,7 +237,8 @@ class LendingPool(IconScoreBase):
 
         core.updateStateOnDeposit(_reserve, self.tx.origin, _amount, isFirstDeposit)
         oToken.mintOnDeposit(self.tx.origin, _amount)
-        reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
+        if _reserve != self._sIcxAddress.get():
+            reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
 
         self.Deposit(_reserve, self.tx.origin, _amount, self.block.timestamp)
 
@@ -313,7 +311,7 @@ class LendingPool(IconScoreBase):
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
                     borrowData['balanceIncrease'], self.block.timestamp)
 
-    @payable
+    
     @external
     def repay(self, _reserve: Address, _amount: int):
         """
@@ -323,7 +321,7 @@ class LendingPool(IconScoreBase):
         :return:
         """
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
-        USDb = self.create_interface_score(self._USDbAddress.get(), ReserveInterface)
+        reserve = self.create_interface_score(_reserve, ReserveInterface)
         borrowData = core.getUserBorrowBalances(_reserve, self.tx.origin)
         userBasicReserveData = core.getUserBasicReserveData(_reserve, self.tx.origin)
 
@@ -338,7 +336,7 @@ class LendingPool(IconScoreBase):
             core.updateStateOnRepay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                                     False)
             # core.transferToFeeCollectionAddress
-            USDb.transfer(self._lendingPoolCoreAddress.get(), paybackAmount)
+            reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmount)
 
             self.Repay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                        self.block.timestamp)
@@ -353,7 +351,7 @@ class LendingPool(IconScoreBase):
             # core.transferToFeeCollectionAddress
             pass
 
-        USDb.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
+        reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
         self.Repay(_reserve, self.tx.origin, paybackAmountMinusFees, userBasicReserveData['originationFee'],
                    borrowData['borrowBalanceIncrease'], self.block.timestamp)
 

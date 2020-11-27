@@ -178,7 +178,9 @@ class LendingPoolDataProvider(IconScoreBase):
                                                                       totalFeesUSD, currentLiquidationThreshold)
         if healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD and  healthFactor !=- 1:
             healthFactorBelowThreshold = True
-        
+
+        borrowingPower = self.calculateBorrowingPowerFromBalancesInternal(totalCollateralBalanceUSD, totalBorrowBalanceUSD,
+                                                                      totalFeesUSD, currentLiquidationThreshold)
         response = {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
@@ -187,6 +189,7 @@ class LendingPoolDataProvider(IconScoreBase):
             'currentLtv': currentLtv,
             'currentLiquidationThreshold': currentLiquidationThreshold,
             'healthFactor': healthFactor,
+            'borrowingPower': borrowingPower,
             'healthFactorBelowThreshold': healthFactorBelowThreshold
         }
 
