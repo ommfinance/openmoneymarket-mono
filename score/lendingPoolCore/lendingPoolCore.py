@@ -443,6 +443,10 @@ class LendingPoolCore(IconScoreBase):
         reserveScore = self.create_interface_score(_reserve, ReserveInterface)
         reserveScore.transfer(_user, _amount)
 
+    @external()
+    def liquidateFee(self, _token: Address, _amount: int, _destination: Address) -> None:
+        pass
+
     @external
     def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
         self.updateCumulativeIndexes(_reserve)
@@ -541,16 +545,32 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserOriginationFee(_reserve, _user, userReserveData['originationFee'] - _originationFeeRepaid)
         self.updateUserLastUpdateTimestamp(_reserve, _user, self.block.timestamp)
 
+    @external(readonly=True)
+    def getReserveOTokenAddress(self, _reserve: Address) -> Address:
+        reserveData = self.getReserveData(_reserve)
+        return reserveData['oTokenAddress']
+
+    @external
+    def updateStateOnLiquidation(self, _principalReserve: Address, _collateralReserve: Address, _user: Address,
+                                 _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,
+                                 _liquidatedCollateralForFee: int, _balanceIncrease: int):
+        pass
+
     @external
     def setUserUseReserveAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: bool) -> None:
         self.updateUserReserveUseAsCollateral(_reserve, _user, _useAsCollateral)
 
-    @external
-    def getUserUnderlyingAssetBalance(self, _reserve: Address, _user: Address) -> None:
+    @external(readonly=True)
+    def getUserUnderlyingAssetBalance(self, _reserve: Address, _user: Address) -> int:
         reserveData = self.getReserveData(_reserve)
         oToken = self.create_interface_score(reserveData['oTokenAddress'], oTokenInterface)
         balance = oToken.balanceOf(_user)
         return balance
+
+    @external(readonly=True)
+    def getUserOriginationFee(self, _reserve: Address, _user: Address) -> int:
+        userReserveData = self.getUserReserveData(_reserve, _user)
+        return userReserveData['originationFee']
 
     @external(readonly=True)
     def getUserBasicReserveData(self, _reserve: Address, _user: Address) -> dict:
