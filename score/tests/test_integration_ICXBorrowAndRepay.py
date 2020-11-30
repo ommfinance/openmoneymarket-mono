@@ -654,6 +654,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(exaMul((reserveDatasICX['availableLiquidity'] + reserveDataUSDb['availableLiquidity']), self.sICXRate), reserveAccountData['availableLiquidityBalanceUSD'])
     """
     
+    """
     def test_three_repayTest(self):
         params = {'_owner': self.test_account2.get_address()}
         _call = CallBuilder() \
@@ -812,3 +813,4 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual((userReserveDataUSDb['currentOTokenBalance'] + userReserveDatasICX['currentOTokenBalance']), self.depositICXAmount1)
         self.assertEqual((getUserAllReserveData['USDb']['currentOTokenBalance'] + getUserAllReserveData['Sicx']['currentOTokenBalance']),  (userReserveDataUSDb['currentOTokenBalance'] + userReserveDatasICX['currentOTokenBalance']))
         self.assertEqual(userAccountData['borrowingPower'], exaDiv(( reserveAccountData['totalBorrowsBalanceUSD'] + userAccountData['totalFeesUSD'] ),exaMul(reserveAccountData['totalCollateralBalanceUSD'], self.liquidationThreshold)))
+        """

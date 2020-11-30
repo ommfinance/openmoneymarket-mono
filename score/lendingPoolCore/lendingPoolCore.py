@@ -635,7 +635,7 @@ class LendingPoolCore(IconScoreBase):
 
         rate['liquidityRate'] = exaMul(exaMul(rate['borrowRate'], utilizationRate), 9 * EXA // 10)
         # self.PrintData("rates check core line 609", rate['liquidityRate'], rate['borrowRate'], utilizationRate)
-
+        
         return rate
 
     @external

@@ -277,7 +277,6 @@ class LendingPoolDataProvider(IconScoreBase):
         price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
         requestedBorrowUSD = exaMul(price, _amount)
-
         collateralNeededInUSD = exaDiv(_userCurrentBorrowBalanceUSD + _userCurrentFeesUSD+requestedBorrowUSD, _userCurrentLtv)
         return collateralNeededInUSD
 
@@ -295,7 +294,7 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly = True)
     def calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
                                                   _totalFeesUSD: int, _liquidationThreshold: int) -> int:
-        if _borrowBalanceUSD == 0:
+        if _borrowBalanceUSD == 0:        
             return -1
         healthFactor =exaDiv(exaMul(_collateralBalanceUSD, _liquidationThreshold),_borrowBalanceUSD + _totalFeesUSD) 
         return healthFactor

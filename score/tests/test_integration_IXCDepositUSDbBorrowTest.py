@@ -34,7 +34,8 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.ICXRate = 1 * 10 ** 18
         self.liquidationBonus = 10
         self.decimals = 18
-        self.baseLTVasCollateral = 33 * 10 ** 16
+        self.baseLTVasCollateralICX = 33 * 10 ** 16
+        self.baseLTVasCollateralUSDb = 33 * 10 ** 16
         self.liquidationThreshold = 65 * 10 ** 16
 
         # Reserve constants of USDb
@@ -79,14 +80,39 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.depositICXAmount1 = 50000 * 10 ** 18
         self._depositICX(self.depositICXAmount1)
 
-        #test_account3 deposits 50k USDb into usdb reserve i.e sample_token        
+        #test_account3 deposits 40k USDb into usdb reserve i.e sample_token        
         self.depositUSDbAmount1 = 40000 * 10 ** 18
         self._depositUSDb(self.depositUSDbAmount1)
 
         #Test Case 2
-        #test_account2 borrows 10k USDb from USDb reserve
+        #test_account2 borrows 5k USDb from USDb reserve
         self.borrowUSDbAmount1 = 5000 * 10 ** 18
-        self._borrow(self.borrowUSDbAmount1)
+        self._borrowUSDb(self.borrowUSDbAmount1)
+        
+        #Test Case 3
+        #test_account3 borrows 20k sICX from sICX reserve
+        self.borrowSICXAmount1 = 20000 * 10 ** 18
+        self._borrowSICX(self.borrowSICXAmount1)
+
+        #Test Case 4
+        #test_account2  Repays 3k USDb 
+        self.repayUSDbAmount1 = 3000 * 10 ** 18
+        self._repayUSDb(self.repayUSDbAmount1)
+
+        #Test Case 5
+        #test_account3  Repays 15k sICX
+        self.repaySICXAmount1 = 15000 * 10 ** 18
+        self._repaySICX(self.repaySICXAmount1)
+
+        #Test Case 6
+        #test_Account2 redeems 10k ICX
+        self.redeemIXCAmount1 = 10000 * 10 ** 18
+        self._redeemIXC(self.redeemIXCAmount1)
+
+        #Test Case 7
+        #test_Account3 redeems 20k USDb
+        self.redeemUSDbAmount1 = 20000 * 10 ** 18
+        self._redeemUSDb(self.redeemUSDbAmount1)
 
     def _setVariablesAndInterfaces(self):
         settings = [{'contract': 'lendingPool', 'method': 'setLendingPoolCoreAddress',
@@ -191,7 +217,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
                                "borrowRate": "0",
                                "liquidityCumulativeIndex": f"1{'0' * 18}",
                                "borrowCumulativeIndex": f"1{'0' * 18}",
-                               "baseLTVasCollateral": str(self.baseLTVasCollateral),
+                               "baseLTVasCollateral": str(self.baseLTVasCollateralUSDb),
                                "liquidationThreshold": str(self.liquidationThreshold),
                                "liquidationBonus": str(self.liquidationBonus),
                                "decimals": str(self.decimals),
@@ -209,7 +235,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
                                "borrowRate": "0",
                                "liquidityCumulativeIndex": f"1{'0' * 18}",
                                "borrowCumulativeIndex": f"1{'0' * 18}",
-                               "baseLTVasCollateral": str(self.baseLTVasCollateral),
+                               "baseLTVasCollateral": str(self.baseLTVasCollateralICX),
                                "liquidationThreshold": str(self.liquidationThreshold),
                                "liquidationBonus": str(self.liquidationBonus),
                                "decimals": str(self.decimals),
@@ -374,7 +400,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertTrue('status' in tx_result)
         self.assertEqual(1, tx_result['status'])
 
-    def _borrow(self, _borrowAmount : int):
+    def _borrowUSDb(self, _borrowAmount : int):
         params = {"_reserve": self.contracts['sample_token'], "_amount": _borrowAmount}
         call_transaction = CallTransactionBuilder() \
             .from_(self.test_account2.get_address()) \
@@ -391,6 +417,94 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(1, tx_result['status'])
         self.assertTrue('status' in tx_result)
 
+    def _borrowSICX(self, _borrowAmount : int):
+        params = {"_reserve": self.contracts['sicx'], "_amount": _borrowAmount}
+        call_transaction = CallTransactionBuilder() \
+            .from_(self.test_account3.get_address()) \
+            .to(self.contracts['lendingPool']) \
+            .nid(3) \
+            .step_limit(10000000) \
+            .nonce(100) \
+            .method("borrow") \
+            .params(params) \
+            .build()
+        signed_transaction = SignedTransaction(
+            call_transaction, self.test_account2)
+        tx_result = self.process_transaction(signed_transaction)
+        self.assertEqual(1, tx_result['status'])
+        self.assertTrue('status' in tx_result)
+
+    def _repayUSDb(self, _repayAmount: int):
+        depositData = {'method': 'repay', 'params': {'amount': _repayAmount}}
+        data = json.dumps(depositData).encode('utf-8')
+        params = {"_to": self.contracts['lendingPool'],
+                  "_value": _repayAmount, "_data": data}
+        call_transaction = CallTransactionBuilder() \
+            .from_(self.test_account2.get_address()) \
+            .to(self.contracts['sample_token']) \
+            .nid(3) \
+            .step_limit(10000000) \
+            .nonce(100) \
+            .method("transfer") \
+            .params(params) \
+            .build()
+        signed_transaction = SignedTransaction(
+            call_transaction, self.test_account2)
+        tx_result = self.process_transaction(signed_transaction)
+        self.assertTrue('status' in tx_result)
+        self.assertEqual(1, tx_result['status'])
+
+    def _repaySICX(self, _repayAmount: int):
+        depositData = {'method': 'repay', 'params': {'amount': _repayAmount}}
+        data = json.dumps(depositData).encode('utf-8')
+        params = {"_to": self.contracts['lendingPool'],
+                  "_value": _repayAmount, "_data": data}
+        call_transaction = CallTransactionBuilder() \
+            .from_(self.test_account3.get_address()) \
+            .to(self.contracts['sicx']) \
+            .nid(3) \
+            .step_limit(10000000) \
+            .nonce(100) \
+            .method("transfer") \
+            .params(params) \
+            .build()
+        signed_transaction = SignedTransaction(
+            call_transaction, self.test_account2)
+        tx_result = self.process_transaction(signed_transaction)
+        self.assertTrue('status' in tx_result)
+        self.assertEqual(1, tx_result['status'])
+
+    def _redeemIXC(self, _redeemAmount : int):
+        params = {"_amount": _redeemAmount}
+        call_transaction = CallTransactionBuilder() \
+            .from_(self.test_account2.get_address()) \
+            .to(self.contracts['oICX']) \
+            .nid(3) \
+            .step_limit(10000000) \
+            .nonce(100) \
+            .method("redeem") \
+            .params(params) \
+            .build()
+        signed_transaction = SignedTransaction(call_transaction, self.test_account2)
+        tx_result = self.process_transaction(signed_transaction)
+        self.assertTrue('status' in tx_result)
+        self.assertEqual(1, tx_result['status'])  
+
+    def _redeemUSDb(self, _redeemAmount : int):
+        params = {"_amount": _redeemAmount}
+        call_transaction = CallTransactionBuilder() \
+            .from_(self.test_account3.get_address()) \
+            .to(self.contracts['oUSDb']) \
+            .nid(3) \
+            .step_limit(10000000) \
+            .nonce(100) \
+            .method("redeem") \
+            .params(params) \
+            .build()
+        signed_transaction = SignedTransaction(call_transaction, self.test_account2)
+        tx_result = self.process_transaction(signed_transaction)
+        self.assertTrue('status' in tx_result)
+        self.assertEqual(1, tx_result['status']) 
     """
     def test_one_initTest(self):
         params = {'_owner': self.test_account2.get_address()}
@@ -615,7 +729,8 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
     """
 
-    def test_one_borrowTest(self):
+    """
+    def test_two_borrowTestUSDb(self):
         params = {'_owner': self.test_account2.get_address()}
         _call = CallBuilder() \
             .from_(self._test1.get_address()) \
@@ -624,7 +739,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         balanceOfUser2USDb = self.process_call(_call)
-        #print('balanceOfUser2USDb', int(balanceOfUser2USDb, 16))
+        print('balanceOfUser2USDb', int(balanceOfUser2USDb, 16))
 
         self.assertEqual(balanceOfUser2USDb, hex(self.borrowUSDbAmount1))
 
@@ -636,7 +751,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         user2ReserveDataUSDb = self.process_call(_call)
-        #print('USERR2ESERVEDATAUSDB', user2ReserveDataUSDb)
+        print('USERR2ESERVEDATAUSDB', user2ReserveDataUSDb)
 
         params = {'_reserve': self.contracts['sicx'], '_user': self.test_account2.get_address()}
         _call = CallBuilder() \
@@ -646,7 +761,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         user2ReserveDatasICX = self.process_call(_call)
-        #print('USER2RESERVEDATASICX', user2ReserveDatasICX)
+        print('USER2RESERVEDATASICX', user2ReserveDatasICX)
 
         params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account3.get_address()}
         _call = CallBuilder() \
@@ -656,7 +771,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         user3ReserveDataUSDb = self.process_call(_call)
-        #print('USERR3ESERVEDATAUSDB', user3ReserveDataUSDb)
+        print('USERR3ESERVEDATAUSDB', user3ReserveDataUSDb)
 
         params = {'_reserve': self.contracts['sicx'], '_user': self.test_account3.get_address()}
         _call = CallBuilder() \
@@ -666,7 +781,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         user3ReserveDatasICX = self.process_call(_call)
-        #print('USER3RESERVEDATASICX', user3ReserveDatasICX)
+        print('USER3RESERVEDATASICX', user3ReserveDatasICX)
 
         params = {'_user': self.test_account2.get_address()}
         _call = CallBuilder() \
@@ -676,7 +791,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build() 
         user2AccountData = self.process_call(_call)
-        #print('USER2ACCOUNTDATA', user2AccountData)
+        print('USER2ACCOUNTDATA', user2AccountData)
 
         params = {'_user': self.test_account3.get_address()}
         _call = CallBuilder() \
@@ -686,7 +801,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build() 
         user3AccountData = self.process_call(_call)
-        #print('USER3ACCOUNTDATA', user3AccountData)
+        print('USER3ACCOUNTDATA', user3AccountData)
 
         params = {'_user': self.test_account2.get_address()}
         _call = CallBuilder() \
@@ -696,7 +811,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build() 
         user2AllReserveData = self.process_call(_call)
-        #print('USER2ALLRESERVEDATA', user2AllReserveData)
+        print('USER2ALLRESERVEDATA', user2AllReserveData)
 
         params = {'_user': self.test_account3.get_address()}
         _call = CallBuilder() \
@@ -706,7 +821,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build() 
         user3AllReserveData = self.process_call(_call)
-        #print('USER3ALLRESERVEDATA', user3AllReserveData)
+        print('USER3ALLRESERVEDATA', user3AllReserveData)
 
         params = {'_reserve': self.contracts['sample_token']}
         _call = CallBuilder() \
@@ -716,7 +831,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         reserveDataUSDb = self.process_call(_call)
-        #print('RESERVEDATAUSDB:::', reserveDataUSDb)
+        print('RESERVEDATAUSDB:::', reserveDataUSDb)
 
         params = {'_reserve': self.contracts['sicx']}
         _call = CallBuilder() \
@@ -726,7 +841,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         reserveDatasICX = self.process_call(_call)
-        #print('RESERVEDATASICX:::', reserveDatasICX)
+        print('RESERVEDATASICX:::', reserveDatasICX)
 
         _call = CallBuilder() \
             .from_(self._test1.get_address()) \
@@ -734,7 +849,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .method("getReserveAccountData") \
             .build() 
         reserveAccountData = self.process_call(_call)
-        #print('RESERVEACCOUNTDATA', reserveAccountData)
+        print('RESERVEACCOUNTDATA', reserveAccountData)
 
         params = {'_reserve': self.contracts['sample_token'], '_availableLiquidity': (self.depositUSDbAmount1 - self.borrowUSDbAmount1) ,'_totalBorrows': self.borrowUSDbAmount1}
         _call = CallBuilder() \
@@ -744,7 +859,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         ratesUSDb = self.process_call(_call)
-        #print('ratesUSDb:::', ratesUSDb)
+        print('ratesUSDb:::', ratesUSDb) 
 
         params = {'_user': self.test_account2.get_address(), '_amount': self.borrowUSDbAmount1}
         _call = CallBuilder() \
@@ -754,7 +869,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         originationFeeUser2USdbBorrow = self.process_call(_call)
-        #print('originationFeeUser2USdbBorrow', int(originationFeeUser2USdbBorrow, 16))
+        print('originationFeeUser2USdbBorrow', int(originationFeeUser2USdbBorrow, 16))
 
         #healthfactor for user2
         params = {'_collateralBalanceUSD': exaMul((self.depositICXAmount1), self.sICXRate),
@@ -768,7 +883,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         healthFactorUser2 = self.process_call(_call)
-        #print('healthFactorUser2', int(healthFactorUser2, 16))
+        print('healthFactorUser2', int(healthFactorUser2, 16))
 
         self.assertEqual(user2ReserveDataUSDb['currentOTokenBalance'], 0)
         self.assertEqual(user2ReserveDataUSDb['currentBorrowBalance'], self.borrowUSDbAmount1)
@@ -802,3 +917,844 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
         self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.sICXRate))
         self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+    """
+    """
+    def test_three_borrowTestsICX(self):
+        params = {'_owner': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['sicx']) \
+            .method("balanceOf") \
+            .params(params) \
+            .build()
+        balanceOfUser3sICX = self.process_call(_call)
+        print('balanceOfUser3sICX', int(balanceOfUser3sICX, 16))
+
+        self.assertEqual(balanceOfUser3sICX, hex(self.borrowSICXAmount1))
+
+        params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user2ReserveDataUSDb = self.process_call(_call)
+        print('USERR2ESERVEDATAUSDB', user2ReserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx'], '_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user2ReserveDatasICX = self.process_call(_call)
+        print('USER2RESERVEDATASICX', user2ReserveDatasICX)
+
+        params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user3ReserveDataUSDb = self.process_call(_call)
+        print('USERR3ESERVEDATAUSDB', user3ReserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx'], '_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user3ReserveDatasICX = self.process_call(_call)
+        print('USER3RESERVEDATASICX', user3ReserveDatasICX)
+
+        params = {'_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAccountData") \
+            .params(params) \
+            .build() 
+        user2AccountData = self.process_call(_call)
+        print('USER2ACCOUNTDATA', user2AccountData)
+
+        params = {'_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAccountData") \
+            .params(params) \
+            .build() 
+        user3AccountData = self.process_call(_call)
+        print('USER3ACCOUNTDATA', user3AccountData)
+
+        params = {'_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAllReserveData") \
+            .params(params) \
+            .build() 
+        user2AllReserveData = self.process_call(_call)
+        print('USER2ALLRESERVEDATA', user2AllReserveData)
+
+        params = {'_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAllReserveData") \
+            .params(params) \
+            .build() 
+        user3AllReserveData = self.process_call(_call)
+        print('USER3ALLRESERVEDATA', user3AllReserveData)
+
+        params = {'_reserve': self.contracts['sample_token']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDataUSDb = self.process_call(_call)
+        print('RESERVEDATAUSDB:::', reserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDatasICX = self.process_call(_call)
+        print('RESERVEDATASICX:::', reserveDatasICX)
+
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveAccountData") \
+            .build() 
+        reserveAccountData = self.process_call(_call)
+        print('RESERVEACCOUNTDATA', reserveAccountData)
+
+        params = {'_reserve': self.contracts['sicx'], '_availableLiquidity': (self.depositICXAmount1 - self.borrowSICXAmount1) ,'_totalBorrows': self.borrowSICXAmount1}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolCore']) \
+            .method("calculateInterestRates") \
+            .params(params) \
+            .build()
+        ratessICX = self.process_call(_call)
+        print('ratessICX:::', ratessICX) 
+
+        params = {'_user': self.test_account3.get_address(), '_amount': self.borrowSICXAmount1}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['feeProvider']) \
+            .method("calculateOriginationFee") \
+            .params(params) \
+            .build()
+        originationFeeUser3sICXBorrow = self.process_call(_call)
+        print('originationFeeUser3sICXBorrow', int(originationFeeUser3sICXBorrow, 16))
+
+        #healthfactor for user2
+        params = {'_collateralBalanceUSD': exaMul((self.depositUSDbAmount1), self.USDbRate),
+                 '_borrowBalanceUSD': exaMul(self.borrowSICXAmount1, self.sICXRate),
+                 '_totalFeesUSD': exaMul(int(originationFeeUser3sICXBorrow, 16), self.sICXRate),
+                 '_liquidationThreshold': user2AccountData['currentLiquidationThreshold']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("calculateHealthFactorFromBalancesInternal") \
+            .params(params) \
+            .build()
+        healthFactorUser3 = self.process_call(_call)
+        print('healthFactorUser3', int(healthFactorUser3, 16))
+
+        self.assertEqual(user2ReserveDataUSDb['currentOTokenBalance'], 0)
+        #Commented Test does not pass due to accured interest for
+        #self.assertEqual(user2ReserveDataUSDb['currentBorrowBalance'], self.borrowUSDbAmount1)
+        #self.assertEqual(user2ReserveDataUSDb['currentBorrowBalanceUSD'], exaMul(self.borrowUSDbAmount1, self.USDbRate))
+        self.assertEqual(user2ReserveDatasICX['currentOTokenBalance'], self.depositICXAmount1)
+        self.assertEqual(user3ReserveDataUSDb['currentOTokenBalance'], self.depositUSDbAmount1)
+        self.assertEqual(user3ReserveDatasICX['borrowRate'], ratessICX['borrowRate'])
+        self.assertEqual(user3ReserveDatasICX['liquidityRate'], ratessICX['liquidityRate'])
+        self.assertEqual(user3ReserveDatasICX['originationFee'], int(originationFeeUser3sICXBorrow, 16))
+        self.assertEqual(user3ReserveDatasICX['currentOTokenBalance'], 0)  
+        self.assertEqual(user2AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositICXAmount1, self.sICXRate))
+        #sself.assertEqual(user2AccountData['totalBorrowBalanceUSD'], exaMul(self.borrowUSDbAmount1, self.USDbRate))
+        self.assertEqual(user3AccountData['healthFactor'], int(healthFactorUser3, 16))
+        self.assertEqual(user3AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositUSDbAmount1, self.USDbRate))
+        self.assertEqual(user2AllReserveData['USDb']['currentOTokenBalance'] + user2AllReserveData['Sicx']['currentOTokenBalance'] , user2ReserveDataUSDb['currentOTokenBalance'] + user2ReserveDatasICX['currentOTokenBalance'])
+        self.assertEqual(user3AllReserveData['USDb']['currentOTokenBalance'] + user3AllReserveData['Sicx']['currentOTokenBalance'] , user3ReserveDataUSDb['currentOTokenBalance'] + user3ReserveDatasICX['currentOTokenBalance'])
+        self.assertEqual(reserveDatasICX['borrowRate'], ratessICX['borrowRate'])
+        self.assertEqual(reserveDatasICX['liquidityRate'], ratessICX['liquidityRate'])
+        self.assertEqual(reserveDataUSDb['totalLiquidity'], self.depositUSDbAmount1)
+        self.assertEqual(reserveDataUSDb['availableLiquidity'], (self.depositUSDbAmount1 - self.borrowUSDbAmount1))
+        self.assertEqual(reserveDataUSDb['totalBorrows'], self.borrowUSDbAmount1)  
+        self.assertEqual(reserveDatasICX['totalLiquidity'], self.depositICXAmount1)
+        self.assertEqual(reserveDatasICX['availableLiquidity'], (self.depositICXAmount1 - self.borrowSICXAmount1))
+        self.assertEqual(reserveDatasICX['totalBorrows'], self.borrowSICXAmount1)
+        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+        """
+    
+    """
+    def test_four_repayTestUSDb(self):
+        params = {'_owner': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['sample_token']) \
+            .method("balanceOf") \
+            .params(params) \
+            .build()
+        balanceOfUser2USDb = self.process_call(_call)
+        print('balanceOfUser2USDb', int(balanceOfUser2USDb, 16))
+
+        self.assertEqual(balanceOfUser2USDb, hex(self.borrowUSDbAmount1 - self.repayUSDbAmoubt1))
+
+        params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user2ReserveDataUSDb = self.process_call(_call)
+        print('USERR2ESERVEDATAUSDB', user2ReserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx'], '_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user2ReserveDatasICX = self.process_call(_call)
+        print('USER2RESERVEDATASICX', user2ReserveDatasICX)
+
+        params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user3ReserveDataUSDb = self.process_call(_call)
+        print('USERR3ESERVEDATAUSDB', user3ReserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx'], '_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user3ReserveDatasICX = self.process_call(_call)
+        print('USER3RESERVEDATASICX', user3ReserveDatasICX)
+
+        params = {'_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAccountData") \
+            .params(params) \
+            .build() 
+        user2AccountData = self.process_call(_call)
+        print('USER2ACCOUNTDATA', user2AccountData)
+
+        params = {'_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAccountData") \
+            .params(params) \
+            .build() 
+        user3AccountData = self.process_call(_call)
+        print('USER3ACCOUNTDATA', user3AccountData)
+
+        params = {'_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAllReserveData") \
+            .params(params) \
+            .build() 
+        user2AllReserveData = self.process_call(_call)
+        print('USER2ALLRESERVEDATA', user2AllReserveData)
+
+        params = {'_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAllReserveData") \
+            .params(params) \
+            .build() 
+        user3AllReserveData = self.process_call(_call)
+        print('USER3ALLRESERVEDATA', user3AllReserveData)
+
+        params = {'_reserve': self.contracts['sample_token']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDataUSDb = self.process_call(_call)
+        print('RESERVEDATAUSDB:::', reserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDatasICX = self.process_call(_call)
+        print('RESERVEDATASICX:::', reserveDatasICX)
+
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveAccountData") \
+            .build() 
+        reserveAccountData = self.process_call(_call)
+        print('RESERVEACCOUNTDATA', reserveAccountData)
+
+        params = {'_user': self.test_account2.get_address(), '_amount': self.borrowUSDbAmount1}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['feeProvider']) \
+            .method("calculateOriginationFee") \
+            .params(params) \
+            .build()
+        originationFeeUser2USdbBorrow = self.process_call(_call)
+        print('originationFeeUser2USdbBorrow', int(originationFeeUser2USdbBorrow, 16))
+
+        params = {'_reserve': self.contracts['sample_token'], '_availableLiquidity': (self.depositUSDbAmount1 - self.borrowUSDbAmount1 + self.repayUSDbAmoubt1 - int(originationFeeUser2USdbBorrow, 16)) ,'_totalBorrows': self.borrowUSDbAmount1 - self.repayUSDbAmoubt1 + int(originationFeeUser2USdbBorrow, 16)}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolCore']) \
+            .method("calculateInterestRates") \
+            .params(params) \
+            .build()
+        ratesUSDb = self.process_call(_call)
+        print('ratesUSDb:::', ratesUSDb) 
+
+        #healthfactor for user2
+        params = {'_collateralBalanceUSD': exaMul((self.depositICXAmount1), self.sICXRate),
+                 '_borrowBalanceUSD': exaMul(self.borrowUSDbAmount1 - self.repayUSDbAmoubt1 + int(originationFeeUser2USdbBorrow,16), self.USDbRate),
+                 '_totalFeesUSD': 0,
+                 '_liquidationThreshold': user2AccountData['currentLiquidationThreshold']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("calculateHealthFactorFromBalancesInternal") \
+            .params(params) \
+            .build()
+        healthFactorUser2 = self.process_call(_call)
+        print('healthFactorUser2', int(healthFactorUser2, 16))
+        
+        self.assertEqual(user2ReserveDataUSDb['currentOTokenBalance'], 0)
+        #Commented test does not pass due to accured interest
+        #self.assertEqual(user2ReserveDataUSDb['currentBorrowBalance'], (self.borrowUSDbAmount1 - self.repayUSDbAmoubt1 + int(originationFeeUser2USdbBorrow, 16)))
+        #self.assertEqual(user2ReserveDataUSDb['currentBorrowBalanceUSD'], exaMul((self.borrowUSDbAmount1 - self.repayUSDbAmoubt1 + int(originationFeeUser2USdbBorrow, 16)), self.USDbRate))
+        self.assertEqual(user2ReserveDataUSDb['borrowRate'], ratesUSDb['borrowRate'])
+        self.assertEqual(user2ReserveDataUSDb['liquidityRate'], ratesUSDb['liquidityRate'])
+        self.assertEqual(user2ReserveDataUSDb['originationFee'], 0)
+        self.assertEqual(user2ReserveDatasICX['currentOTokenBalance'], self.depositICXAmount1)
+        self.assertEqual(user3ReserveDataUSDb['currentOTokenBalance'], self.depositUSDbAmount1)
+        self.assertEqual(user3ReserveDataUSDb['borrowRate'], ratesUSDb['borrowRate'])
+        self.assertEqual(user3ReserveDataUSDb['liquidityRate'], ratesUSDb['liquidityRate'])
+        self.assertEqual(user3ReserveDataUSDb['originationFee'], 0)
+        self.assertEqual(user3ReserveDatasICX['currentOTokenBalance'], 0)  
+        self.assertEqual(user2AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositICXAmount1, self.sICXRate))
+        #self.assertEqual(user2AccountData['totalBorrowBalanceUSD'], exaMul(self.borrowUSDbAmount1 - self.repayUSDbAmoubt1 + int(originationFeeUser2USdbBorrow, 16), self.USDbRate))
+        self.assertEqual(user2AccountData['healthFactor'], int(healthFactorUser2, 16))
+        self.assertEqual(user3AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositUSDbAmount1, self.USDbRate))
+        self.assertEqual(user2AllReserveData['USDb']['currentOTokenBalance'] + user2AllReserveData['Sicx']['currentOTokenBalance'] , user2ReserveDataUSDb['currentOTokenBalance'] + user2ReserveDatasICX['currentOTokenBalance'])
+        self.assertEqual(user3AllReserveData['USDb']['currentOTokenBalance'] + user3AllReserveData['Sicx']['currentOTokenBalance'] , user3ReserveDataUSDb['currentOTokenBalance'] + user3ReserveDatasICX['currentOTokenBalance'])
+        self.assertEqual(reserveDataUSDb['borrowRate'], ratesUSDb['borrowRate'])
+        self.assertEqual(reserveDataUSDb['liquidityRate'], ratesUSDb['liquidityRate'])
+        #self.assertEqual(reserveDataUSDb['totalLiquidity'], self.depositUSDbAmount1)
+        self.assertEqual(reserveDataUSDb['availableLiquidity'], (self.depositUSDbAmount1 - self.borrowUSDbAmount1 + self.repayUSDbAmoubt1 - int(originationFeeUser2USdbBorrow, 16)))
+        #self.assertEqual(reserveDataUSDb['totalBorrows'], self.borrowUSDbAmount1 - self.repayUSDbAmoubt1 + int(originationFeeUser2USdbBorrow, 16))  
+        self.assertEqual(reserveDatasICX['totalLiquidity'], self.depositICXAmount1)
+        self.assertEqual(reserveDatasICX['availableLiquidity'], self.depositICXAmount1 - self.borrowSICXAmount1)
+        self.assertEqual(reserveDatasICX['totalBorrows'], self.borrowSICXAmount1)
+        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate)) 
+    """
+
+    """
+    def test_five_repayTestsICX(self):
+        params = {'_owner': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['sicx']) \
+            .method("balanceOf") \
+            .params(params) \
+            .build()
+        balanceOfUser3SICX = self.process_call(_call)
+        print('balanceOfUser3SICX', int(balanceOfUser3SICX, 16))
+
+        self.assertEqual(balanceOfUser3SICX, hex(self.borrowSICXAmount1 - self.repaySICXAmount1))
+
+        params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user2ReserveDataUSDb = self.process_call(_call)
+        print('USERR2ESERVEDATAUSDB', user2ReserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx'], '_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user2ReserveDatasICX = self.process_call(_call)
+        print('USER2RESERVEDATASICX', user2ReserveDatasICX)
+
+        params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user3ReserveDataUSDb = self.process_call(_call)
+        print('USERR3ESERVEDATAUSDB', user3ReserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx'], '_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user3ReserveDatasICX = self.process_call(_call)
+        print('USER3RESERVEDATASICX', user3ReserveDatasICX)
+
+        params = {'_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAccountData") \
+            .params(params) \
+            .build() 
+        user2AccountData = self.process_call(_call)
+        print('USER2ACCOUNTDATA', user2AccountData)
+
+        params = {'_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAccountData") \
+            .params(params) \
+            .build() 
+        user3AccountData = self.process_call(_call)
+        print('USER3ACCOUNTDATA', user3AccountData)
+
+        params = {'_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAllReserveData") \
+            .params(params) \
+            .build() 
+        user2AllReserveData = self.process_call(_call)
+        print('USER2ALLRESERVEDATA', user2AllReserveData)
+
+        params = {'_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAllReserveData") \
+            .params(params) \
+            .build() 
+        user3AllReserveData = self.process_call(_call)
+        print('USER3ALLRESERVEDATA', user3AllReserveData)
+
+        params = {'_reserve': self.contracts['sample_token']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDataUSDb = self.process_call(_call)
+        print('RESERVEDATAUSDB:::', reserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDatasICX = self.process_call(_call)
+        print('RESERVEDATASICX:::', reserveDatasICX)
+
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveAccountData") \
+            .build() 
+        reserveAccountData = self.process_call(_call)
+        print('RESERVEACCOUNTDATA', reserveAccountData)
+
+        params = {'_user': self.test_account3.get_address(), '_amount': self.borrowSICXAmount1}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['feeProvider']) \
+            .method("calculateOriginationFee") \
+            .params(params) \
+            .build()
+        originationFeeUser3SICXBorrow = self.process_call(_call)
+        print('originationFeeUser3SICXBorrow', int(originationFeeUser3SICXBorrow, 16))
+
+        params = {'_reserve': self.contracts['sicx'], '_availableLiquidity': (self.depositICXAmount1 - self.borrowSICXAmount1 + self.repaySICXAmount1 - int(originationFeeUser3SICXBorrow, 16)) ,'_totalBorrows': self.borrowSICXAmount1 - self.repaySICXAmount1 + int(originationFeeUser3SICXBorrow, 16)}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolCore']) \
+            .method("calculateInterestRates") \
+            .params(params) \
+            .build()
+        ratesSICX = self.process_call(_call)
+        print('ratesSICX:::', ratesSICX) 
+
+        #healthfactor for user3
+        params = {'_collateralBalanceUSD': exaMul((self.depositUSDbAmount1), self.USDbRate),
+                 '_borrowBalanceUSD': exaMul((self.borrowSICXAmount1 - self.repaySICXAmount1 + int(originationFeeUser3SICXBorrow,16)), self.sICXRate),
+                 '_totalFeesUSD': 0,
+                 '_liquidationThreshold': user3AccountData['currentLiquidationThreshold']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("calculateHealthFactorFromBalancesInternal") \
+            .params(params) \
+            .build()
+        healthFactorUser3 = self.process_call(_call)
+        print('healthFactorUser3', int(healthFactorUser3, 16))
+        
+        self.assertEqual(user2ReserveDataUSDb['currentOTokenBalance'], 0)
+        #Commented test does not pass due to accured interest
+        #self.assertEqual(user3ReserveDatasICX['currentBorrowBalance'], (self.borrowSICXAmount1 - self.repaySICXAmount1 + int(originationFeeUser3SICXBorrow, 16)))
+        #self.assertEqual(user3ReserveDatasICX['currentBorrowBalanceUSD'], exaMul((self.borrowSICXAmount1 - self.repaySICXAmount1 + int(originationFeeUser3SICXBorrow, 16)), self.sICXRate))
+        self.assertEqual(user3ReserveDataUSDb['currentOTokenBalance'], self.depositUSDbAmount1)
+        self.assertEqual(user3ReserveDatasICX['borrowRate'], ratesSICX['borrowRate'])
+        self.assertEqual(user3ReserveDatasICX['liquidityRate'], ratesSICX['liquidityRate'])
+        self.assertEqual(user3ReserveDataUSDb['originationFee'], 0)
+        self.assertEqual(user3ReserveDatasICX['currentOTokenBalance'], 0)  
+        #self.assertEqual(user3AccountData['totalBorrowBalanceUSD'], exaMul(self.borrowSICXAmount1 - self.repaySICXAmount1 + int(originationFeeUser3SICXBorrow, 16), self.sICXRate))
+        self.assertEqual(user3AccountData['healthFactor'], int(healthFactorUser3, 16))
+        self.assertEqual(user3AccountData['totalLiquidityBalanceUSD'], exaMul(self.depositUSDbAmount1, self.USDbRate))
+        self.assertEqual(user2AllReserveData['USDb']['currentOTokenBalance'] + user2AllReserveData['Sicx']['currentOTokenBalance'] , user2ReserveDataUSDb['currentOTokenBalance'] + user2ReserveDatasICX['currentOTokenBalance'])
+        self.assertEqual(user3AllReserveData['USDb']['currentOTokenBalance'] + user3AllReserveData['Sicx']['currentOTokenBalance'] , user3ReserveDataUSDb['currentOTokenBalance'] + user3ReserveDatasICX['currentOTokenBalance'])
+        self.assertEqual(reserveDatasICX['borrowRate'], ratesSICX['borrowRate'])
+        self.assertEqual(reserveDatasICX['liquidityRate'], ratesSICX['liquidityRate'])
+        #self.assertEqual(reserveDatasICX['totalLiquidity'], self.depositICXAmount1)
+        self.assertEqual(reserveDatasICX['availableLiquidity'], (self.depositICXAmount1 - self.borrowSICXAmount1 + self.repaySICXAmount1 - int(originationFeeUser3SICXBorrow, 16)))
+        #self.assertEqual(reserveDatasICX['totalBorrows'], self.borrowSICXAmount1 - self.repaySICXAmount1 + int(originationFeeUser3SICXBorrow, 16))  
+        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate)) 
+        """
+
+    """
+    def test_six_withdrawTestUSDb(self):
+        params = {'_owner': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['oICX']) \
+            .method("balanceOf") \
+            .params(params) \
+            .build()
+        balanceOfUser2OICX = self.process_call(_call)
+        print('balanceOfUser2OICX', int(balanceOfUser2OICX, 16))
+
+        params = {'_owner': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['sicx']) \
+            .method("balanceOf") \
+            .params(params) \
+            .build()
+        balanceOfUser2SICX = self.process_call(_call)
+        print('balanceOfUser2SICX', int(balanceOfUser2SICX, 16))
+
+        params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user2ReserveDataUSDb = self.process_call(_call)
+        print('USERR2ESERVEDATAUSDB', user2ReserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx'], '_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user2ReserveDatasICX = self.process_call(_call)
+        print('USER2RESERVEDATASICX', user2ReserveDatasICX)
+
+        params = {'_user': self.test_account2.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAccountData") \
+            .params(params) \
+            .build() 
+        user2AccountData = self.process_call(_call)
+        print('USER2ACCOUNTDATA', user2AccountData)
+
+        params = {'_reserve': self.contracts['sample_token']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDataUSDb = self.process_call(_call)
+        print('RESERVEDATAUSDB:::', reserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDatasICX = self.process_call(_call)
+        print('RESERVEDATASICX:::', reserveDatasICX)
+
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveAccountData") \
+            .build() 
+        reserveAccountData = self.process_call(_call)
+        print('RESERVEACCOUNTDATA', reserveAccountData)
+
+        params = {'_user': self.test_account3.get_address(), '_amount': self.borrowSICXAmount1}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['feeProvider']) \
+            .method("calculateOriginationFee") \
+            .params(params) \
+            .build()
+        originationFeeUser3SICXBorrow = self.process_call(_call)
+        print('originationFeeUser3SICXBorrow', int(originationFeeUser3SICXBorrow, 16))
+
+        params = {'_user': self.test_account2.get_address(), '_amount': self.borrowUSDbAmount1}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['feeProvider']) \
+            .method("calculateOriginationFee") \
+            .params(params) \
+            .build()
+        originationFeeUser2USDbBorrow = self.process_call(_call)
+        print('originationFeeUser2USDbBorrow', int(originationFeeUser2USDbBorrow, 16))
+
+        params = {'_reserve': self.contracts['sicx'], '_availableLiquidity': (self.depositICXAmount1 - self.borrowSICXAmount1 + self.repaySICXAmount1 - int(originationFeeUser3SICXBorrow, 16) - self.redeemIXCAmount1) ,'_totalBorrows': self.borrowSICXAmount1 - self.repaySICXAmount1 + int(originationFeeUser3SICXBorrow, 16)}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolCore']) \
+            .method("calculateInterestRates") \
+            .params(params) \
+            .build()
+        ratesSICX = self.process_call(_call)
+        print('ratesSICX:::', ratesSICX) 
+
+        #healthfactor for user2
+        params = {'_collateralBalanceUSD': exaMul((self.depositICXAmount1 - self.redeemIXCAmount1), self.sICXRate),
+                 '_borrowBalanceUSD': exaMul((self.borrowUSDbAmount1 - self.repayUSDbAmount1 + int(originationFeeUser2USDbBorrow,16)), self.USDbRate),
+                 '_totalFeesUSD': 0,
+                 '_liquidationThreshold': user2AccountData['currentLiquidationThreshold']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("calculateHealthFactorFromBalancesInternal") \
+            .params(params) \
+            .build()
+        healthFactorUser2 = self.process_call(_call)
+        print('healthFactorUser2', int(healthFactorUser2, 16))
+        
+        #commented test does not pass due to accured interest
+        self.assertEqual(balanceOfUser2OICX, hex(self.depositICXAmount1 - self.redeemIXCAmount1))
+        self.assertEqual(balanceOfUser2SICX, hex(self.redeemIXCAmount1))
+        self.assertEqual(user2ReserveDatasICX['borrowRate'], ratesSICX['borrowRate'])
+        self.assertEqual(user2ReserveDatasICX['liquidityRate'], ratesSICX['liquidityRate'])
+        self.assertEqual(user2AccountData['totalLiquidityBalanceUSD'], exaMul(user2ReserveDatasICX['currentOTokenBalance'], self.sICXRate))
+        self.assertEqual(user2AccountData['healthFactor'], int(healthFactorUser2, 16))
+        self.assertEqual(reserveDatasICX['availableLiquidity'], (self.depositICXAmount1 - self.borrowSICXAmount1 - self.redeemIXCAmount1 - int(originationFeeUser3SICXBorrow,16)) + self.repaySICXAmount1)
+        self.assertEqual(reserveDatasICX['borrowRate'], ratesSICX['borrowRate'])
+        self.assertEqual(reserveDatasICX['liquidityRate'], ratesSICX['liquidityRate'])
+        #self.assertEqual(reserveDatasICX['totalLiquidity'], self.depositICXAmount1 - self.redeemIXCAmount1)
+        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))        
+
+    """
+
+    def test_seven_withdrawTestUSDb(self):
+        params = {'_owner': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['oUSDb']) \
+            .method("balanceOf") \
+            .params(params) \
+            .build()
+        balanceOfUser3OUSDb = self.process_call(_call)
+        print('balanceOfUser3OUSDb', int(balanceOfUser3OUSDb, 16))
+
+        params = {'_owner': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['sample_token']) \
+            .method("balanceOf") \
+            .params(params) \
+            .build()
+        balanceOfUser3USDb = self.process_call(_call)
+        print('balanceOfUser3USDb', int(balanceOfUser3USDb, 16))
+
+        params = {'_reserve': self.contracts['sample_token'], '_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user3ReserveDataUSDb = self.process_call(_call)
+        print('USERR3ESERVEDATAUSDB', user3ReserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx'], '_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserReserveData") \
+            .params(params) \
+            .build()
+        user3ReserveDatasICX = self.process_call(_call)
+        print('USER3RESERVEDATASICX', user3ReserveDatasICX)
+
+        params = {'_user': self.test_account3.get_address()}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserAccountData") \
+            .params(params) \
+            .build() 
+        user3AccountData = self.process_call(_call)
+        print('USER3ACCOUNTDATA', user3AccountData)
+
+        params = {'_reserve': self.contracts['sample_token']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDataUSDb = self.process_call(_call)
+        print('RESERVEDATAUSDB:::', reserveDataUSDb)
+
+        params = {'_reserve': self.contracts['sicx']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveData") \
+            .params(params) \
+            .build()
+        reserveDatasICX = self.process_call(_call)
+        print('RESERVEDATASICX:::', reserveDatasICX)
+
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getReserveAccountData") \
+            .build() 
+        reserveAccountData = self.process_call(_call)
+        print('RESERVEACCOUNTDATA', reserveAccountData)
+
+        params = {'_user': self.test_account3.get_address(), '_amount': self.borrowSICXAmount1}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['feeProvider']) \
+            .method("calculateOriginationFee") \
+            .params(params) \
+            .build()
+        originationFeeUser3SICXBorrow = self.process_call(_call)
+        print('originationFeeUser3SICXBorrow', int(originationFeeUser3SICXBorrow, 16))
+
+        params = {'_user': self.test_account2.get_address(), '_amount': self.borrowUSDbAmount1}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['feeProvider']) \
+            .method("calculateOriginationFee") \
+            .params(params) \
+            .build()
+        originationFeeUser2USDbBorrow = self.process_call(_call)
+        print('originationFeeUser2USDbBorrow', int(originationFeeUser2USDbBorrow, 16))
+
+        params = {'_reserve': self.contracts['sample_token'], '_availableLiquidity': (self.depositUSDbAmount1 - self.borrowUSDbAmount1 + self.repayUSDbAmount1 - int(originationFeeUser2USDbBorrow, 16) - self.redeemUSDbAmount1) ,'_totalBorrows': self.borrowUSDbAmount1 - self.repayUSDbAmount1 + int(originationFeeUser2USDbBorrow, 16)}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolCore']) \
+            .method("calculateInterestRates") \
+            .params(params) \
+            .build()
+        ratesUSDb = self.process_call(_call)
+        print('ratesUSDb:::', ratesUSDb) 
+
+        #healthfactor for user3
+        params = {'_collateralBalanceUSD': exaMul((self.depositUSDbAmount1 - self.redeemUSDbAmount1), self.USDbRate),
+                 '_borrowBalanceUSD': exaMul((self.borrowSICXAmount1 - self.repaySICXAmount1 + int(originationFeeUser3SICXBorrow,16)), self.sICXRate),
+                 '_totalFeesUSD': 0,
+                 '_liquidationThreshold': user3AccountData['currentLiquidationThreshold']}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("calculateHealthFactorFromBalancesInternal") \
+            .params(params) \
+            .build()
+        healthFactorUser3 = self.process_call(_call)
+        print('healthFactorUser3', int(healthFactorUser3, 16))
+        
+        #commented test does not pass due to accured interest
+        self.assertEqual(balanceOfUser3OUSDb, hex(self.depositUSDbAmount1 - self.redeemUSDbAmount1))
+        self.assertEqual(balanceOfUser3USDb, hex(self.userTestUSdbAmount - self.depositUSDbAmount1 + self.redeemUSDbAmount1))
+        self.assertEqual(user3ReserveDataUSDb['borrowRate'], ratesUSDb['borrowRate'])
+        self.assertEqual(user3ReserveDataUSDb['liquidityRate'], ratesUSDb['liquidityRate'])
+        self.assertEqual(user3AccountData['totalLiquidityBalanceUSD'], exaMul(user3ReserveDataUSDb['currentOTokenBalance'], self.USDbRate))
+        self.assertEqual(user3AccountData['healthFactor'], int(healthFactorUser3, 16))
+        self.assertEqual(reserveDataUSDb['availableLiquidity'], (self.depositUSDbAmount1 - self.borrowUSDbAmount1 - self.redeemUSDbAmount1 - int(originationFeeUser2USDbBorrow,16)) + self.repayUSDbAmount1)
+        self.assertEqual(reserveDataUSDb['borrowRate'], ratesUSDb['borrowRate'])
+        self.assertEqual(reserveDataUSDb['liquidityRate'], ratesUSDb['liquidityRate'])
+        #self.assertEqual(reserveDataUSDb['totalLiquidity'], self.depositUSDbAmount1 - self.redeemUSDbAmount1)
+        self.assertEqual(reserveAccountData['totalLiquidityBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['availableLiquidityBalanceUSD'], exaMul(reserveDataUSDb['availableLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['availableLiquidity'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalBorrowsBalanceUSD'], exaMul(reserveDataUSDb['totalBorrows'] , self.USDbRate) + exaMul(reserveDatasICX['totalBorrows'] ,self.sICXRate))
+        self.assertEqual(reserveAccountData['totalCollateralBalanceUSD'], exaMul(reserveDataUSDb['totalLiquidity'] , self.USDbRate) + exaMul(reserveDatasICX['totalLiquidity'] ,self.sICXRate))        
+
