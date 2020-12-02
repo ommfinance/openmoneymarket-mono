@@ -301,6 +301,8 @@ class LendingPoolDataProvider(IconScoreBase):
 
     def calculateBorrowingPowerFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
                                                     _totalFeesUSD: int, _ltv: int) -> int:
+        if _collateralBalanceUSD==0:
+            return 0
         borrowingPower = exaDiv((_borrowBalanceUSD + _totalFeesUSD), exaMul(_collateralBalanceUSD , _ltv))
         return borrowingPower
 
