@@ -53,6 +53,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         for address in DEPLOY:
             self.SCORE_PROJECT = self.SCORES + "/" + address
             self.contracts[address] = self._deploy_score()['scoreAddress']
+
         self._setVariablesAndInterfaces()
         self.depositAmount = 100 * 10 ** 18
         self._deposit(self.depositAmount)
@@ -340,7 +341,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         userAccountData = self.process_call(_call)
-        # print(userAccountData)
+        print(userAccountData)
 
         # testing and asserting user data for  all reserves
 
@@ -351,3 +352,4 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(userAccountData['currentLtv'], self.baseLTVasCollateral)
         self.assertEqual(userAccountData['healthFactor'], -1)
         self.assertEqual(userAccountData['healthFactorBelowThreshold'], False)
+
