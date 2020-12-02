@@ -113,7 +113,7 @@ class Sicx(IconScoreBase, TokenStandard):
         if _value < 0:
             revert("Transferring value cannot be less than zero")
         if self._balances[_from] < _value:
-            revert("Out of balance")
+            revert("SICX error :Out of balance")
 
         self._balances[_from] = self._balances[_from] - _value
         self._balances[_to] = self._balances[_to] + _value
