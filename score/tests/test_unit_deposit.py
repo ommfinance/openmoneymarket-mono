@@ -143,5 +143,3 @@ class TestSimpleDeposit(ScoreTestCase):
     #     data = "{\"method\": \"deposit\", \"params\": {\"amount\": 100000000000000000000}}".encode("utf-8")
     #     self.set_msg(self.test_account2)
     #     self.USDb.transfer(self.lendingPool.address,depositAmount,data)
-        
-       
