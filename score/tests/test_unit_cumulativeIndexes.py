@@ -6,7 +6,7 @@ from lendingPoolDataProvider.lendingPoolDataProvider import LendingPoolDataProvi
 from oToken.oToken import OToken
 from priceOracle.priceOracle import PriceOracle
 from feeProvider.feeProvider import FeeProvider
-
+from lendingPoolCore.Math import exaMul
 
 from tbears.libs.scoretest.score_test_case import ScoreTestCase
 from iconservice import Address, AddressPrefix, IconScoreException
@@ -73,10 +73,10 @@ class TestSimpleDeposit(ScoreTestCase):
         #setting the  intial reserve attributes for USDb reserve
         reserveParams ={"reserveAddress":self.USDb.address,
                         "oTokenAddress":self.oToken.address,
-                        "totalBorrows":0,
+                        "totalBorrows":50,
                         "lastUpdateTimestamp": 0,
-                        "liquidityRate":0,
-                        "borrowRate":0,
+                        "liquidityRate":4200000000000000,
+                        "borrowRate": 23333333333333333,
                         "liquidityCumulativeIndex":1*10**18,
                         "borrowCumulativeIndex":1*10**18,
                         "baseLTVasCollateral":60*10**18,
@@ -86,60 +86,36 @@ class TestSimpleDeposit(ScoreTestCase):
                         "borrowingEnabled": True,
                         "usageAsCollateralEnabled":True,
                         "isFreezed": False,
-                        "isActive": True } 
+                        "isActive": True,
+                        "availableLiquidity": 200*10**18,
+                        "totalLiquidity": 250*10**18} 
 
         #initializing the USDb reserve 
         self.lendingPoolCore.addReserveData(reserveParams)
 
-    def test_simple_deposit(self):
-        self.assertEqual(self.USDb.name(), 'USDb')
-        # self.assertEqual(self.lendingPoolCore.address,"")
-        self.assertTrue(True)
-        
-        
-    def test_lendingPoolAddresses(self):
-        self.assertEqual(self.lendingPool.getLendingPoolCoreAddress(),self.lendingPoolCore.address)
-        self.assertEqual(self.lendingPool.getDataProvider(),self.lendingPoolDataProvider.address)
-        self.assertEqual(self.lendingPool.getFeeProvider(),self.feeProvider.address)
-        self.assertEqual(self.lendingPool.getUSDbAddress(),self.USDb.address)
+    def test_LCI(self):
+        #lastUpdateTime is set to 0 in USDb reserve
+        #Checking LCI for timediffrerences of 10sec = 10 UNIX time, 20sec = 20, 60sec = 60, 1hr = 3600, 1day = 86400, 7days = 604800, 15days = 129600
+        #The unix times are in second so converting all to microseconds before calling calculateLinearInterest
+        times = [ 10 * 10 ** 6, 20 * 10 ** 6, 60 * 10 ** 6, 3600 * 10 ** 6, 86400 * 10 ** 6, 129600 * 10 ** 6 ]
+        liquidityRate = 4200000000000000
+        defaultLCI = 1 * 10 ** 18
+        for time in times:
+            print('time is',time)
+            self.set_block(30, time)
+            value = self.lendingPoolCore.calculateLinearInterest(liquidityRate ,0)
+            updatedLCI = exaMul(value, defaultLCI)
+            print('updated CLI', updatedLCI) 
+        #checked result with manually computed value and it matches
 
-    def test_lendingPoolDataProviderAddresses(self):
-        self.assertEqual(self.lendingPoolDataProvider.getLendingPoolCoreAddress(),self.lendingPoolCore.address)
-        self.assertEqual(self.lendingPoolDataProvider.getOracleAddress(),self.priceOracle.address)
-        
-        self.assertEqual(self.lendingPoolDataProvider.getSymbol(self.USDb.address),'USDb')
-
-    def test_fee(self):
-        self.assertEqual(self.feeProvider.getLoanOriginationFeePercentage(),25*10**14)
-
-    def test_oTokenAddresses(self):
-        self.assertEqual(self.oToken.getCoreAddress(),self.lendingPoolCore.address)
-        self.assertEqual(self.oToken.getDataProviderAddress(),self.lendingPoolDataProvider.address)
-        self.assertEqual(self.oToken.getLendingPoolAddress(),self.lendingPool.address)
-        self.assertEqual(self.oToken.getReserveAddress(),self.USDb.address)
-
-    def test_reserveConstants(self):
-        reserve_constants=self.lendingPoolCore.getReserveConstants(self.USDb.address)
-        actualReserveConstants={"reserve":self.USDb.address,
-                           "optimalUtilizationRate":600000000000000000,
-                           "baseBorrowRate":10000000000000000,
-                           "slopeRate1":40000000000000000,
-                           "slopeRate2":500000000000000000}
-        self.assertEqual(reserve_constants,actualReserveConstants)
-
-    def test_price(self):
-        self.assertEqual(self.priceOracle.get_reference_data('USDb','USD'),1*10**18)
-
-    def test_addressProvider(self):
-        addresses=self.addressProvider.getAllAddresses()
-        self.assertEqual(addresses['collateral']['USDb'],self.USDb.address)
-        self.assertEqual(addresses['oTokens']['oUSDb'],self.oToken.address)
-        self.assertEqual(addresses['systemContract']['LendingPool'],self.lendingPool.address)
-        self.assertEqual(addresses['systemContract']['LendingPoolDataProvider'],self.lendingPoolDataProvider.address)
-
-    # def test_deposit(self):
-    #     self.USDb.transfer(self.test_account2,1000 * 10**18)
-    #     depositAmount = 100*10**18
-    #     data = "{\"method\": \"deposit\", \"params\": {\"amount\": 100000000000000000000}}".encode("utf-8")
-    #     self.set_msg(self.test_account2)
-    #     self.USDb.transfer(self.lendingPool.address,depositAmount,data)
+    def test_BCI(self):
+        times = [ 10 * 10 ** 6, 20 * 10 ** 6, 60 * 10 ** 6, 3600 * 10 ** 6, 86400 * 10 ** 6, 129600 * 10 ** 6 ]
+        borrowRate = 23333333333333333
+        defaultBCI = 1 * 10 ** 18
+        for time in times:
+            print('time is',time)
+            self.set_block(30, time)
+            value = self.lendingPoolCore.calculateCompoundedInterest(borrowRate ,0)
+            updatedBCI = exaMul(value, defaultBCI)
+            print('updated BCI', updatedBCI) 
+        #checked result with manually computed value and it matches
