@@ -46,7 +46,7 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
-    def liquidateFee(self, _token: Address, _amount: int, _destination: Address) -> None:
+    def liquidateFee(self, _reserve: Address, _amount: int, _destination: Address) -> None:
         pass
 
 
@@ -123,8 +123,7 @@ class LiquidationManager(IconScoreBase):
     def getOracleAddress(self):
         return self._priceOracleAddress.get()
 
-    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int) -> int:
-        ltv = 5 * 10 ** 17
+    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int ,_ltv: int) -> int:
         badDebt = _totalBorrowBalanceUSD + _totalFeesUSD - exaMul(_totalCollateralBalanceUSD, ltv)
 
         return badDebt
@@ -198,7 +197,7 @@ class LiquidationManager(IconScoreBase):
             revert('Liquidation call error: No borrow by the user')
         maxPrincipalAmountToLiquidate = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
                                                               userAccountData['totalFeesUSD'],
-                                                              userAccountData['totalCollateralBalanceUSD'])
+                                                              userAccountData['totalCollateralBalanceUSD'], userAccountData['currentLtv'])
         if _purchaseAmount > maxPrincipalAmountToLiquidate:
             actualAmountToLiquidate = maxPrincipalAmountToLiquidate
         else:
