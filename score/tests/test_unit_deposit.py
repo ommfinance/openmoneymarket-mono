@@ -14,6 +14,7 @@ from iconservice import Address, AddressPrefix, IconScoreException
 
 
 class TestSimpleDeposit(ScoreTestCase):
+    
     def setUp(self):
         super().setUp()
 
