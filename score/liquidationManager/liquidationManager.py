@@ -123,8 +123,14 @@ class LiquidationManager(IconScoreBase):
     def getOracleAddress(self):
         return self._priceOracleAddress.get()
 
-    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int ,_ltv: int) -> int:
-        badDebt = _totalBorrowBalanceUSD + _totalFeesUSD - exaMul(_totalCollateralBalanceUSD, ltv)
+    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
+                         _reserve: Address) -> int:
+        priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
+        dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
+        principalBase = dataProvider.getSymbol(_reserve)
+        principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
+        badDebtUSD = _totalBorrowBalanceUSD + _totalFeesUSD - exaMul(_totalCollateralBalanceUSD, ltv)
+        badDebt = exaMul(badDebtUSD, principalPrice)
 
         return badDebt
 
@@ -163,9 +169,8 @@ class LiquidationManager(IconScoreBase):
         liquidationThreshold = exaDiv(_totalBorrowBalanceUSD + _totalFeesUSD, _totalCollateralBalanceUSD)
         return liquidationThreshold
 
-    @payable
     @external
-    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> None:
+    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
         dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
         core = self.create_interface_score(self.getCoreAddress(), CoreInterface)
 
@@ -197,7 +202,8 @@ class LiquidationManager(IconScoreBase):
             revert('Liquidation call error: No borrow by the user')
         maxPrincipalAmountToLiquidate = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
                                                               userAccountData['totalFeesUSD'],
-                                                              userAccountData['totalCollateralBalanceUSD'], userAccountData['currentLtv'])
+                                                              userAccountData['totalCollateralBalanceUSD'],
+                                                              _reserve)
         if _purchaseAmount > maxPrincipalAmountToLiquidate:
             actualAmountToLiquidate = maxPrincipalAmountToLiquidate
         else:
@@ -222,11 +228,11 @@ class LiquidationManager(IconScoreBase):
         collateralOtokenAddress = core.getReserveOTokenAddress(_collateral)
         collateralOtoken = self.create_interface_score(collateralOtokenAddress, OtokenInterface)
         collateralOtoken.burnOnLiquidation(_user, maxCollateralToLiquidate)
-        core.transferToUser(_collateral, self.msg.sender, maxCollateralToLiquidate)
-        # have a deeper look at this part (transfering principal currency to the pool)
-
-        principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
-        principalCurrency.transfer(self.getCoreAddress(), self.msg.value)
+        # core.transferToUser(_collateral, self.msg.sender, maxCollateralToLiquidate)
+        # # have a deeper look at this part (transfering principal currency to the pool)
+        #
+        # principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
+        # principalCurrency.transfer(self.getCoreAddress(), actualAmountToLiquidate)
 
         if feeLiquidated > 0:
             collateralOtoken.burnOnLiquidation(_user, liquidatedCollateralForFee)
@@ -236,3 +242,6 @@ class LiquidationManager(IconScoreBase):
                                           self.now())
         self.LiquidationCall(_collateral, _reserve, _user, actualAmountToLiquidate, maxCollateralToLiquidate,
                              userBorrowBalances['borrowBalanceIncrease'], self.tx.origin, self.now())
+        response = {'maxCollateralToLiquidate': maxCollateralToLiquidate,
+                    'actualAmountToLiquidate': actualAmountToLiquidate}
+        return response
