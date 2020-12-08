@@ -109,6 +109,13 @@ class FeeProviderInterface(InterfaceScore):
         pass
 
 
+# An interface to fee provider
+class LiquidationManagerInterface(InterfaceScore):
+    @interface
+    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> str:
+        pass
+
+
 class LendingPool(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -118,6 +125,7 @@ class LendingPool(IconScoreBase):
         self._feeProviderAddress = VarDB('feeProvider', db, value_type=Address)
         self._USDbAddress = VarDB('USDbAddress', db, value_type=Address)
         self._sIcxAddress = VarDB('SICXAddress', db, value_type=Address)
+        self._liquidationManagerAddress = VarDB('liquidationManagerAddress', db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -166,6 +174,17 @@ class LendingPool(IconScoreBase):
         self._USDbAddress.set(_address)
 
     @external(readonly=True)
+    def getLiquidationManagerAddress(self) -> Address:
+        return self._liquidationManagerAddress.get()
+
+    @external
+    def setLiquidationManagerAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._liquidationManagerAddress.set(_address)
+
+    @external(readonly=True)
     def getUSDbAddress(self) -> Address:
         return self._USDbAddress.get()
 
@@ -201,7 +220,6 @@ class LendingPool(IconScoreBase):
     @external(readonly=True)
     def getFeeProvider(self) -> Address:
         return self._feeProviderAddress.get()
-
 
     @payable
     @external
@@ -243,7 +261,8 @@ class LendingPool(IconScoreBase):
         self.Deposit(_reserve, self.tx.origin, _amount, self.block.timestamp)
 
     @external
-    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int , _waitForUnstaking: bool = False):
+    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int,
+                         _waitForUnstaking: bool = False):
         """
         redeems the underlying amount of assets requested by the _user.This method is called from the oToken contract
         :param _reserve:the address of the reserve
@@ -311,7 +330,6 @@ class LendingPool(IconScoreBase):
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
                     borrowData['balanceIncrease'], self.block.timestamp)
 
-    
     @external
     def repay(self, _reserve: Address, _amount: int):
         """
@@ -366,7 +384,13 @@ class LendingPool(IconScoreBase):
         :param _purchaseAmount:the amount to liquidate
         :return:
         """
-        pass
+        liquidationManager = self.create_interface_score(self.getLiquidationManagerAddress(),
+                                                         LiquidationManagerInterface)
+        core = self.create_interface_score(self.getLendingPoolCoreAddress(), CoreInterface)
+        liquidation = liquidationManager.liquidationCall(_collateral, _reserve, _user, _purchaseAmount)
+        principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
+        core.transferToUser(_collateral, self.tx.origin, liquidation['maxCollateralToLiquidate'])
+        principalCurrency.transfer(self.getLendingPoolCoreAddress(), liquidation['actualAmountToLiquidate'])
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
@@ -383,5 +407,8 @@ class LendingPool(IconScoreBase):
             self._deposit(self.msg.sender, d["params"].get("amount", -1))
         elif d["method"] == "repay":
             self.repay(self.msg.sender, d["params"].get("amount", -1))
+        elif d["method"] == "liquidationCall":
+            self.liquidationCall(d["params"].get("_collateral"), d["params"].get("_reserve"), d["params"].get("_user"),
+                                 d["params"].get("_purchaseAmount"))
         else:
             revert(f'No valid method called, data: {_data}')
