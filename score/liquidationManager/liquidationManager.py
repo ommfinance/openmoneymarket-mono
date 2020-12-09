@@ -124,12 +124,12 @@ class LiquidationManager(IconScoreBase):
         return self._priceOracleAddress.get()
 
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
-                         _reserve: Address) -> int:
+                         _reserve: Address, _ltv: int) -> int:
         priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
         dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
         principalBase = dataProvider.getSymbol(_reserve)
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
-        badDebtUSD = _totalBorrowBalanceUSD + _totalFeesUSD - exaMul(_totalCollateralBalanceUSD, ltv)
+        badDebtUSD = _totalBorrowBalanceUSD + _totalFeesUSD - exaMul(_totalCollateralBalanceUSD, _ltv)
         badDebt = exaMul(badDebtUSD, principalPrice)
 
         return badDebt
@@ -203,7 +203,8 @@ class LiquidationManager(IconScoreBase):
         maxPrincipalAmountToLiquidate = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
                                                               userAccountData['totalFeesUSD'],
                                                               userAccountData['totalCollateralBalanceUSD'],
-                                                              _reserve)
+                                                              _reserve,
+                                                              userAccountData['currentLtv'])
         if _purchaseAmount > maxPrincipalAmountToLiquidate:
             actualAmountToLiquidate = maxPrincipalAmountToLiquidate
         else:
