@@ -408,7 +408,7 @@ class LendingPool(IconScoreBase):
         elif d["method"] == "repay":
             self.repay(self.msg.sender, d["params"].get("amount", -1))
         elif d["method"] == "liquidationCall":
-            self.liquidationCall(d["params"].get("_collateral"), d["params"].get("_reserve"), d["params"].get("_user"),
+            self.liquidationCall(Address.from_string(d["params"].get("_collateral")), Address.from_string(d["params"].get("_reserve")),Address.from_string(d["params"].get("_user")),
                                  d["params"].get("_purchaseAmount"))
         else:
             revert(f'No valid method called, data: {_data}')
