@@ -394,13 +394,10 @@ class LendingPool(IconScoreBase):
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
-
         try:
             d = json_loads(_data.decode("utf-8"))
-
         except BaseException as e:
             revert(f'Invalid data: {_data}. Exception: {e}')
-
         if set(d.keys()) != set(["method", "params"]):
             revert('Invalid parameters.')
         if d["method"] == "deposit":
@@ -408,7 +405,7 @@ class LendingPool(IconScoreBase):
         elif d["method"] == "repay":
             self.repay(self.msg.sender, d["params"].get("amount", -1))
         elif d["method"] == "liquidationCall":
-            self.liquidationCall(Address.from_string(d["params"].get("_collateral")), Address.from_string(d["params"].get("_reserve")),Address.from_string(d["params"].get("_user")),
+            self.liquidationCall(Address.from_string(d["params"].get("_collateral")), Address.from_string(d["params"].get("_reserve")), Address.from_string(d["params"].get("_user")),
                                  d["params"].get("_purchaseAmount"))
         else:
             revert(f'No valid method called, data: {_data}')

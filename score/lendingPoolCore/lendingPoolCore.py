@@ -443,7 +443,7 @@ class LendingPoolCore(IconScoreBase):
         reserveScore = self.create_interface_score(_reserve, ReserveInterface)
         reserveScore.transfer(_user, _amount)
 
-    @external()
+    @external
     def liquidateFee(self, _reserve: Address, _amount: int, _destination: Address) -> None:
         reserveScore = self.create_interface_score(_reserve, ReserveInterface)
         reserveScore.transfer(_destination, _amount)

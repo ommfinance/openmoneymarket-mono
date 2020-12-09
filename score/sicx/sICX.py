@@ -108,7 +108,6 @@ class Sicx(IconScoreBase, TokenStandard):
         self._transfer(self.msg.sender, _to, _value, _data)
 
     def _transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
-
         # Checks the sending value and balance.
         if _value < 0:
             revert("Transferring value cannot be less than zero")

@@ -1,12 +1,15 @@
 from iconservice import *
-from Math import *
+from .Math import *
 
 TAG = 'LiquidationManager'
-
 
 class DataProviderInterface(InterfaceScore):
     @interface
     def getUserAccountData(self, _user: Address) -> dict:
+        pass
+
+    @interface
+    def getReserveData(self, _reserve: Address) -> dict:
         pass
 
     @interface
@@ -75,6 +78,7 @@ class LiquidationManager(IconScoreBase):
         self._dataProviderAddress = VarDB('data_provider_address', db, value_type=Address)
         self._coreAddress = VarDB('core_address', db, value_type=Address)
         self._priceOracleAddress = VarDB('price_oracle', db, value_type=Address)
+        self._feeProviderAddress = VarDB('fee_provider_address', db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -89,7 +93,7 @@ class LiquidationManager(IconScoreBase):
 
     @eventlog(indexed=3)
     def LiquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int,
-                        _liquidatedCollateralAmount: int, _accruedBorrowInterest: int, _liquidator: int,
+                        _liquidatedCollateralAmount: int, _accruedBorrowInterest: int, _liquidator: Address,
                         _timestamp: int):
         pass
 
@@ -102,6 +106,16 @@ class LiquidationManager(IconScoreBase):
     @external(readonly=True)
     def getDataProviderAddress(self) -> Address:
         return self._dataProviderAddress.get()
+
+    @external
+    def setFeeProviderAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert("Fee provider set error:Not authorized")
+        self._feeProviderAddress.set(_address)
+
+    @external(readonly=True)
+    def getFeeProviderAddress(self) -> Address:
+        return self._feeProviderAddress.get()
 
     @external
     def setCoreAddress(self, _address: Address):
@@ -124,7 +138,7 @@ class LiquidationManager(IconScoreBase):
         return self._priceOracleAddress.get()
 
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
-                         _reserve: Address, _ltv: int) -> int:
+                         _reserve: Address, _ltv:int) -> int:
         priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
         dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
         principalBase = dataProvider.getSymbol(_reserve)
@@ -176,7 +190,7 @@ class LiquidationManager(IconScoreBase):
 
         userAccountData = dataProvider.getUserAccountData(_user)
         reserveData = dataProvider.getReserveData(_reserve)
-
+        
         actualAmountToLiquidate = 0
         liquidatedCollateralForFee = 0
         feeLiquidated = 0
@@ -238,7 +252,7 @@ class LiquidationManager(IconScoreBase):
         if feeLiquidated > 0:
             collateralOtoken.burnOnLiquidation(_user, liquidatedCollateralForFee)
             # the liquidated fee is sent to fee provider
-            core.liquidateFee(_collateral, liquidatedCollateralForFee, "feeProvider")
+            core.liquidateFee(_collateral, liquidatedCollateralForFee, self.getFeeProviderAddress())
             self.OriginationFeeLiquidated(_collateral, _reserve, _user, feeLiquidated, liquidatedCollateralForFee,
                                           self.now())
         self.LiquidationCall(_collateral, _reserve, _user, actualAmountToLiquidate, maxCollateralToLiquidate,

@@ -38,7 +38,9 @@ class FeeProvider(IconScoreBase):
     def getDistribution(self) -> dict:
         pass
 
-
+    @external
+    def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
+        pass
 
     
 
