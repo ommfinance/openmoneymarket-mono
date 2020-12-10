@@ -391,6 +391,8 @@ class LendingPool(IconScoreBase):
         principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
         core.transferToUser(_collateral, self.tx.origin, liquidation['maxCollateralToLiquidate'])
         principalCurrency.transfer(self.getLendingPoolCoreAddress(), liquidation['actualAmountToLiquidate'])
+        if _purchaseAmount > liquidation['actualAmountToLiquidate']:
+            principalCurrency.transfer(self.tx.origin, _purchaseAmount - liquidation['actualAmountToLiquidate'])
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
