@@ -577,7 +577,7 @@ class LendingPoolCore(IconScoreBase):
         if _feeLiquidated > 0:
             self.updateUserOriginationFee(_reserve, _user, userData['originationFee'] - _feeLiquidated)
 
-        self.updateUserLastUpdateTimestamp(self.block.timestamp)
+        self.updateUserLastUpdateTimestamp(_reserve, _user, self.block.timestamp)
 
     @external
     def setUserUseReserveAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: bool) -> None:
