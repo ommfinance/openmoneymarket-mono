@@ -82,7 +82,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self._transferTestUSDbToUser(self.userTestUSdbAmount, self.test_account3.get_address())
 
         #test_account2 deposits 50k ICX into sicx reserve
-        self.depositICXAmount1 = 300 * 10 ** 18 
+        self.depositICXAmount1 = 5000 * 10 ** 18 
         self._depositICX(self.depositICXAmount1, self.test_account2)
 
         #test_account3 deposits 40k USDb into usdb reserve i.e sample_token        
@@ -91,18 +91,18 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
 
         #Test Case2
         #test_account2 borrows 5k USDb from usdb reserve i.e sample_token        
-        self.borrowUSDBAmount1 = 75 * 10 ** 18 
+        self.borrowUSDBAmount1 = 500 * 10 ** 18 
         self._borrowUSDb(self.borrowUSDBAmount1, self.test_account2)
 
         #self.liquidationCall() #user cannot get liquidated 
         #Test Case3 
         #reduce icxUSD rate  
         #self.sICXRate = 15 * 10 ** 16
-        self.sICXRate = 37 * 10 ** 16
+        self.sICXRate = 15 * 10 ** 16
         self._changeOraclePriceFeed()
         #time.sleep(1)
         #test_account3 pays off 1k loan from user2 
-        self.loanPayoffAmount = 1000 * 10 ** 18
+        self.loanPayoffAmount = 100 * 10 ** 18
         self._liquidationCall(self.loanPayoffAmount, self.test_account2, self.test_account3) 
 
     def _changeOraclePriceFeed(self):
@@ -694,6 +694,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         print('user2Data', self.getUserAccountData(_borrowerUser.get_address())) 
         print('_liquidatorUserInitial sicx amount', self.getUserSICXBalance(_liquidatorUser.get_address()))
         print('usdb reserve available liquidity before', self.getReserveData(self.contracts['sample_token'])['availableLiquidity'])
+        print('after liquidation', self.getUserAccountData(self.test_account2.get_address()))
         liquidityUSDbbefore = self.getReserveData(self.contracts['sample_token'])['availableLiquidity']
         print('calling liquidaitonCall')
         depositData = {'method': 'liquidationCall', 'params': 
@@ -722,7 +723,8 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         print('usdb reserve available liquidity after liquidation', self.getReserveData(self.contracts['sample_token'])['availableLiquidity'])
         liquidityUSDbafter = self.getReserveData(self.contracts['sample_token'])['availableLiquidity']
         print('change in liquidity is', liquidityUSDbafter - liquidityUSDbbefore)
-
+        print(self.getReserveData(self.contracts['sample_token']))
+        print('after liquidation', self.getUserAccountData(self.test_account2.get_address()))
 
 
     """
