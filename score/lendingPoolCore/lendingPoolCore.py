@@ -556,7 +556,28 @@ class LendingPoolCore(IconScoreBase):
     def updateStateOnLiquidation(self, _principalReserve: Address, _collateralReserve: Address, _user: Address,
                                  _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,
                                  _liquidatedCollateralForFee: int, _balanceIncrease: int):
-        pass
+        self.updatePrincipalReserveStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate, _balanceIncrease)
+        self.updateCollateralReserveStateOnLiquidationInternal(_collateralReserve)
+        self.updateUserStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate, _feeLiquidated, _balanceIncrease)
+        self.updateReserveInterestRatesAndTimestampInternal(_principalReserve,_amountToLiquidate, 0)
+
+    def updatePrincipalReserveStateOnLiquidationInternal(self, _principalReserve: Address, _user: Address, _amountToLiquidate: int, _balanceIncrease: int) -> None:
+        reserveData = self.getReserveData(_principalReserve)
+        self.updateTotalBorrows(_principalReserve, reserveData['totalBorrows'] + _balanceIncrease - _amountToLiquidate)
+
+    def updateCollateralReserveStateOnLiquidationInternal(self, _collateralReserve: Address) -> None:
+        self.updateCumulativeIndexes(_collateralReserve)
+
+    def updateUserStateOnLiquidationInternal(self, _reserve: Address, _user: Address, _amountToLiquidate: int, _feeLiquidated: int, _balanceIncrease: int) -> None:
+        reserveData = self.getReserveData(_reserve)
+        userData = self.getUserReserveData(_reserve, _user)
+        self.updateUserPrincipalBorrowBalance(_reserve, _user, userData['principalBorrowBalance'] - _amountToLiquidate + _balanceIncrease)
+        self.updateUserBorrowCumulativeIndex(_reserve, _user, reserveData['borrowCumulativeIndex'])
+
+        if _feeLiquidated > 0:
+            self.updateUserOriginationFee(_reserve, _user, userData['originationFee'] - _feeLiquidated)
+
+        self.updateUserLastUpdateTimestamp(self.block.timestamp)
 
     @external
     def setUserUseReserveAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: bool) -> None:
