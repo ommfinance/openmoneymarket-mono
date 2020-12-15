@@ -219,7 +219,6 @@ class LiquidationManager(IconScoreBase):
         maxPrincipalAmountToLiquidateUSD = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
                                                                  userAccountData['totalFeesUSD'],
                                                                  userAccountData['totalCollateralBalanceUSD'],
-                                                                 _reserve,
                                                                  userAccountData['currentLtv'])
         maxPrincipalAmountToLiquidate = exaDiv(maxPrincipalAmountToLiquidateUSD, principalPrice)
         if _purchaseAmount > maxPrincipalAmountToLiquidate:

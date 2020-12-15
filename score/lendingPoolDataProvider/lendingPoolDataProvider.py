@@ -329,7 +329,7 @@ class LendingPoolDataProvider(IconScoreBase):
                                                                'originationFee': userReserveOriginationFee}
             if userReserveUnderlyingBalance > 0:
                 response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveUnderlyingBalance}
-        
+        return response
 
     @external(readonly=True)
     def calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,

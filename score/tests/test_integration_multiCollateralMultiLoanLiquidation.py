@@ -197,6 +197,8 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
                      'params': {'_percentage': self.feePercentage}},
                     {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params': {
                         '_reserveAddress': self.contracts['sample_token'], '_sym': "USDb"}},
+                    {'contract': 'lendingPoolDataProvider', 'method': 'setLiquidationAddress', 'params': {
+                        '_address': self.contracts['liquidationManager']}},
 
                     {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params': {
                         '_reserveAddress': self.contracts['sicx'], '_sym': "Sicx"}},
@@ -700,6 +702,18 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         #print('RESERVEACCOUNTDATA', reserveAccountData)
         return reserveAccountData
 
+    def getUserLiquidationData(self, _user : Address):
+        params = {'_user': _user}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserLiquidationData") \
+            .params(params) \
+            .build() 
+        userLiquidationDetails = self.process_call(_call)
+        #print('RESERVEACCOUNTDATA', reserveAccountData)
+        return userLiquidationDetails
+
     def calculateOriginationFee(self, _borrowAmount: int, _user):
         params = {'_user': _user, '_amount': _borrowAmount}
         _call = CallBuilder() \
@@ -757,6 +771,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
     #def liquidationCall(self, _collateral, _reserve, _user, _purchaseAmount):
     def _liquidationCallUSDbRepay(self, _loanPayoffAmount : int, _borrowerUser : KeyWallet, _liquidatorUser : KeyWallet) :
         print('----------------')
+        print('user Liquidation Details', self.getUserLiquidationData(self.test_account5.get_address()))
         print('borrowerUserDataBeforeLiquidation::', self.getUserAccountData(_borrowerUser.get_address())) 
         print('_liquidatorUserInitial sicx amount', self.getUserSICXBalance(_liquidatorUser.get_address())/10**18)
         print('_liquidatorUser usdb balance before', self.getUserUSDbBalance(_liquidatorUser.get_address())/10**18)
@@ -798,6 +813,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         
     def _liquidationCallICXRepay(self, _loanPayoffAmount : int, _borrowerUser : KeyWallet, _liquidatorUser : KeyWallet) :
         print('----------------')
+        print()
         print('borrowerUserDataBeforeLiquidation::', self.getUserAccountData(_borrowerUser.get_address())) 
         print('_liquidatorUserInitial sicx amount', self.getUserSICXBalance(_liquidatorUser.get_address())/10**18)
         print('_liquidatorUser usdb balance before', self.getUserUSDbBalance(_liquidatorUser.get_address())/10**18)
