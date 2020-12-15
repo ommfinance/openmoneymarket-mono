@@ -145,7 +145,7 @@ class LiquidationManager(IconScoreBase):
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
         badDebtUSD = _totalBorrowBalanceUSD + _totalFeesUSD - exaMul(_totalCollateralBalanceUSD, _ltv)
         badDebt = exaMul(badDebtUSD, principalPrice)
-
+               
         return badDebt
 
     def calculateAvailableCollateralToLiquidate(self, _collateral: Address, _reserve: Address, _purchaseAmount: int,

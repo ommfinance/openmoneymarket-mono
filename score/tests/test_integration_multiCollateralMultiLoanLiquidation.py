@@ -71,7 +71,14 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self._setVariablesAndInterfaces()
 
         #Test Case 1
-        
+        #Transfer 100k ICX to test_account2
+        self.userTestICXAmountUser2 = 100000 * 10 ** 18
+        self._transferTestICXToUser(self.userTestICXAmountUser2, self.test_account2.get_address()) 
+
+        #Transfer 100k ICX to test_account3
+        self.userTestICXAmountUser3 = 100000 * 10 ** 18
+        self._transferTestICXToUser(self.userTestICXAmountUser3, self.test_account3.get_address()) 
+
         #Transfer 100k ICX to test_account4
         self.userTestICXAmountUser4 = 100000 * 10 ** 18
         self._transferTestICXToUser(self.userTestICXAmountUser4, self.test_account4.get_address()) 
@@ -87,6 +94,14 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         #Trasnfer 600k USDb to test_account3
         self.userTestUSdbAmountUser3 = 600000 * 10 ** 18
         self._transferTestUSDbToUser(self.userTestUSdbAmountUser3, self.test_account3.get_address())
+
+        #transfer sicx to test_account3
+        self.userTestSICXAmountUser3 = 100000 * 10 ** 18
+        self._transferTestSICXToUser(self.userTestSICXAmountUser3, self.test_account3.get_address())
+
+        #transfer sicx to test_account5
+        self.userTestSICXAmountUser5 = 200 * 10 ** 18
+        self._transferTestSICXToUser(self.userTestSICXAmountUser5, self.test_account5.get_address())
 
         #Trasnfer 200k USDb to test_account4
         self.userTestUSdbAmountUser4 = 200000 * 10 ** 18
@@ -112,14 +127,21 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.depositICXAmountUser5 = 800 * 10 ** 18 
         self._depositICX(self.depositICXAmountUser5, self.test_account5)
 
-        #test_account4 borrows 145 USDb from usdb reserve i.e sample_token        
-        self.borrowUSDBAmountUser4 = 145 * 10 ** 18 
+        #test_account4 borrows USDb from usdb reserve i.e sample_token        
+        self.borrowUSDBAmountUser4 = 137 * 10 ** 18 
         self._borrowUSDb(self.borrowUSDBAmountUser4, self.test_account4)
 
-        #test_account5 borrows 220 USDb from usdb reserve i.e sample_token        
-        self.borrowUSDBAmountUser5 = 220 * 10 ** 18 
+        #test_account5 borrows USDb from usdb reserve i.e sample_token        
+        self.borrowUSDBAmountUser5 = 210 * 10 ** 18 
         self._borrowUSDb(self.borrowUSDBAmountUser5, self.test_account5)
 
+        #test_account4 borrows ICX         
+        self.borrowICXAmountUser4 = 20 * 10 ** 18 
+        self._borrowSICX(self.borrowICXAmountUser4, self.test_account4)
+
+        #test_account5 borrows ICX       
+        self.borrowICXAmountUser5 = 20 * 10 ** 18 
+        self._borrowSICX(self.borrowICXAmountUser5, self.test_account5)
         
         #reduce icxUSD rate  
         self.sICXRate = 15 * 10 ** 16
@@ -127,16 +149,14 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         #test_account2 pays off 21 USDb loan from user4 
         #unable to trigger liquidation for user 5 as healthfactor >1 
         self.loanPayoffAmountUser4 = 40 * 10 ** 18 
-        self._liquidationCall(self.loanPayoffAmountUser4, self.test_account4, self.test_account2) 
+        self._liquidationCallUSDbRepay(self.loanPayoffAmountUser4, self.test_account4, self.test_account2) 
         
-        self.sICXRate = 5 * 10 ** 16
+        self.sICXRate = 2 * 10 ** 16
         self._changeOraclePriceFeed(self.sICXRate)
-        #test_account3 pays off 75 USDb loan from user5
-        self.loanPayoffAmountUser5 = 75 * 10 ** 18 
-        self._liquidationCall(self.loanPayoffAmountUser5, self.test_account5, self.test_account3) 
-
+        #test_account3 pays off ICX loan from user5
+        self.loanPayoffAmountUser5 = 1 * 10 ** 18 
+        self._liquidationCallICXRepay(self.loanPayoffAmountUser5, self.test_account5, self.test_account3) 
         
-
     def _changeOraclePriceFeed(self, sICXRate: int):
         settings = [{'contract': 'priceOracle', 'method': 'set_reference_data',
                      'params': {'_base': 'Sicx', '_quote': 'USD', '_rate': sICXRate}}]
@@ -378,8 +398,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             self.assertEqual(
                 self.contracts[address], tx_result['scoreAddress'])
 
-    def _transferTestICXToUser(self, _testFund: int, _user):
-        # Transferring 100k ICX to  test_account2
+    def _transferTestICXToUser(self, _testFund: int, _user : KeyWallet):
         transaction = TransactionBuilder() \
             .from_(self._test1.get_address()) \
             .to(_user) \
@@ -396,8 +415,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertTrue('status' in tx_result)
         self.assertEqual(1, tx_result['status'])
 
-    def _transferTestUSDbToUser(self, _testFund: int, _user):
-        # Transferring 1 Mill USdb to  test_account3
+    def _transferTestUSDbToUser(self, _testFund: int, _user : KeyWallet):
         params = {"_to": _user,"_value": _testFund}
         call_transaction = CallTransactionBuilder() \
             .from_(self._test1.get_address()) \
@@ -413,7 +431,23 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertTrue('status' in tx_result)
         self.assertEqual(1, tx_result['status'])
 
-    def _depositICX(self, _depositAmount: int, _user):
+    def _transferTestSICXToUser(self, _testFund: int, _user : KeyWallet):
+        params = {"_to": _user,"_value": _testFund}
+        call_transaction = CallTransactionBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['sicx']) \
+            .nid(3) \
+            .step_limit(10000000) \
+            .nonce(100) \
+            .method("transfer") \
+            .params(params) \
+            .build()
+        signed_transaction = SignedTransaction(call_transaction, self._test1)
+        tx_result = self.process_transaction(signed_transaction)
+        self.assertTrue('status' in tx_result)
+        self.assertEqual(1, tx_result['status'])
+
+    def _depositICX(self, _depositAmount: int, _user : KeyWallet):
         # calling deposit from test_account2
         params = {"_amount": _depositAmount}
         call_transaction = CallTransactionBuilder() \
@@ -433,7 +467,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertTrue('status' in tx_result)
         self.assertEqual(1, tx_result['status'])
 
-    def _depositUSDb(self, _depositAmount: int, _user):
+    def _depositUSDb(self, _depositAmount: int, _user : KeyWallet):
         depositData = {'method': 'deposit', 'params': {'amount': _depositAmount}}
         data = json.dumps(depositData).encode('utf-8')
         params = {"_to": self.contracts['lendingPool'],
@@ -453,7 +487,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertTrue('status' in tx_result)
         self.assertEqual(1, tx_result['status'])
 
-    def _borrowUSDb(self, _borrowAmount : int, _user):
+    def _borrowUSDb(self, _borrowAmount : int, _user : KeyWallet):
         params = {"_reserve": self.contracts['sample_token'], "_amount": _borrowAmount}
         call_transaction = CallTransactionBuilder() \
             .from_(_user.get_address()) \
@@ -470,10 +504,10 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(1, tx_result['status'])
         self.assertTrue('status' in tx_result)
 
-    def _borrowSICX(self, _borrowAmount : int):
+    def _borrowSICX(self, _borrowAmount : int, _user : KeyWallet):
         params = {"_reserve": self.contracts['sicx'], "_amount": _borrowAmount}
         call_transaction = CallTransactionBuilder() \
-            .from_(self.test_account3.get_address()) \
+            .from_(_user.get_address()) \
             .to(self.contracts['lendingPool']) \
             .nid(3) \
             .step_limit(10000000) \
@@ -482,7 +516,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
             .params(params) \
             .build()
         signed_transaction = SignedTransaction(
-            call_transaction, self.test_account2)
+            call_transaction, _user)
         tx_result = self.process_transaction(signed_transaction)
         self.assertEqual(1, tx_result['status'])
         self.assertTrue('status' in tx_result)
@@ -721,7 +755,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         return int(borrowingPower, 16)
     
     #def liquidationCall(self, _collateral, _reserve, _user, _purchaseAmount):
-    def _liquidationCall(self, _loanPayoffAmount : int, _borrowerUser : KeyWallet, _liquidatorUser : KeyWallet) :
+    def _liquidationCallUSDbRepay(self, _loanPayoffAmount : int, _borrowerUser : KeyWallet, _liquidatorUser : KeyWallet) :
         print('----------------')
         print('borrowerUserDataBeforeLiquidation::', self.getUserAccountData(_borrowerUser.get_address())) 
         print('_liquidatorUserInitial sicx amount', self.getUserSICXBalance(_liquidatorUser.get_address())/10**18)
@@ -762,95 +796,44 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         print('oICX balance of  borrower after', self.getUserOICXBalance(_borrowerUser.get_address())/10**18)
         print('oUSDb balance of borrower after ', self.getUserOUSDbBalance(_borrowerUser.get_address())/10**18)
         
-    """
-    def test_oneinitTest(self):
-        #check  oToken of user2,3,4,5
-        user2OTokenBalanceOUSDb = self.getUserOUSDbBalance(self.test_account2.get_address())
-        self.assertEqual(user2OTokenBalanceOUSDb, 0)
-        user2OTokenBalanceOICX = self.getUserOICXBalance(self.test_account2.get_address())
-        self.assertEqual(user2OTokenBalanceOICX, 0)
-
-        user3OTokenBalanceOUSDb = self.getUserOUSDbBalance(self.test_account3.get_address())
-        self.assertEqual(user3OTokenBalanceOUSDb, 0)
-        user3OTokenBalanceOICX = self.getUserOICXBalance(self.test_account3.get_address())
-        self.assertEqual(user3OTokenBalanceOICX, 0)
-
-        user4OTokenBalanceOUSDb = self.getUserOUSDbBalance(self.test_account4.get_address())
-        self.assertEqual(user4OTokenBalanceOUSDb, self.depositUSDbAmountUser4)
-        user4OTokenBalanceOICX = self.getUserOICXBalance(self.test_account4.get_address())
-        self.assertEqual(user4OTokenBalanceOICX, self.depositICXAmountUser4)
-
-        user5OTokenBalanceOUSDb = self.getUserOUSDbBalance(self.test_account5.get_address())
-        self.assertEqual(user5OTokenBalanceOUSDb, self.depositUSDbAmountUser5)
-        user5OTokenBalanceOICX = self.getUserOICXBalance(self.test_account5.get_address())
-        self.assertEqual(user5OTokenBalanceOICX, self.depositICXAmountUser5)
-
-        #check borrowed balance for user 4,5
-        user4USDbBalance = self.getUserUSDbBalance(self.test_account4.get_address())
-        self.assertEqual(user4USDbBalance, self.userTestUSdbAmountUser4 - self.depositUSDbAmountUser4 + self.borrowUSDBAmountUser4)
-
-        user5USDbBalance = self.getUserUSDbBalance(self.test_account5.get_address())
-        self.assertEqual(user5USDbBalance, self.userTestUSdbAmountUser5 - self.depositUSDbAmountUser5 + self.borrowUSDBAmountUser5)
-
-        print('getUser4AccountData', self.getUserAccountData(self.test_account4.get_address()))
-        print('getUser5AccountData', self.getUserAccountData(self.test_account5.get_address()))
-    """
-    """
-    def test_two_user4Liquidation(self):
-        collateralGivenToLiquidatorInUSDb = exaMul(exaDiv(self.loanPayoffAmountUser4, self.USDbRate), EXA + self.liquidationBonus)
-        collateralTrasnferredToFeeProviderInUSDb = exaMul(exaDiv(exaMul(self.borrowUSDBAmountUser4, self.feePercentage), self.USDbRate), EXA + self.liquidationBonus)
-        totalCollateralSubtractedFromUser = collateralTrasnferredToFeeProviderInUSDb + collateralGivenToLiquidatorInUSDb
-        totalCollateralSubtractedUSD = exaMul(totalCollateralSubtractedFromUser, self.USDbRate)
-        print('totalCollateralSubtractedUSD', totalCollateralSubtractedUSD)
-        #borrower collateral balance
-        self.assertEqual(self.getUserAccountData(self.test_account4.get_address())['totalLiquidityBalanceUSD'], exaMul(self.depositICXAmountUser4, self.sICXRate) + self.depositUSDbAmountUser4- totalCollateralSubtractedUSD)
-        #borrower borrow balance
-        #test does not pass due to accured interest
-        #self.assertEqual(self.getUserAccountData(self.test_account4.get_address())['totalBorrowBalanceUSD'], (self.borrowUSDBAmountUser4 - self.loanPayoffAmountUser4))
-
-        #liquidator sicx balance
-        self.assertEqual(self.getUserSICXBalance(self.test_account2.get_address()), 0)
-        #liquidator usdb balance
-        self.assertEqual(self.getUserUSDbBalance(self.test_account2.get_address()), self.userTestUSdbAmountUser2 - self.loanPayoffAmountUser4 + collateralGivenToLiquidatorInUSDb)
-
-        #usdb reserve available liquidity
-        self.assertEqual(self.getReserveData(self.contracts['sample_token'])['availableLiquidity'] , self.depositUSDbAmountUser4 + self.depositUSDbAmountUser5 - self.borrowUSDBAmountUser4 - self.borrowUSDBAmountUser5 + self.loanPayoffAmountUser4 - totalCollateralSubtractedUSD)
-        #usdb reserve total borrows
-        #test does not pass due to accured interest
-        #self.assertEqual(self.getReserveData(self.contracts['sample_token'])['totalBorrows'] ,self.borrowUSDBAmountUser4 + self.borrowUSDBAmountUser5 - self.loanPayoffAmountUser4)
-    """
-    """
-    def test_three_user5Liquidation(self):
-        #calculate bad depth manually
-        badDepth = self.borrowUSDBAmountUser4 + exaMul(self.borrowUSDBAmountUser4, self.feePercentage) - exaMul(exaMul(self.depositICXAmountUser4 , self.sICXRate), self.baseLTVasCollateralICX)
-        collateralGivenToLiquidatorInSICX = exaMul(exaDiv(badDepth, self.sICXRate), EXA + self.liquidationBonus)
-        collateralTrasnferredToFeeProviderInSICX = exaMul(exaDiv(exaMul(self.borrowUSDBAmountUser4, self.feePercentage), self.sICXRate), EXA + self.liquidationBonus)
-        totalCollateralSubtractedFromUser = collateralGivenToLiquidatorInSICX + collateralTrasnferredToFeeProviderInSICX
-        totalCollateralSubtractedUSD = exaMul(totalCollateralSubtractedFromUser, self.sICXRate)
-        #print(totalCollateralSubtractedUSD)
-        #borrower collateral balance
-        liquidatorPreviousSICXbalance = 96250000000000000000
-        #test does not pass due to recursion value obtained during division
-        #self.assertEqual(self.getUserAccountData(self.test_account4.get_address())['totalLiquidityBalanceUSD'], exaMul(self.depositICXAmountUser4, self.sICXRate) - totalCollateralSubtractedUSD)
+    def _liquidationCallICXRepay(self, _loanPayoffAmount : int, _borrowerUser : KeyWallet, _liquidatorUser : KeyWallet) :
+        print('----------------')
+        print('borrowerUserDataBeforeLiquidation::', self.getUserAccountData(_borrowerUser.get_address())) 
+        print('_liquidatorUserInitial sicx amount', self.getUserSICXBalance(_liquidatorUser.get_address())/10**18)
+        print('_liquidatorUser usdb balance before', self.getUserUSDbBalance(_liquidatorUser.get_address())/10**18)
+        print('sicx reserve before', self.getReserveData(self.contracts['sicx']))
+        liquidityUSDbbefore = self.getReserveData(self.contracts['sample_token'])['availableLiquidity']
+        print('oICX balance of borrower before ', self.getUserOICXBalance(_borrowerUser.get_address())/10**18)
+        print('oUSDb balance of borrower before ', self.getUserOUSDbBalance(_borrowerUser.get_address())/10**18)
+        print('calling liquidaitonCall')
+        depositData = {'method': 'liquidationCall', 'params': 
+            {'_collateral': self.contracts['sicx'],
+            '_reserve': self.contracts['sicx'],
+            '_user': _borrowerUser.get_address(),
+            '_purchaseAmount': _loanPayoffAmount}}
+        data = json.dumps(depositData).encode('utf-8')
+        params = {"_to": self.contracts['lendingPool'],
+                  "_value": _loanPayoffAmount, "_data": data}
+        call_transaction = CallTransactionBuilder() \
+            .from_(_liquidatorUser.get_address()) \
+            .to(self.contracts['sicx']) \
+            .nid(3) \
+            .step_limit(10000000) \
+            .nonce(100) \
+            .method("transfer") \
+            .params(params) \
+            .build()
+        signed_transaction = SignedTransaction(
+            call_transaction, _liquidatorUser)
+        tx_result = self.process_transaction(signed_transaction)
+        self.assertTrue('status' in tx_result)
+        self.assertEqual(1, tx_result['status'])
+        print('borrowerUserDataAfterLiquidation::', self.getUserAccountData(_borrowerUser.get_address())) 
+        print('_liquidatorUser sicx amount after liquidation', (self.getUserSICXBalance(_liquidatorUser.get_address())/10**18) )
+        print('_liquidatorUser usdb balance after', self.getUserUSDbBalance(_liquidatorUser.get_address())/10**18)
+        print('sicx reserve after', self.getReserveData(self.contracts['sicx']))
+        liquidityUSDbafter = self.getReserveData(self.contracts['sample_token'])['availableLiquidity']
+        print('change in liquidity is', (liquidityUSDbafter - liquidityUSDbbefore)/10**18)
+        print('oICX balance of  borrower after', self.getUserOICXBalance(_borrowerUser.get_address())/10**18)
+        print('oUSDb balance of borrower after ', self.getUserOUSDbBalance(_borrowerUser.get_address())/10**18)
         
-        #borrower borrow balance
-        #test does not pass due to accured interest
-        self.assertEqual(self.getUserAccountData(self.test_account4.get_address())['totalBorrowBalanceUSD'], (self.borrowUSDBAmountUser4 - badDepth))
-
-        #liquidator sicx balance
-        #test does not pass due to recursion value lost in division
-        #self.assertEqual(self.getUserSICXBalance(self.test_account2.get_address()),liquidatorPreviousSICXbalance + collateralGivenToLiquidatorInSICX)
-        
-        #liquidator usdb balance
-        #test does not pass due to recursion value lost in division
-        #self.assertEqual(self.getUserUSDbBalance(self.test_account2.get_address()), self.userTestUSdbAmount - self.depositUSDbAmountUser2 - badDepth - self.loanPayoffAmountUser3)
-
-        #usdb reserve available liquidity
-        #test does not pass due to accured interest
-        #self.assertEqual(self.getReserveData(self.contracts['sample_token'])['availableLiquidity'] ,self.depositUSDbAmountUser2 - self.borrowUSDBAmountUser3 - self.borrowUSDBAmountUser4 - self.borrowUSDBAmountUser5 + self.loanPayoffAmountUser4 + self.loanPayoffAmountUser3)
-        
-        #usdb reserve total borrows
-        #test does not pass due to accured interest
-        #does not pass due to accured interst
-        #self.assertEqual(self.getReserveData(self.contracts['sample_token'])['totalBorrows'] ,self.borrowUSDBAmountUser3 + self.borrowUSDBAmountUser4 + self.borrowUSDBAmountUser5 - self.loanPayoffAmountUser4 - self.loanPayoffAmountUser3)
-    """
