@@ -3,6 +3,7 @@ from .Math import *
 
 TAG = 'LiquidationManager'
 
+
 class DataProviderInterface(InterfaceScore):
     @interface
     def getUserAccountData(self, _user: Address) -> dict:
@@ -137,16 +138,14 @@ class LiquidationManager(IconScoreBase):
     def getOracleAddress(self):
         return self._priceOracleAddress.get()
 
+    @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
-                         _reserve: Address, _ltv:int) -> int:
+                         _ltv: int) -> int:
         priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
-        dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
-        principalBase = dataProvider.getSymbol(_reserve)
-        principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
         badDebtUSD = _totalBorrowBalanceUSD + _totalFeesUSD - exaMul(_totalCollateralBalanceUSD, _ltv)
-        badDebt = exaMul(badDebtUSD, principalPrice)
+        # badDebt = exaDiv(badDebtUSD, principalPrice)
 
-        return badDebt
+        return badDebtUSD
 
     def calculateAvailableCollateralToLiquidate(self, _collateral: Address, _reserve: Address, _purchaseAmount: int,
                                                 _userCollateralBalance: int) -> dict:
@@ -187,10 +186,13 @@ class LiquidationManager(IconScoreBase):
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
         dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
         core = self.create_interface_score(self.getCoreAddress(), CoreInterface)
-
+        priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
+        dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
+        principalBase = dataProvider.getSymbol(_reserve)
+        principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
         userAccountData = dataProvider.getUserAccountData(_user)
         reserveData = dataProvider.getReserveData(_reserve)
-        
+
         actualAmountToLiquidate = 0
         liquidatedCollateralForFee = 0
         feeLiquidated = 0
@@ -214,11 +216,12 @@ class LiquidationManager(IconScoreBase):
         userBorrowBalances = core.getUserBorrowBalances(_reserve, _user)
         if userBorrowBalances['compoundedBorrowBalance'] == 0:
             revert('Liquidation call error: No borrow by the user')
-        maxPrincipalAmountToLiquidate = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
-                                                              userAccountData['totalFeesUSD'],
-                                                              userAccountData['totalCollateralBalanceUSD'],
-                                                              _reserve,
-                                                              userAccountData['currentLtv'])
+        maxPrincipalAmountToLiquidateUSD = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
+                                                                 userAccountData['totalFeesUSD'],
+                                                                 userAccountData['totalCollateralBalanceUSD'],
+                                                                 _reserve,
+                                                                 userAccountData['currentLtv'])
+        maxPrincipalAmountToLiquidate = exaDiv(maxPrincipalAmountToLiquidateUSD, principalPrice)
         if _purchaseAmount > maxPrincipalAmountToLiquidate:
             actualAmountToLiquidate = maxPrincipalAmountToLiquidate
         else:
