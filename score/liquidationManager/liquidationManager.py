@@ -148,13 +148,14 @@ class LiquidationManager(IconScoreBase):
         return badDebtUSD
 
     def calculateAvailableCollateralToLiquidate(self, _collateral: Address, _reserve: Address, _purchaseAmount: int,
-                                                _userCollateralBalance: int) -> dict:
+                                                _userCollateralBalance: int, _fee: bool) -> dict:
         priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
         dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
 
         collateralConfigs = dataProvider.getReserveConfigurationData(_collateral)
         liquidationBonus = collateralConfigs['liquidationBonus']
-
+        if _fee:
+            liquidationBonus = 0
         collateralBase = dataProvider.getSymbol(_collateral)
         principalBase = dataProvider.getSymbol(_reserve)
 
@@ -227,14 +228,14 @@ class LiquidationManager(IconScoreBase):
             actualAmountToLiquidate = _purchaseAmount
         liquidationDetails = self.calculateAvailableCollateralToLiquidate(_collateral, _reserve,
                                                                           actualAmountToLiquidate,
-                                                                          userCollateralBalance)
+                                                                          userCollateralBalance,False)
         maxCollateralToLiquidate = liquidationDetails['collateralAmount']
         principalAmountNeeded = liquidationDetails['principalAmountNeeded']
         userOriginationFee = core.getUserOriginationFee(_reserve, _user)
         if userOriginationFee > 0:
             feeLiquidationDetails = self.calculateAvailableCollateralToLiquidate(_collateral, _reserve,
                                                                                  userOriginationFee,
-                                                                                 userCollateralBalance - maxCollateralToLiquidate)
+                                                                                 userCollateralBalance - maxCollateralToLiquidate,True)
             liquidatedCollateralForFee = feeLiquidationDetails['collateralAmount']
             feeLiquidated = feeLiquidationDetails['principalAmountNeeded']
         if principalAmountNeeded < actualAmountToLiquidate:
