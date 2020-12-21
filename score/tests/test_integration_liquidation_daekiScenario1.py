@@ -28,15 +28,15 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.icon_service = None
         self.test_account2 = KeyWallet.create()
         self.test_account3 = KeyWallet.create()
-        # Reserve configurations
+        # Reserve configurations 18181818181818181818 868181818181818181818 1000000000000000000000
         self.feePercentage = 1 * 10 ** 16
         self.USDbRate = 1 * 10 ** 18
         self.sICXRate = 5 * 10 ** 17
         self.ICXRate = 1 * 10 ** 18
         self.liquidationBonus = 1 *10 ** 17
         self.decimals = 18
-        self.baseLTVasCollateralICX = 50 * 10 ** 16
-        self.baseLTVasCollateralUSDb = 50 * 10 ** 16
+        self.baseLTVasCollateralICX = 33 * 10 ** 16
+        self.baseLTVasCollateralUSDb = 33 * 10 ** 16
         self.liquidationThreshold = 66 * 10 ** 16 
 
         # Reserve constants of USDb
@@ -73,25 +73,21 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.userTestICXAmount = 500000 * 10 ** 18
         self._transferTestICXToUser(self.userTestICXAmount, self.test_account2.get_address()) 
 
-        #Transfer 500k ICX to test_account3
-        self.userTestICXAmount = 500000 * 10 ** 18
-        self._transferTestICXToUser(self.userTestICXAmount, self.test_account3.get_address()) 
-
         #Trasnfer 1 Mill USDb to test_account3
         self.userTestUSdbAmount = 1000000 * 10 ** 18
         self._transferTestUSDbToUser(self.userTestUSdbAmount, self.test_account3.get_address())
 
-        #test_account2 deposits 50k ICX into sicx reserve
-        self.depositICXAmount1 = 300 * 10 ** 18 
+        #test_account2 deposits 1000 ICX into sicx reserve
+        self.depositICXAmount1 = 1000 * 10 ** 18 
         self._depositICX(self.depositICXAmount1, self.test_account2)
 
-        #test_account3 deposits 40k USDb into usdb reserve i.e sample_token        
-        self.depositUSDbAmount1 = 40000 * 10 ** 18
+        #test_account3 deposits 1000 USDb into usdb reserve i.e sample_token        
+        self.depositUSDbAmount1 = 1000 * 10 ** 18
         self._depositUSDb(self.depositUSDbAmount1, self.test_account3)
 
         #Test Case2
-        #test_account2 borrows 5k USDb from usdb reserve i.e sample_token        
-        self.borrowUSDBAmount1 = 75 * 10 ** 18 
+        #test_account2 borrows 150 USDb from usdb reserve i.e sample_token        
+        self.borrowUSDBAmount1 = 150 * 10 ** 18 
         self._borrowUSDb(self.borrowUSDBAmount1, self.test_account2)
 
         #self.liquidationCall() #user cannot get liquidated 
@@ -101,13 +97,13 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         #self.sICXRate = 37 * 10 ** 16
         self._changeOraclePriceFeed() 
         #time.sleep(1)
-        #test_account3 pays off 1k loan from user2 
-        self.loanPayoffAmount = 21 * 10 ** 18 
+        #test_account3 pays off 1k loan from user2  
+        self.loanPayoffAmount = 100 * 10 ** 18 
         self._liquidationCall(self.loanPayoffAmount, self.test_account2, self.test_account3) 
 
     def _changeOraclePriceFeed(self):
         settings = [{'contract': 'priceOracle', 'method': 'set_reference_data',
-                     'params': {'_base': 'Sicx', '_quote': 'USD', '_rate': 37 * 10 ** 16}}]
+                     'params': {'_base': 'Sicx', '_quote': 'USD', '_rate': 2 * 10 ** 17}}]
         for sett in settings:
             #print(sett)
             transaction = CallTransactionBuilder() \
@@ -694,7 +690,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         print('user2Data', self.getUserAccountData(_borrowerUser.get_address())) 
         print('_liquidatorUserInitial sicx amount', self.getUserSICXBalance(_liquidatorUser.get_address()))
         print('usdb reserve available liquidity before', self.getReserveData(self.contracts['sample_token'])['availableLiquidity'])
-        print('after liquidation', self.getUserAccountData(self.test_account2.get_address()))
+        print('before liquidation', self.getUserAccountData(self.test_account2.get_address()))
         liquidityUSDbbefore = self.getReserveData(self.contracts['sample_token'])['availableLiquidity']
         print('user3 usdb balance before', self.getUserUSDbBalance(self.test_account3.get_address()))
         print('oICX balance of user2 before i.e borrower', self.getUserOICXBalance(self.test_account2.get_address()))
@@ -730,6 +726,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         print('after liquidation', self.getUserAccountData(self.test_account2.get_address()))
         print('user3 usdb balance after', self.getUserUSDbBalance(self.test_account3.get_address()))
         print('oICX balance of user2 i.e borrower', self.getUserOICXBalance(self.test_account2.get_address()))
+        print('oICX balance of user3 ', self.getUserOICXBalance(self.test_account3.get_address()))
 
     """
     def functionCallExample(self):
@@ -823,7 +820,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         )
         print('borrowingPowerUser3',borrowingPowerUser3)
     """
-
+    """
     def test_oneinitTest(self):
         userUSDbBalance = self.getUserUSDbBalance(self.test_account2.get_address())
 
@@ -840,7 +837,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         print('user3AccountData',user3AccountData)
 
         self.assertEqual(userUSDbBalance, self.borrowUSDBAmount1)
-        
+    """
         
         
 
