@@ -142,9 +142,11 @@ class LiquidationManager(IconScoreBase):
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
                          _ltv: int) -> int:
         priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
-        badDebtUSD = _totalBorrowBalanceUSD + _totalFeesUSD - exaMul(_totalCollateralBalanceUSD, _ltv)
-        # badDebt = exaDiv(badDebtUSD, principalPrice)
+        badDebtUSD = _totalBorrowBalanceUSD - exaMul(_totalCollateralBalanceUSD - _totalFeesUSD, _ltv)
 
+        if badDebtUSD < 0:
+            badDebtUSD = 0
+            
         return badDebtUSD
 
     def calculateAvailableCollateralToLiquidate(self, _collateral: Address, _reserve: Address, _purchaseAmount: int,
