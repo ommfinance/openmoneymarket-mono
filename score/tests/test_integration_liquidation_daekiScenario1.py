@@ -141,7 +141,10 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
                      'params': {'_percentage': self.feePercentage}},
                     {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params': {
                         '_reserveAddress': self.contracts['sample_token'], '_sym': "USDb"}},
-
+                    {'contract': 'lendingPoolDataProvider', 'method': 'setLendingPoolAddress', 'params': {
+                        '_address': self.contracts['lendingPool']}},
+                    {'contract': 'lendingPoolDataProvider', 'method': 'setLiquidationAddress', 'params': {
+                        '_address': self.contracts['liquidationManager']}},
                     {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params': {
                         '_reserveAddress': self.contracts['sicx'], '_sym': "Sicx"}},
 
@@ -642,6 +645,29 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         #print('originationFee', int(originationFee, 16))
         return int(originationFee, 16)
 
+    def getLiquidationLists(self):
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("liquidationList") \
+            .build()
+        liquidationList = self.process_call(_call)
+        #print('liquidationList', liquidationList)
+        return liquidationList
+
+    def getUserLiquidationData(self, _user : Address):
+        param = {'_user': _user}
+        _call = CallBuilder() \
+            .from_(self._test1.get_address()) \
+            .to(self.contracts['lendingPoolDataProvider']) \
+            .method("getUserLiquidationData") \
+            .params(param) \
+            .build()
+        getUserLiquidationData = self.process_call(_call)
+        print('getUserLiquidationData', getUserLiquidationData)
+        return getUserLiquidationData
+
+
     def calculateInterestRates(self, _reserve, _availableLiquidity, _totalBorrows):
         params = {'_reserve': _reserve, '_availableLiquidity': _availableLiquidity ,'_totalBorrows': _totalBorrows}
         _call = CallBuilder() \
@@ -687,6 +713,7 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
     #def liquidationCall(self, _collateral, _reserve, _user, _purchaseAmount):
     def _liquidationCall(self, _loanPayoffAmount : int, _borrowerUser : KeyWallet, _liquidatorUser : KeyWallet) :
 
+        print('liqudationList', self.getLiquidationLists())
         print('user2Data', self.getUserAccountData(_borrowerUser.get_address())) 
         print('_liquidatorUserInitial sicx amount', self.getUserSICXBalance(_liquidatorUser.get_address()))
         print('usdb reserve available liquidity before', self.getReserveData(self.contracts['sample_token'])['availableLiquidity'])
