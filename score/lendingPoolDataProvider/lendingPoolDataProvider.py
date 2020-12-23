@@ -50,6 +50,19 @@ class oTokenInterface(InterfaceScore):
     def balanceOf(self, _owner: Address) -> int:
         pass
 
+# An interface to LendingPool
+class LendingPoolInterface(InterfaceScore):
+    @interface
+    def get_wallets(self) -> list:
+        pass
+
+
+# An interface to liquidation manager
+class LiquidationInterface(InterfaceScore):
+    @interface
+    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int, _ltv: int) -> int:
+        pass
+
 
 # An interface to liquidation manager
 class LiquidationInterface(InterfaceScore):
@@ -64,6 +77,7 @@ class LendingPoolDataProvider(IconScoreBase):
         super().__init__(db)
         self._symbol = DictDB('symbol', db, value_type=str)
         self._lendingPoolCoreAddress = VarDB('lendingPoolCore', db, value_type=Address)
+        self._lendingPoolAddress = VarDB('lendingPool', db, value_type=Address)
         self._oracleAddress = VarDB('oracleAddress', db, value_type=Address)
         self._liquidationAddress = VarDB('liquidationAddress', db, value_type=Address)
 
@@ -91,6 +105,13 @@ class LendingPoolDataProvider(IconScoreBase):
         self._lendingPoolCoreAddress.set(_address)
 
     @external
+    def setLendingPoolAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._lendingPoolAddress.set(_address)
+
+    @external
     def setOracleAddress(self, _address: Address) -> None:
         if self.msg.sender != self.owner:
             revert(f'Method can only be invoked by the owner')
@@ -100,6 +121,10 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def getLendingPoolCoreAddress(self) -> Address:
         return self._lendingPoolCoreAddress.get()
+
+    @external(readonly=True)
+    def getLendingPoolAddress(self) -> Address:
+        return self._lendingPoolAddress.get()
 
     @external(readonly=True)
     def getOracleAddress(self) -> Address:
@@ -312,6 +337,7 @@ class LendingPoolDataProvider(IconScoreBase):
     def getUserLiquidationData(self, _user: Address) -> dict:
         liquidationManager = self.create_interface_score(self.getLiquidationAddress(), LiquidationInterface)
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
         reserves = core.getReserves()
         userAccountData = self.getUserAccountData(_user)
         badDebt=liquidationManager.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
@@ -322,13 +348,30 @@ class LendingPoolDataProvider(IconScoreBase):
         for _reserve in reserves:
             userReserveData = core.getUserBasicReserveData(_reserve, _user)
             userBorrowBalance = userReserveData['compoundedBorrowBalance']
-            userReserveOriginationFee = userReserveData['originationFee']
+            price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
             userReserveUnderlyingBalance = userReserveData['underlyingBalance']
             if userBorrowBalance > 0:
-                response['borrows'][self._symbol[_reserve]] = {'compoundedBorrowBalance': userBorrowBalance,
-                                                               'originationFee': userReserveOriginationFee}
+                if badDebt > exaMul(price, userBorrowBalance):
+                    maxAmountToLiquidateUSD = exaMul(price, userBorrowBalance)
+                    maxAmountToLiquidate = userBorrowBalance
+                else:
+                    maxAmountToLiquidateUSD =  badDebt
+                    maxAmountToLiquidate = exaDiv(badDebt,price)
+
+                response['borrows'][self._symbol[_reserve]] = {'compoundedBorrowBalance': userBorrowBalance, 'compoundedBorrowBalanceUSD': exaMul(price, userBorrowBalance), 'maxAmountToLiquidate': maxAmountToLiquidate, 'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD  }
             if userReserveUnderlyingBalance > 0:
-                response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveUnderlyingBalance}
+                response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveUnderlyingBalance, 'underlyingBalanceUSD': exaMul(price, userReserveUnderlyingBalance) }
+
+    @external(readonly=True)
+    def liquidationList(self) -> dict:
+        pool = self.create_interface_score(self._lendingPoolAddress.get(), LendingPoolInterface)
+        wallets = pool.get_wallets()
+        response = {}
+        for wallet in wallets:
+            userAccountData = getUserAccountData(wallet)
+            if userAccountData['healthFactor'] < 10**18
+                response[wallet] = getUserLiquidationData(wallet)
+        
         return response
 
     @external(readonly=True)
