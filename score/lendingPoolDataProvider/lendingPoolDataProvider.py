@@ -53,7 +53,7 @@ class oTokenInterface(InterfaceScore):
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
     @interface
-    def get_wallets(self) -> list:
+    def getBorrowWallets(self) -> list:
         pass
 
 
@@ -365,7 +365,7 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def liquidationList(self) -> dict:
         pool = self.create_interface_score(self._lendingPoolAddress.get(), LendingPoolInterface)
-        wallets = pool.get_wallets()
+        wallets = pool.getBorrowWallets()
         response = {}
         for wallet in wallets:
             userAccountData = getUserAccountData(wallet)

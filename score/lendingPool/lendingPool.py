@@ -122,6 +122,7 @@ class LendingPool(IconScoreBase):
         super().__init__(db)
         self._lendingPoolCoreAddress = VarDB('lendingPoolCore', db, value_type=Address)
         self._dataProviderAddress = VarDB('lendingPoolDataProvider', db, value_type=Address)
+        self._borrowWallets = ArrayDB('borrowWallets', db, value_type=Address)
         self._feeProviderAddress = VarDB('feeProvider', db, value_type=Address)
         self._USDbAddress = VarDB('USDbAddress', db, value_type=Address)
         self._sIcxAddress = VarDB('SICXAddress', db, value_type=Address)
@@ -221,6 +222,16 @@ class LendingPool(IconScoreBase):
     def getFeeProvider(self) -> Address:
         return self._feeProviderAddress.get()
 
+    @external(readonly=True)
+    def getBorrowWallets(self) -> list:
+        wallets = []
+        for wallet in self._borrowWallets:
+            wallets.append(wallet)
+
+        return wallets
+
+    
+
     @payable
     @external
     def deposit(self, _amount: int):
@@ -292,6 +303,7 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to be borrowed
         :return:
         """
+        self._borrowWallets.put(self.tx.origin)
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         dataProvider = self.create_interface_score(self._dataProviderAddress.get(), DataProviderInterface)
         feeProvider = self.create_interface_score(self._feeProviderAddress.get(), FeeProviderInterface)
