@@ -362,6 +362,8 @@ class LendingPoolDataProvider(IconScoreBase):
             if userReserveUnderlyingBalance > 0:
                 response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveUnderlyingBalance, 'underlyingBalanceUSD': exaMul(price, userReserveUnderlyingBalance) }
 
+        return response
+
     @external(readonly=True)
     def liquidationList(self) -> dict:
         pool = self.create_interface_score(self._lendingPoolAddress.get(), LendingPoolInterface)
@@ -369,7 +371,7 @@ class LendingPoolDataProvider(IconScoreBase):
         response = {}
         for wallet in wallets:
             userAccountData = getUserAccountData(wallet)
-            if userAccountData['healthFactor'] < 10**18
+            if userAccountData['healthFactor'] < 10**18:
                 response[wallet] = getUserLiquidationData(wallet)
         
         return response
@@ -379,14 +381,14 @@ class LendingPoolDataProvider(IconScoreBase):
                                                   _totalFeesUSD: int, _liquidationThreshold: int) -> int:
         if _borrowBalanceUSD == 0:
             return -1
-        healthFactor = exaDiv(exaMul(_collateralBalanceUSD, _liquidationThreshold), _borrowBalanceUSD + _totalFeesUSD)
+        healthFactor = exaDiv(exaMul(_collateralBalanceUSD - _totalFeesUSD, _liquidationThreshold), _borrowBalanceUSD)
         return healthFactor
 
     def calculateBorrowingPowerFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
                                                     _totalFeesUSD: int, _ltv: int) -> int:
         if _collateralBalanceUSD == 0:
             return 0
-        borrowingPower = exaDiv((_borrowBalanceUSD + _totalFeesUSD), exaMul(_collateralBalanceUSD, _ltv))
+        borrowingPower = exaDiv((_borrowBalanceUSD ), exaMul(_collateralBalanceUSD - _totalFeesUSD, _ltv))
         return borrowingPower
 
     @external(readonly=True)
