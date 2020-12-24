@@ -303,7 +303,8 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to be borrowed
         :return:
         """
-        self._borrowWallets.put(self.tx.origin)
+        if self.tx.origin not in self._borrowWallets:
+            self._borrowWallets.put(self.tx.origin)
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         dataProvider = self.create_interface_score(self._dataProviderAddress.get(), DataProviderInterface)
         feeProvider = self.create_interface_score(self._feeProviderAddress.get(), FeeProviderInterface)
