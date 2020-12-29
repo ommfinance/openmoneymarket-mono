@@ -370,9 +370,9 @@ class LendingPoolDataProvider(IconScoreBase):
         wallets = pool.getBorrowWallets()
         response = {}
         for wallet in wallets:
-            userAccountData = getUserAccountData(wallet)
+            userAccountData = self.getUserAccountData(wallet)
             if userAccountData['healthFactor'] < 10**18:
-                response[wallet] = getUserLiquidationData(wallet)
+                response[wallet] = self.getUserLiquidationData(wallet)
         
         return response
 
