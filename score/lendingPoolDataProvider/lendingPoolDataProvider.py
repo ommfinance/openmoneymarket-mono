@@ -50,6 +50,7 @@ class oTokenInterface(InterfaceScore):
     def balanceOf(self, _owner: Address) -> int:
         pass
 
+
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
     @interface
@@ -60,14 +61,16 @@ class LendingPoolInterface(InterfaceScore):
 # An interface to liquidation manager
 class LiquidationInterface(InterfaceScore):
     @interface
-    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int, _ltv: int) -> int:
+    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
+                         _ltv: int) -> int:
         pass
 
 
 # An interface to liquidation manager
 class LiquidationInterface(InterfaceScore):
     @interface
-    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int, _ltv: int) -> int:
+    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
+                         _ltv: int) -> int:
         pass
 
 
@@ -149,9 +152,11 @@ class LendingPoolDataProvider(IconScoreBase):
         totalBorrowBalanceUSD = 0
         availableLiquidityBalanceUSD = 0
         reserves = core.getReserves()
+
         for _reserve in reserves:
             reserveData = core.getReserveData(_reserve)
             reservePrice = oracle.get_reference_data(self._symbol[_reserve], 'USD')
+
             reserveTotalLiquidity = reserveData['totalLiquidity']
             reserveAvailableLiquidity = reserveData['availableLiquidity']
             reserveTotalBorrows = reserveData['totalBorrows']
@@ -164,7 +169,8 @@ class LendingPoolDataProvider(IconScoreBase):
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'availableLiquidityBalanceUSD': availableLiquidityBalanceUSD,
             'totalBorrowsBalanceUSD': totalBorrowBalanceUSD,
-            'totalCollateralBalanceUSD': totalCollateralBalanceUSD
+            'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
+
         }
 
         return response
@@ -223,11 +229,14 @@ class LendingPoolDataProvider(IconScoreBase):
         borrowingPower = self.calculateBorrowingPowerFromBalancesInternal(totalCollateralBalanceUSD,
                                                                           totalBorrowBalanceUSD,
                                                                           totalFeesUSD, currentLiquidationThreshold)
+        borrowsAllowedUSD = exaMul(totalCollateralBalanceUSD - totalFeesUSD, currentLtv)
+        availableBorrowsUSD = borrowsAllowedUSD - totalBorrowBalanceUSD
         response = {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
             'totalBorrowBalanceUSD': totalBorrowBalanceUSD,
             'totalFeesUSD': totalFeesUSD,
+            'availableBorrowsUSD': availableBorrowsUSD,
             'currentLtv': currentLtv,
             'currentLiquidationThreshold': currentLiquidationThreshold,
             'healthFactor': healthFactor,
@@ -269,7 +278,8 @@ class LendingPoolDataProvider(IconScoreBase):
             'originationFee': originationFee,
             'userBorrowCumulativeIndex': userBorrowCumulativeIndex,
             'lastUpdateTimestamp': lastUpdateTimestamp,
-            'useAsCollateral': useAsCollateral
+            'useAsCollateral': useAsCollateral,
+            'exchangeRate': price
         }
 
         return response
@@ -340,10 +350,10 @@ class LendingPoolDataProvider(IconScoreBase):
         price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
         reserves = core.getReserves()
         userAccountData = self.getUserAccountData(_user)
-        badDebt=liquidationManager.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
-                                                                 userAccountData['totalFeesUSD'],
-                                                                 userAccountData['totalCollateralBalanceUSD'],
-                                                                 userAccountData['currentLtv'])
+        badDebt = liquidationManager.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
+                                                      userAccountData['totalFeesUSD'],
+                                                      userAccountData['totalCollateralBalanceUSD'],
+                                                      userAccountData['currentLtv'])
         response = {'badDebt': badDebt, 'borrows': {}, 'collaterals': {}}
         for _reserve in reserves:
             userReserveData = core.getUserBasicReserveData(_reserve, _user)
@@ -355,12 +365,18 @@ class LendingPoolDataProvider(IconScoreBase):
                     maxAmountToLiquidateUSD = exaMul(price, userBorrowBalance)
                     maxAmountToLiquidate = userBorrowBalance
                 else:
-                    maxAmountToLiquidateUSD =  badDebt
-                    maxAmountToLiquidate = exaDiv(badDebt,price)
+                    maxAmountToLiquidateUSD = badDebt
+                    maxAmountToLiquidate = exaDiv(badDebt, price)
 
-                response['borrows'][self._symbol[_reserve]] = {'compoundedBorrowBalance': userBorrowBalance, 'compoundedBorrowBalanceUSD': exaMul(price, userBorrowBalance), 'maxAmountToLiquidate': maxAmountToLiquidate, 'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD  }
+                response['borrows'][self._symbol[_reserve]] = {'compoundedBorrowBalance': userBorrowBalance,
+                                                               'compoundedBorrowBalanceUSD': exaMul(price,
+                                                                                                    userBorrowBalance),
+                                                               'maxAmountToLiquidate': maxAmountToLiquidate,
+                                                               'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD}
             if userReserveUnderlyingBalance > 0:
-                response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveUnderlyingBalance, 'underlyingBalanceUSD': exaMul(price, userReserveUnderlyingBalance) }
+                response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveUnderlyingBalance,
+                                                                   'underlyingBalanceUSD': exaMul(price,
+                                                                                                  userReserveUnderlyingBalance)}
 
         return response
 
@@ -371,9 +387,9 @@ class LendingPoolDataProvider(IconScoreBase):
         response = {}
         for wallet in wallets:
             userAccountData = self.getUserAccountData(wallet)
-            if userAccountData['healthFactor'] < 10**18:
+            if userAccountData['healthFactor'] < 10 ** 18:
                 response[wallet] = self.getUserLiquidationData(wallet)
-        
+
         return response
 
     @external(readonly=True)
@@ -388,13 +404,17 @@ class LendingPoolDataProvider(IconScoreBase):
                                                     _totalFeesUSD: int, _ltv: int) -> int:
         if _collateralBalanceUSD == 0:
             return 0
-        borrowingPower = exaDiv((_borrowBalanceUSD ), exaMul(_collateralBalanceUSD - _totalFeesUSD, _ltv))
+        borrowingPower = exaDiv((_borrowBalanceUSD), exaMul(_collateralBalanceUSD - _totalFeesUSD, _ltv))
         return borrowingPower
 
     @external(readonly=True)
     def getReserveData(self, _reserve: Address) -> dict:
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
-        return core.getReserveData(_reserve)
+        oracle = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
+        reserveData = core.getReserveData(_reserve)
+        reservePrice = oracle.get_reference_data(self._symbol[_reserve], "USD")
+        reserveData["exchangePrice"] = reservePrice
+        return reserveData
 
     @external(readonly=True)
     def getAllReserveData(self) -> dict:
@@ -402,7 +422,7 @@ class LendingPoolDataProvider(IconScoreBase):
         reserves = core.getReserves()
         response = {}
         for reserve in reserves:
-            response[self._symbol[reserve]] = core.getReserveData(reserve)
+            response[self._symbol[reserve]] = self.getReserveData(reserve)
 
         return response
 
