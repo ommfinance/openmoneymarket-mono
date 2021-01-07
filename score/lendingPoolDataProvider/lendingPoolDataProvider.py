@@ -50,6 +50,10 @@ class oTokenInterface(InterfaceScore):
     def balanceOf(self, _owner: Address) -> int:
         pass
 
+    @interface
+    def principalBalanceOf(self, _user: Address) -> int:
+        pass
+
 
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
@@ -253,6 +257,7 @@ class LendingPoolDataProvider(IconScoreBase):
         userReserveData = core.getUserReserveData(_reserve, _user)
         oToken = self.create_interface_score(reserveData['oTokenAddress'], oTokenInterface)
         currentOTokenBalance = oToken.balanceOf(_user)
+        principalOTokenBalance = oToken.principalBalanceOf(_user)
         principalBorrowBalance = userReserveData['principalBorrowBalance']
         currentBorrowBalance = core.getCompoundedBorrowBalance(_reserve, _user)
         borrowRate = reserveData['borrowRate']
@@ -264,11 +269,14 @@ class LendingPoolDataProvider(IconScoreBase):
         price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
         currentOTokenBalanceUSD = exaMul(currentOTokenBalance, price)
+        principalOTokenBalanceUSD = exaMul(principalOTokenBalance, price)
         currentBorrowBalanceUSD = exaMul(currentBorrowBalance, price)
         principalBorrowBalanceUSD = exaMul(principalBorrowBalance, price)
         response = {
             'currentOTokenBalance': currentOTokenBalance,
             'currentOTokenBalanceUSD': currentOTokenBalanceUSD,
+            'principalOTokenBalance': principalOTokenBalance,
+            'principalOTokenBalanceUSD': principalOTokenBalanceUSD,
             'currentBorrowBalance': currentBorrowBalance,
             'currentBorrowBalanceUSD': currentBorrowBalanceUSD,
             'principalBorrowBalance': principalBorrowBalance,
@@ -404,7 +412,7 @@ class LendingPoolDataProvider(IconScoreBase):
                                                     _totalFeesUSD: int, _ltv: int) -> int:
         if _collateralBalanceUSD == 0:
             return 0
-        borrowingPower = exaDiv((_borrowBalanceUSD), exaMul(_collateralBalanceUSD - _totalFeesUSD, _ltv))
+        borrowingPower = exaDiv(_borrowBalanceUSD, exaMul(_collateralBalanceUSD - _totalFeesUSD, _ltv))
         return borrowingPower
 
     @external(readonly=True)
