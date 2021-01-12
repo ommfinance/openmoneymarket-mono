@@ -13,6 +13,7 @@ class AddressProvider(IconScoreBase):
         self._oICX = VarDB('oICX', db, value_type = Address)
         self._lendingPool = VarDB('lendingPool', db, value_type = Address)
         self._lendingPoolDataProvider = VarDB('lendingPoolDataProvider', db, value_type = Address)
+        self._staking = VarDB('staking',db,value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -56,6 +57,15 @@ class AddressProvider(IconScoreBase):
             revert(f'Only owner can set the address')
         self._oICX.set(_address)
 
+
+    @external
+    def setStaking(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Only owner can set the address')
+        self._staking.set(_address)
+
+   
+
     @external(readonly = True)
     def getAllAddresses(self) -> dict:
         response = {"collateral" : {
@@ -68,7 +78,8 @@ class AddressProvider(IconScoreBase):
                     },
                     "systemContract":{
                         "LendingPool": self._lendingPool.get(),
-                        "LendingPoolDataProvider": self._lendingPoolDataProvider.get()
+                        "LendingPoolDataProvider": self._lendingPoolDataProvider.get(),
+                        "Staking":self._staking.get()
                     }
                     }
       
