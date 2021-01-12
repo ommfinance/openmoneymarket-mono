@@ -54,6 +54,9 @@ class oTokenInterface(InterfaceScore):
     def principalBalanceOf(self, _user: Address) -> int:
         pass
 
+    def getUserIndex(self, _user: Address) -> int:
+        pass
+
 
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
@@ -78,6 +81,12 @@ class LiquidationInterface(InterfaceScore):
         pass
 
 
+class StakingInterface(InterfaceScore):
+    @interface
+    def getTodayRate(self) -> int:
+        pass
+
+
 class LendingPoolDataProvider(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -87,6 +96,7 @@ class LendingPoolDataProvider(IconScoreBase):
         self._lendingPoolAddress = VarDB('lendingPool', db, value_type=Address)
         self._oracleAddress = VarDB('oracleAddress', db, value_type=Address)
         self._liquidationAddress = VarDB('liquidationAddress', db, value_type=Address)
+        self._stakingAddress = VarDB('stakingAddress', db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -125,6 +135,13 @@ class LendingPoolDataProvider(IconScoreBase):
 
         self._oracleAddress.set(_address)
 
+    @external
+    def setStakingAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._stakingAddress.set(_address)
+
     @external(readonly=True)
     def getLendingPoolCoreAddress(self) -> Address:
         return self._lendingPoolCoreAddress.get()
@@ -148,9 +165,15 @@ class LendingPoolDataProvider(IconScoreBase):
         return self._liquidationAddress.get()
 
     @external(readonly=True)
+    def getStakingAddress(self) -> Address:
+        return self._stakingAddress.get()
+
+    @external(readonly=True)
     def getReserveAccountData(self) -> dict:
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         oracle = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
+        staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+        todayRate = staking.getTodayRate()
         totalLiquidityBalanceUSD = 0
         totalCollateralBalanceUSD = 0
         totalBorrowBalanceUSD = 0
@@ -160,7 +183,8 @@ class LendingPoolDataProvider(IconScoreBase):
         for _reserve in reserves:
             reserveData = core.getReserveData(_reserve)
             reservePrice = oracle.get_reference_data(self._symbol[_reserve], 'USD')
-
+            if self._symbol[_reserve] == 'ICX':
+                reservePrice = exaMul(reservePrice, todayRate)
             reserveTotalLiquidity = reserveData['totalLiquidity']
             reserveAvailableLiquidity = reserveData['availableLiquidity']
             reserveTotalBorrows = reserveData['totalBorrows']
@@ -183,6 +207,8 @@ class LendingPoolDataProvider(IconScoreBase):
     def getUserAccountData(self, _user: Address) -> dict:
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         oracle = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
+        staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+        todaySicxRate = staking.getTodayRate()
         totalLiquidityBalanceUSD = 0
         totalCollateralBalanceUSD = 0
         currentLtv = 0
@@ -200,6 +226,9 @@ class LendingPoolDataProvider(IconScoreBase):
             reserveConfiguration = core.getReserveConfiguration(_reserve)
 
             reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(self._symbol[_reserve], 'USD')
+            if self._symbol[_reserve] == 'ICX':
+                reserveConfiguration['reserveUnitPrice'] = exaMul(reserveConfiguration['reserveUnitPrice'],
+                                                                  todaySicxRate)
 
             if userBasicReserveData['underlyingBalance'] > 0:
                 liquidityBalanceUSD = exaMul(reserveConfiguration['reserveUnitPrice'],
@@ -258,6 +287,7 @@ class LendingPoolDataProvider(IconScoreBase):
         oToken = self.create_interface_score(reserveData['oTokenAddress'], oTokenInterface)
         currentOTokenBalance = oToken.balanceOf(_user)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
+        userLiquidityIndex = oToken.getUserIndex(_user)
         principalBorrowBalance = userReserveData['principalBorrowBalance']
         currentBorrowBalance = core.getCompoundedBorrowBalance(_reserve, _user)
         borrowRate = reserveData['borrowRate']
@@ -268,6 +298,14 @@ class LendingPoolDataProvider(IconScoreBase):
         useAsCollateral = userReserveData['useAsCollateral']
         price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
+        if self._symbol[_reserve] == "ICX":
+            staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+            todaySicxRate = staking.getTodayRate()
+            price = exaMul(price, todaySicxRate)
+            currentOTokenBalance = exaMul(currentOTokenBalance, todaySicxRate)
+            principalOTokenBalance = exaMul(principalOTokenBalance, todaySicxRate)
+            currentBorrowBalance = exaMul(currentBorrowBalance, todaySicxRate)
+            principalBorrowBalance = exaMul(principalBorrowBalance, todaySicxRate)
         currentOTokenBalanceUSD = exaMul(currentOTokenBalance, price)
         principalOTokenBalanceUSD = exaMul(principalOTokenBalance, price)
         currentBorrowBalanceUSD = exaMul(currentBorrowBalance, price)
@@ -281,6 +319,7 @@ class LendingPoolDataProvider(IconScoreBase):
             'currentBorrowBalanceUSD': currentBorrowBalanceUSD,
             'principalBorrowBalance': principalBorrowBalance,
             'principalBorrowBalanceUSD': principalBorrowBalanceUSD,
+            'userLiquidityIndex': userLiquidityIndex,
             'borrowRate': borrowRate,
             'liquidityRate': liquidityRate,
             'originationFee': originationFee,
@@ -313,8 +352,12 @@ class LendingPoolDataProvider(IconScoreBase):
             return True
 
         oracle = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
-
-        amountToDecreaseUSD = exaMul(oracle.get_reference_data(self._symbol[_reserve], 'USD'), _amount)
+        price = oracle.get_reference_data(self._symbol[_reserve], 'USD')
+        if self._symbol[_reserve] == "ICX":
+            staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+            todaySicxRate = staking.getTodayRate()
+            price = exaMul(price, todaySicxRate)
+        amountToDecreaseUSD = exaMul(price, _amount)
         collateralBalanceAfterDecreaseUSD = collateralBalanceUSD - amountToDecreaseUSD
 
         if collateralBalanceAfterDecreaseUSD == 0:
@@ -336,6 +379,10 @@ class LendingPoolDataProvider(IconScoreBase):
 
         price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
+        if self._symbol[_reserve] == "ICX":
+            staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+            todaySicxRate = staking.getTodayRate()
+            price = exaMul(price, todaySicxRate)
         requestedBorrowUSD = exaMul(price, _amount)
         collateralNeededInUSD = exaDiv(_userCurrentBorrowBalanceUSD + _userCurrentFeesUSD + requestedBorrowUSD,
                                        _userCurrentLtv)
@@ -367,6 +414,10 @@ class LendingPoolDataProvider(IconScoreBase):
             userReserveData = core.getUserBasicReserveData(_reserve, _user)
             userBorrowBalance = userReserveData['compoundedBorrowBalance']
             price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
+            if self._symbol[_reserve] == "ICX":
+                staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+                todaySicxRate = staking.getTodayRate()
+                price = exaMul(price, todaySicxRate)
             userReserveUnderlyingBalance = userReserveData['underlyingBalance']
             if userBorrowBalance > 0:
                 if badDebt > exaMul(price, userBorrowBalance):
@@ -420,8 +471,17 @@ class LendingPoolDataProvider(IconScoreBase):
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         oracle = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
         reserveData = core.getReserveData(_reserve)
-        reservePrice = oracle.get_reference_data(self._symbol[_reserve], "USD")
-        reserveData["exchangePrice"] = reservePrice
+        price = oracle.get_reference_data(self._symbol[_reserve], "USD")
+        if self._symbol[_reserve] == "ICX":
+            staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+            todaySicxRate = staking.getTodayRate()
+            reserveData['totalSicxBalance'] = reserveData['totalLiquidity']
+            reserveData['todaySicxRate'] = todaySicxRate
+            reserveData['totalLiquidity'] = exaMul(reserveData['totalLiquidity'], todaySicxRate)
+            reserveData['availableLiquidity'] = exaMul(reserveData['availableLiquidity'], todaySicxRate)
+            reserveData['totalBorrows'] = exaMul(reserveData['totalBorrows'], todaySicxRate)
+        reserveData["exchangePrice"] = price
+
         return reserveData
 
     @external(readonly=True)
