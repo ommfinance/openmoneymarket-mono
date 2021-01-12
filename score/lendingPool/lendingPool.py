@@ -22,9 +22,9 @@ class ReserveInterface(InterfaceScore):
 
 
 # An interface for sicx
-class SICXInterface(InterfaceScore):
+class StakingInterface(InterfaceScore):
     @interface
-    def add_collateral(self, _to: Address, _data: bytes = None) -> None:
+    def addCollateral(self, _to: Address, _data: bytes = None) -> None:
         pass
 
 
@@ -67,7 +67,7 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
-    def transferToUser(self, _reserve: Address, _user: Address, _amount: int) -> None:
+    def transferToUser(self, _reserve: Address, _user: Address, _amount: int, _data: bytes) -> None:
         pass
 
     @interface
@@ -124,8 +124,9 @@ class LendingPool(IconScoreBase):
         self._dataProviderAddress = VarDB('lendingPoolDataProvider', db, value_type=Address)
         self._borrowWallets = ArrayDB('borrowWallets', db, value_type=Address)
         self._feeProviderAddress = VarDB('feeProvider', db, value_type=Address)
-        self._USDbAddress = VarDB('USDbAddress', db, value_type=Address)
         self._sIcxAddress = VarDB('SICXAddress', db, value_type=Address)
+        self._oIcxAddress = VarDB('oicxAddress', db, value_type=Address)
+        self._stakingAddress = VarDB('stakingAddress', db, value_type=Address)
         self._liquidationManagerAddress = VarDB('liquidationManagerAddress', db, value_type=Address)
 
     def on_install(self) -> None:
@@ -167,13 +168,6 @@ class LendingPool(IconScoreBase):
     def getLendingPoolCoreAddress(self) -> Address:
         return self._lendingPoolCoreAddress.get()
 
-    @external
-    def setUSDbAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
-        self._USDbAddress.set(_address)
-
     @external(readonly=True)
     def getLiquidationManagerAddress(self) -> Address:
         return self._liquidationManagerAddress.get()
@@ -185,10 +179,6 @@ class LendingPool(IconScoreBase):
 
         self._liquidationManagerAddress.set(_address)
 
-    @external(readonly=True)
-    def getUSDbAddress(self) -> Address:
-        return self._USDbAddress.get()
-
     @external
     def setSICXAddress(self, _address: Address) -> None:
         if self.msg.sender != self.owner:
@@ -199,6 +189,28 @@ class LendingPool(IconScoreBase):
     @external(readonly=True)
     def getSICXAddress(self) -> Address:
         return self._sIcxAddress.get()
+
+    @external
+    def setOICXAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._oIcxAddress.set(_address)
+
+    @external(readonly=True)
+    def getOICXAddress(self) -> Address:
+        return self._oIcxAddress.get()
+
+    @external
+    def setStakingAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._stakingAddress.set(_address)
+
+    @external(readonly=True)
+    def getStakingAddress(self) -> Address:
+        return self._stakingAddress.get()
 
     @external
     def setDataProvider(self, _address: Address) -> None:
@@ -230,8 +242,6 @@ class LendingPool(IconScoreBase):
 
         return wallets
 
-    
-
     @payable
     @external
     def deposit(self, _amount: int):
@@ -240,10 +250,10 @@ class LendingPool(IconScoreBase):
 
         # add_collateral must be a method in staking contract
         # self.getSICXAddress() must be replaced by self.getStakingAddress()
-        staking = self.create_interface_score(self.getSICXAddress(), SICXInterface)
+        staking = self.create_interface_score(self.getStakingAddress(), StakingInterface)
 
         # _amount will now be equal to equivalent amt of sICX
-        _amount = staking.icx(self.msg.value).add_collateral(self._lendingPoolCoreAddress.get())
+        _amount = staking.icx(self.msg.value).addCollateral(self._lendingPoolCoreAddress.get())
         _reserve = self._sIcxAddress.get()
 
         self._deposit(_reserve, _amount)
@@ -287,8 +297,15 @@ class LendingPool(IconScoreBase):
             revert(f'There is not enough liquidity available to redeem')
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
-        core.transferToUser(_reserve, _user, _amount)
+        if _waitForUnstaking:
+            self._require(self.msg.sender == self._oIcxAddress.get(),
+                          "Redeem with wait for unstaking failed: Invalid token")
+            transferData = "{\"method\": \"unstake\"}".encode("utf-8")
+            core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferData)
+            self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
+            return
 
+        core.transferToUser(_reserve, _user, _amount)
         self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
 
     def _require(self, _condition: bool, _message: str):
@@ -367,7 +384,7 @@ class LendingPool(IconScoreBase):
             core.updateStateOnRepay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                                     False)
             # core.transferToFeeCollectionAddress
-            reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmount)
+            reserve.transfer(self._feeProviderAddress.get(), paybackAmount)
 
             self.Repay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                        self.block.timestamp)
@@ -380,7 +397,7 @@ class LendingPool(IconScoreBase):
 
         if userBasicReserveData['originationFee'] > 0:
             # core.transferToFeeCollectionAddress
-            pass
+            reserve.transfer(self._feeProviderAddress.get(), userBasicReserveData['originationFee'])
 
         reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
         self.Repay(_reserve, self.tx.origin, paybackAmountMinusFees, userBasicReserveData['originationFee'],
@@ -420,7 +437,9 @@ class LendingPool(IconScoreBase):
         elif d["method"] == "repay":
             self.repay(self.msg.sender, d["params"].get("amount", -1))
         elif d["method"] == "liquidationCall":
-            self.liquidationCall(Address.from_string(d["params"].get("_collateral")), Address.from_string(d["params"].get("_reserve")), Address.from_string(d["params"].get("_user")),
+            self.liquidationCall(Address.from_string(d["params"].get("_collateral")),
+                                 Address.from_string(d["params"].get("_reserve")),
+                                 Address.from_string(d["params"].get("_user")),
                                  d["params"].get("_purchaseAmount"))
         else:
             revert(f'No valid method called, data: {_data}')
