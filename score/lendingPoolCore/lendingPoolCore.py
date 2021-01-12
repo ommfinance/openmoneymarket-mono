@@ -439,15 +439,14 @@ class LendingPoolCore(IconScoreBase):
         return data
 
     @external
-    def transferToUser(self, _reserve: Address, _user: Address, _amount: int) -> None:
+    def transferToUser(self, _reserve: Address, _user: Address, _amount: int, _data: bytes = None) -> None:
         reserveScore = self.create_interface_score(_reserve, ReserveInterface)
-        reserveScore.transfer(_user, _amount)
+        reserveScore.transfer(_user, _amount, _data)
 
     @external
     def liquidateFee(self, _reserve: Address, _amount: int, _destination: Address) -> None:
         reserveScore = self.create_interface_score(_reserve, ReserveInterface)
         reserveScore.transfer(_destination, _amount)
-        
 
     @external
     def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
@@ -556,22 +555,27 @@ class LendingPoolCore(IconScoreBase):
     def updateStateOnLiquidation(self, _principalReserve: Address, _collateralReserve: Address, _user: Address,
                                  _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,
                                  _liquidatedCollateralForFee: int, _balanceIncrease: int):
-        self.updatePrincipalReserveStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate, _balanceIncrease)
+        self.updatePrincipalReserveStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate,
+                                                              _balanceIncrease)
         self.updateCollateralReserveStateOnLiquidationInternal(_collateralReserve)
-        self.updateUserStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate, _feeLiquidated, _balanceIncrease)
-        self.updateReserveInterestRatesAndTimestampInternal(_principalReserve,_amountToLiquidate, 0)
+        self.updateUserStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate, _feeLiquidated,
+                                                  _balanceIncrease)
+        self.updateReserveInterestRatesAndTimestampInternal(_principalReserve, _amountToLiquidate, 0)
 
-    def updatePrincipalReserveStateOnLiquidationInternal(self, _principalReserve: Address, _user: Address, _amountToLiquidate: int, _balanceIncrease: int) -> None:
+    def updatePrincipalReserveStateOnLiquidationInternal(self, _principalReserve: Address, _user: Address,
+                                                         _amountToLiquidate: int, _balanceIncrease: int) -> None:
         reserveData = self.getReserveData(_principalReserve)
         self.updateTotalBorrows(_principalReserve, reserveData['totalBorrows'] + _balanceIncrease - _amountToLiquidate)
 
     def updateCollateralReserveStateOnLiquidationInternal(self, _collateralReserve: Address) -> None:
         self.updateCumulativeIndexes(_collateralReserve)
 
-    def updateUserStateOnLiquidationInternal(self, _reserve: Address, _user: Address, _amountToLiquidate: int, _feeLiquidated: int, _balanceIncrease: int) -> None:
+    def updateUserStateOnLiquidationInternal(self, _reserve: Address, _user: Address, _amountToLiquidate: int,
+                                             _feeLiquidated: int, _balanceIncrease: int) -> None:
         reserveData = self.getReserveData(_reserve)
         userData = self.getUserReserveData(_reserve, _user)
-        self.updateUserPrincipalBorrowBalance(_reserve, _user, userData['principalBorrowBalance'] - _amountToLiquidate + _balanceIncrease)
+        self.updateUserPrincipalBorrowBalance(_reserve, _user, userData[
+            'principalBorrowBalance'] - _amountToLiquidate + _balanceIncrease)
         self.updateUserBorrowCumulativeIndex(_reserve, _user, reserveData['borrowCumulativeIndex'])
 
         if _feeLiquidated > 0:
@@ -658,7 +662,7 @@ class LendingPoolCore(IconScoreBase):
 
         rate['liquidityRate'] = exaMul(exaMul(rate['borrowRate'], utilizationRate), 9 * EXA // 10)
         # self.PrintData("rates check core line 609", rate['liquidityRate'], rate['borrowRate'], utilizationRate)
-        
+
         return rate
 
     @external
