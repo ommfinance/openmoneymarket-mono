@@ -201,6 +201,10 @@ class OToken(IconScoreBase, TokenStandard):
     def getLendingPoolAddress(self) -> Address:
         return self._lendingPoolAddress.get()
 
+    @external(readonly=True)
+    def getUserIndex(self, _user: Address) -> int:
+        return self._userIndexes[_user]
+
     @external
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
         core = self.create_interface_score(self.getCoreAddress(), LendingPoolCoreInterface)
@@ -228,16 +232,6 @@ class OToken(IconScoreBase, TokenStandard):
             }
         )
 
-    @external
-    def set_user_index(self, _value: int, _user: Address):
-        ##only for test
-        self._userIndexes[_user] = _value
-
-    @external
-    def set_balance(self, _user: Address, _value: int):
-        ##only for test
-        self._balances[_user] += _value
-
     # This will always include accrued interest as a computed value
     @external(readonly=True)
     def balanceOf(self, _owner: Address) -> int:
@@ -263,7 +257,7 @@ class OToken(IconScoreBase, TokenStandard):
         pass
 
     @external
-    def redeem(self, _amount: int , _waitForUnstaking: bool = False) -> None:
+    def redeem(self, _amount: int, _waitForUnstaking: bool = False) -> None:
         """
         Redeems certain amount of tokens to get the equivalent amount of underlying asset.
 
@@ -272,9 +266,9 @@ class OToken(IconScoreBase, TokenStandard):
         """
         if _amount <= 0 and _amount != "-1":
             revert(f'Amount to redeem needs to be greater than zero')
-        if _waitForUnstaking:
-            revert(f'Unstaking to be implemented')
-            
+        # if _waitForUnstaking:
+        #     revert(f'Unstaking to be implemented')
+
         cumulated = self._cumulateBalanceInternal(self.msg.sender)
         currentBalance = cumulated['principalBalance']
         balanceIncrease = cumulated['balanceIncrease']
