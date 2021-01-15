@@ -69,6 +69,7 @@ class LendingPoolCore(IconScoreBase):
     ID = 'id'
     RESERVE_LIST = 'reserveList'
     CONSTANTS = 'constants'
+    DAOFUND = 'dao_fund'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -76,6 +77,7 @@ class LendingPoolCore(IconScoreBase):
         self.reserveList = ArrayDB(self.RESERVE_LIST, db, value_type=Address)
         self._lendingPool = VarDB('lendingPool', db, value_type=Address)
         self._constants = DictDB(self.CONSTANTS, db, value_type=int, depth=2)
+        self._daoFund = VarDB(self.DAOFUND, db, value_type=Address)
         self.reserve = ReserveDataDB(db)
         self.userReserve = UserReserveDataDB(db)
 
@@ -93,6 +95,10 @@ class LendingPoolCore(IconScoreBase):
     def ReserveUpdated(self, _reserve: Address, _liquidityRate: int, _borrowRate: int, _liquidityCumulativeIndex: int,
                        _borrowCumulativeIndex: int):
         pass
+    
+    @eventlog(indexed=3)
+    def DaoFundTransfer(self,_amount:int,_reserve:Address,_initiatiator:Address):
+        pass 
 
     @external
     def set_id(self, _val: str):
@@ -103,12 +109,24 @@ class LendingPoolCore(IconScoreBase):
         return self.id.get()
 
     @external
-    def setLendingPool(self, _val: str):
+    def setLendingPool(self, _val: Address):
+        if self.msg.sender != self.owner:
+            revert("Address set error:You are not authorized to set")
         self._lendingPool.set(_val)
 
     @external(readonly=True)
-    def getLendingPool(self) -> str:
+    def getLendingPool(self) -> Address:
         return self._lendingPool.get()
+
+    @external(readonly=True)
+    def getDaoFund(self) -> Address:
+        return self._daoFund.get()
+
+    @external
+    def setDaoFund(self, _address: Address):
+        if self.msg.sender != self.owner:
+            revert("Address set error:You are not authorized to set")
+        self._daoFund.set(_address)
 
     def reservePrefix(self, _reserveAddress: Address) -> bytes:
         return b'|'.join([RESERVE_DB_PREFIX, self.id.get().encode(), str(_reserveAddress).encode()])
@@ -186,6 +204,11 @@ class LendingPoolCore(IconScoreBase):
     def updateIsActive(self, _reserveAddress: Address, _isActive: bool):
         prefix = self.reservePrefix(_reserveAddress)
         self.reserve[prefix].isActive.set(_isActive)
+
+    @external
+    def updateOtokenAddress(self, _reserveAddress: Address, _oTokenAddress: Address):
+        prefix = self.reservePrefix(_reserveAddress)
+        self.reserve[prefix].oTokenAddress.set(_oTokenAddress)
 
     # Update methods for user attributes for a specific reserve
     @external
@@ -471,6 +494,9 @@ class LendingPoolCore(IconScoreBase):
         borrowData = self.getUserBorrowBalances(_reserve, _user)
         principalBorrowBalance = borrowData['principalBorrowBalance']
         balanceIncrease = borrowData['borrowBalanceIncrease']
+        reserve = self.create_interface_score(_reserve, ReserveInterface)
+        reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
+        self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
         self.PrintData("user borrow balances", principalBorrowBalance, balanceIncrease, 0)
         self.updateReserveStateOnBorrowInternal(_reserve, balanceIncrease, _amountBorrowed)
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
@@ -486,6 +512,9 @@ class LendingPoolCore(IconScoreBase):
     @external
     def updateStateOnRepay(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
                            _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
+        reserve = self.create_interface_score(_reserve, ReserveInterface)
+        reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
+        self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
         self.updateReserveStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _balanceIncrease)
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
                                             _balanceIncrease, _repaidWholeLoan)
@@ -555,6 +584,8 @@ class LendingPoolCore(IconScoreBase):
     def updateStateOnLiquidation(self, _principalReserve: Address, _collateralReserve: Address, _user: Address,
                                  _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,
                                  _liquidatedCollateralForFee: int, _balanceIncrease: int):
+        reserve = self.create_interface_score(_principalReserve, ReserveInterface)
+        reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
         self.updatePrincipalReserveStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate,
                                                               _balanceIncrease)
         self.updateCollateralReserveStateOnLiquidationInternal(_collateralReserve)
@@ -646,7 +677,7 @@ class LendingPoolCore(IconScoreBase):
         constants = self.getReserveConstants(_reserve)
         rate = {}
         # self.PrintData("params check core line 593", _availableLiquidity, _totalBorrows, 0)
-        if (_totalBorrows == 0 and _availableLiquidity == 0):
+        if _totalBorrows == 0 and _availableLiquidity == 0:
             utilizationRate = 0
         else:
             utilizationRate = exaDiv(_totalBorrows, (_totalBorrows + _availableLiquidity))
