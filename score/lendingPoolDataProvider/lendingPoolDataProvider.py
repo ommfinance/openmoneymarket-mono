@@ -227,8 +227,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
             reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(self._symbol[_reserve], 'USD')
             if self._symbol[_reserve] == 'ICX':
-                reserveConfiguration['reserveUnitPrice'] = exaMul(reserveConfiguration['reserveUnitPrice'],
-                                                                  todaySicxRate)
+                reserveConfiguration['reserveUnitPrice'] = exaMul(reserveConfiguration['reserveUnitPrice'],todaySicxRate)
 
             if userBasicReserveData['underlyingBalance'] > 0:
                 liquidityBalanceUSD = exaMul(reserveConfiguration['reserveUnitPrice'],
@@ -264,6 +263,7 @@ class LendingPoolDataProvider(IconScoreBase):
                                                                           totalFeesUSD, currentLiquidationThreshold)
         borrowsAllowedUSD = exaMul(totalCollateralBalanceUSD - totalFeesUSD, currentLtv)
         availableBorrowsUSD = borrowsAllowedUSD - totalBorrowBalanceUSD
+        
         response = {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
@@ -384,8 +384,7 @@ class LendingPoolDataProvider(IconScoreBase):
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
         requestedBorrowUSD = exaMul(price, _amount)
-        collateralNeededInUSD = exaDiv(_userCurrentBorrowBalanceUSD + _userCurrentFeesUSD + requestedBorrowUSD,
-                                       _userCurrentLtv)
+        collateralNeededInUSD = exaDiv(_userCurrentBorrowBalanceUSD  + requestedBorrowUSD,_userCurrentLtv) + _userCurrentFeesUSD
         return collateralNeededInUSD
 
     @external(readonly=True)
