@@ -263,7 +263,8 @@ class LendingPoolDataProvider(IconScoreBase):
                                                                           totalFeesUSD, currentLiquidationThreshold)
         borrowsAllowedUSD = exaMul(totalCollateralBalanceUSD - totalFeesUSD, currentLtv)
         availableBorrowsUSD = borrowsAllowedUSD - totalBorrowBalanceUSD
-        
+        if availableBorrowsUSD < 0 :
+            availableBorrowsUSD = 0
         response = {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
