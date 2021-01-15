@@ -146,7 +146,7 @@ class LiquidationManager(IconScoreBase):
 
         if badDebtUSD < 0:
             badDebtUSD = 0
-            
+
         return badDebtUSD
 
     def calculateAvailableCollateralToLiquidate(self, _collateral: Address, _reserve: Address, _purchaseAmount: int,
@@ -182,7 +182,7 @@ class LiquidationManager(IconScoreBase):
                                              _totalCollateralBalanceUSD: int) -> int:
         if _totalCollateralBalanceUSD == 0:
             return 0
-        liquidationThreshold = exaDiv(_totalBorrowBalanceUSD + _totalFeesUSD, _totalCollateralBalanceUSD)
+        liquidationThreshold = exaDiv(_totalBorrowBalanceUSD, _totalCollateralBalanceUSD - _totalFeesUSD)
         return liquidationThreshold
 
     @external
@@ -230,14 +230,15 @@ class LiquidationManager(IconScoreBase):
             actualAmountToLiquidate = _purchaseAmount
         liquidationDetails = self.calculateAvailableCollateralToLiquidate(_collateral, _reserve,
                                                                           actualAmountToLiquidate,
-                                                                          userCollateralBalance,False)
+                                                                          userCollateralBalance, False)
         maxCollateralToLiquidate = liquidationDetails['collateralAmount']
         principalAmountNeeded = liquidationDetails['principalAmountNeeded']
         userOriginationFee = core.getUserOriginationFee(_reserve, _user)
         if userOriginationFee > 0:
             feeLiquidationDetails = self.calculateAvailableCollateralToLiquidate(_collateral, _reserve,
                                                                                  userOriginationFee,
-                                                                                 userCollateralBalance - maxCollateralToLiquidate,True)
+                                                                                 userCollateralBalance - maxCollateralToLiquidate,
+                                                                                 True)
             liquidatedCollateralForFee = feeLiquidationDetails['collateralAmount']
             feeLiquidated = feeLiquidationDetails['principalAmountNeeded']
         if principalAmountNeeded < actualAmountToLiquidate:
