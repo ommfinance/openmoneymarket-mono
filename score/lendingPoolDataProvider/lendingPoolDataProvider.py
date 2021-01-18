@@ -86,6 +86,10 @@ class StakingInterface(InterfaceScore):
     def getTodayRate(self) -> int:
         pass
 
+    @interface
+    def getUserUnstakeInfo(self, _address: Address) -> list:
+        pass
+
 
 class LendingPoolDataProvider(IconScoreBase):
 
@@ -227,7 +231,8 @@ class LendingPoolDataProvider(IconScoreBase):
 
             reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(self._symbol[_reserve], 'USD')
             if self._symbol[_reserve] == 'ICX':
-                reserveConfiguration['reserveUnitPrice'] = exaMul(reserveConfiguration['reserveUnitPrice'],todaySicxRate)
+                reserveConfiguration['reserveUnitPrice'] = exaMul(reserveConfiguration['reserveUnitPrice'],
+                                                                  todaySicxRate)
 
             if userBasicReserveData['underlyingBalance'] > 0:
                 liquidityBalanceUSD = exaMul(reserveConfiguration['reserveUnitPrice'],
@@ -263,7 +268,7 @@ class LendingPoolDataProvider(IconScoreBase):
                                                                           totalFeesUSD, currentLiquidationThreshold)
         borrowsAllowedUSD = exaMul(totalCollateralBalanceUSD - totalFeesUSD, currentLtv)
         availableBorrowsUSD = borrowsAllowedUSD - totalBorrowBalanceUSD
-        if availableBorrowsUSD < 0 :
+        if availableBorrowsUSD < 0:
             availableBorrowsUSD = 0
         response = {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
@@ -385,7 +390,8 @@ class LendingPoolDataProvider(IconScoreBase):
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
         requestedBorrowUSD = exaMul(price, _amount)
-        collateralNeededInUSD = exaDiv(_userCurrentBorrowBalanceUSD  + requestedBorrowUSD,_userCurrentLtv) + _userCurrentFeesUSD
+        collateralNeededInUSD = exaDiv(_userCurrentBorrowBalanceUSD + requestedBorrowUSD,
+                                       _userCurrentLtv) + _userCurrentFeesUSD
         return collateralNeededInUSD
 
     @external(readonly=True)
@@ -507,4 +513,15 @@ class LendingPoolDataProvider(IconScoreBase):
         for reserve in reserves:
             response[self._symbol[reserve]] = core.getReserveConfiguration(reserve)
 
+        return response
+
+    @external(readonly=True)
+    def getUserUnstakeInfo(self, _address: Address) -> list:
+        staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+        unstakeDetails = staking.getUserUnstakeInfo(_address)
+        response = []
+        for unstakedRecords in unstakeDetails:
+            if unstakedRecords['contract'] == self._lendingPoolCoreAddress.get():
+                unstake = {'amount': unstakedRecords["amount"], 'unstakingBlockHeight': unstakedRecords["blockHeight"]}
+                response.append(unstake)
         return response
