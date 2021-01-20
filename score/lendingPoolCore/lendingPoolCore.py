@@ -64,6 +64,15 @@ class ReserveInterface(InterfaceScore):
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
 
+# An interface to Snapshot
+class SnapshotInterface(InterfaceScore):
+    @interface
+    def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserData) -> None:
+        pass
+
+    def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveData) -> None:
+        pass
+
 
 class LendingPoolCore(IconScoreBase):
     ID = 'id'
@@ -78,6 +87,7 @@ class LendingPoolCore(IconScoreBase):
         self._lendingPool = VarDB('lendingPool', db, value_type=Address)
         self._constants = DictDB(self.CONSTANTS, db, value_type=int, depth=2)
         self._daoFund = VarDB(self.DAOFUND, db, value_type=Address)
+        self._snapshotAddress = VarDB('snapshotAddress', db, value_type=Address)
         self.reserve = ReserveDataDB(db)
         self.userReserve = UserReserveDataDB(db)
 
@@ -127,6 +137,14 @@ class LendingPoolCore(IconScoreBase):
         if self.msg.sender != self.owner:
             revert("Address set error:You are not authorized to set")
         self._daoFund.set(_address)
+
+    @external
+    def setSnapshot(self, _val: Address):
+        self._snapshotAddress.set(_val)
+
+    @external(readonly=True)
+    def getSnapshot(self) -> Address:
+        return self._snapshotAddress.get()
 
     def reservePrefix(self, _reserveAddress: Address) -> bytes:
         return b'|'.join([RESERVE_DB_PREFIX, self.id.get().encode(), str(_reserveAddress).encode()])
@@ -473,11 +491,35 @@ class LendingPoolCore(IconScoreBase):
 
     @external
     def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
+
         self.updateCumulativeIndexes(_reserve)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, _amount, 0)
 
         if _isFirstDeposit:
             self.setUserUseReserveAsCollateral(_reserve, _user, True)
+        snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        userReserve = self.getUserReserveData(_reserve, _user)
+        reserve = self.getReserveData(_reserve)
+
+        userData = {
+            'principalOTokenBalance' : userReserve['principalOTokenBalance'],
+            'principalBorrowBalance' : userReserve['principalBorrowBalance'],
+            'userLiquidityCumulativeIndex' : userReserve['userLiquidityCumulativeIndex'],
+            'userBorrowCumulativeIndex' : userReserve['userBorrowCumulativeIndex']
+        }
+
+        reserveData ={
+            'liquidityRate' : reserve['liquidityRate'],
+            'borrowRate' : reserve['borrowRate'],
+            'liquidityCumulativeIndex' : reserve['liquidityCumulativeIndex'],
+            'borrowCumulativeIndex' : reserve['borrowCumulativeIndex'],
+            'lastUpdateTimestamp' : reserve['lastUpdateTimestamp']
+
+        }
+
+        snapshot.updateUserSnapshot(_user, _reserve, userData)
+        snapshot.updateReserveSnapshot(_reserve, reserveData)
+
 
     @external
     def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int,
@@ -487,6 +529,29 @@ class LendingPoolCore(IconScoreBase):
 
         if _userRedeemEverything:
             self.setUserUseReserveAsCollateral(_reserve, _user, False)
+
+        snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        userReserve = self.getUserReserveData(_reserve, _user)
+        reserve = self.getReserveData(_reserve)
+
+        userData = {
+            'principalOTokenBalance' : userReserve['principalOTokenBalance'],
+            'principalBorrowBalance' : userReserve['principalBorrowBalance'],
+            'userLiquidityCumulativeIndex' : userReserve['userLiquidityCumulativeIndex'],
+            'userBorrowCumulativeIndex' : userReserve['userBorrowCumulativeIndex']
+        }
+
+        reserveData ={
+            'liquidityRate' : reserve['liquidityRate'],
+            'borrowRate' : reserve['borrowRate'],
+            'liquidityCumulativeIndex' : reserve['liquidityCumulativeIndex'],
+            'borrowCumulativeIndex' : reserve['borrowCumulativeIndex'],
+            'lastUpdateTimestamp' : reserve['lastUpdateTimestamp']
+
+        }
+
+        snapshot.updateUserSnapshot(_user, _reserve, userData)
+        snapshot.updateReserveSnapshot(_reserve, reserveData)
 
     @external
     def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int):
@@ -502,6 +567,29 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountBorrowed)
         currentBorrowRate = self.getCurrentBorrowRate(_reserve)
+        snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        userReserve = self.getUserReserveData(_reserve, _user)
+        reserve = self.getReserveData(_reserve)
+
+        userData = {
+            'principalOTokenBalance' : userReserve['principalOTokenBalance'],
+            'principalBorrowBalance' : userReserve['principalBorrowBalance'],
+            'userLiquidityCumulativeIndex' : userReserve['userLiquidityCumulativeIndex'],
+            'userBorrowCumulativeIndex' : userReserve['userBorrowCumulativeIndex']
+        }
+
+        reserveData ={
+            'liquidityRate' : reserve['liquidityRate'],
+            'borrowRate' : reserve['borrowRate'],
+            'liquidityCumulativeIndex' : reserve['liquidityCumulativeIndex'],
+            'borrowCumulativeIndex' : reserve['borrowCumulativeIndex'],
+            'lastUpdateTimestamp' : reserve['lastUpdateTimestamp']
+
+        }
+
+        snapshot.updateUserSnapshot(_user, _reserve, userData)
+        snapshot.updateReserveSnapshot(_reserve, reserveData)
+        
         return (
             {
                 "currentBorrowRate": currentBorrowRate,
@@ -519,6 +607,28 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
                                             _balanceIncrease, _repaidWholeLoan)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, _paybackAmountMinusFees, 0)
+        snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        userReserve = self.getUserReserveData(_reserve, _user)
+        reserve = self.getReserveData(_reserve)
+
+        userData = {
+            'principalOTokenBalance' : userReserve['principalOTokenBalance'],
+            'principalBorrowBalance' : userReserve['principalBorrowBalance'],
+            'userLiquidityCumulativeIndex' : userReserve['userLiquidityCumulativeIndex'],
+            'userBorrowCumulativeIndex' : userReserve['userBorrowCumulativeIndex']
+        }
+
+        reserveData ={
+            'liquidityRate' : reserve['liquidityRate'],
+            'borrowRate' : reserve['borrowRate'],
+            'liquidityCumulativeIndex' : reserve['liquidityCumulativeIndex'],
+            'borrowCumulativeIndex' : reserve['borrowCumulativeIndex'],
+            'lastUpdateTimestamp' : reserve['lastUpdateTimestamp']
+
+        }
+
+        snapshot.updateUserSnapshot(_user, _reserve, userData)
+        snapshot.updateReserveSnapshot(_reserve, reserveData)
 
     def updateReserveStateOnBorrowInternal(self, _reserve: Address, _balanceIncrease: int, _amountBorrowed: int):
         self.updateCumulativeIndexes(_reserve)

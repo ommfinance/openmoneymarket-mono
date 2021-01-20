@@ -287,7 +287,7 @@ class LendingPoolDataProvider(IconScoreBase):
         oToken = self.create_interface_score(reserveData['oTokenAddress'], oTokenInterface)
         currentOTokenBalance = oToken.balanceOf(_user)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
-        userLiquidityIndex = oToken.getUserIndex(_user)
+        userLiquidityCumulativeIndex = oToken.getUserIndex(_user)
         principalBorrowBalance = userReserveData['principalBorrowBalance']
         currentBorrowBalance = core.getCompoundedBorrowBalance(_reserve, _user)
         borrowRate = reserveData['borrowRate']
@@ -319,7 +319,7 @@ class LendingPoolDataProvider(IconScoreBase):
             'currentBorrowBalanceUSD': currentBorrowBalanceUSD,
             'principalBorrowBalance': principalBorrowBalance,
             'principalBorrowBalanceUSD': principalBorrowBalanceUSD,
-            'userLiquidityIndex': userLiquidityIndex,
+            'userLiquidityCumulativeIndex': userLiquidityCumulativeIndex,
             'borrowRate': borrowRate,
             'liquidityRate': liquidityRate,
             'originationFee': originationFee,
