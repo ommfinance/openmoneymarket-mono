@@ -4,8 +4,7 @@ from .Math import *
 TAG = 'Rewards'
 
 BATCH_SIZE = 100
-TERM = 43120
-TIMESTAMP = TERM * 2 * 10**6
+DAY_IN_MICROSECONDS = 86400 * 10**6
 
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
@@ -60,14 +59,22 @@ class Rewards(IconScoreBase):
         self._borrowDistIndex = VarDB('borrowDistIndex', db, value_type = int)
         self._workerDist = DictDB('workerDist', db, value_type = bool)
         self._workerDistIndex = VarDB('workerDistIndex', db, value_type = int)
-        self._blockHeightAtStart = VarDB('blockHeightAtStart', db, value_type = int)
+        self._timestampAtStart = VarDB('timestampAtStart', db, value_type = int)
         
     def on_install(self) -> None:
         super().on_install()
-        self._blockHeightAtStart.set(self.block.height)
+      
 
     def on_update(self) -> None:
         super().on_update()
+
+    @external
+    def setStartTimestamp(self, _timestamp: int):
+        self._lendingPoolAddress.set(_timestamp)
+
+    @external(readonly=True)
+    def getStartTimestamp(self) -> Address:
+        return self._timestampAtStart.get()
     
     @external
     def setLendingPool(self, _val: Address):
@@ -158,7 +165,7 @@ class Rewards(IconScoreBase):
             self._day.set(self._day.get() + 1)
 
     def _getDay(self) -> None:
-        return (self.block.height - self._blockHeightAtStart.get()) // TERM
+        return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
 
    
     def depositBalance(self, _reserve: Address, _user: Address) -> int:
