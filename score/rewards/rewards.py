@@ -16,6 +16,12 @@ class LendingPoolInterface(InterfaceScore):
     def getBorrowWallets(self, _index: int) -> list:
         pass
 
+# An interface to Worker Token
+class WorkerTokenInterface(InterfaceScore):
+    @interface
+    def getWallets(self, _index: int) -> list:
+        pass
+
 # An interface to LendingPoolCore
 class CoreInterface(InterfaceScore):
     @interface
@@ -25,7 +31,7 @@ class CoreInterface(InterfaceScore):
 # An interface to Snapshot
 class SnapshotInterface(InterfaceScore):
     @interface
-    def userDataAt(self, _user: Address, _reserve: Address _day: int) -> dict:
+    def userDataAt(self, _user: Address, _reserve: Address, _day: int) -> dict:
         pass
 
     @interface
@@ -43,6 +49,7 @@ class Rewards(IconScoreBase):
         self._day = VarDB('day', db, value_type = int)
         self._tokenValue = DictDB('tokenValue', db, value_type = int)
         self._lendingPoolAddress = VarDB('lendingPoolAddress', db, value_type = Address)
+        self._workerTokenAddress = VarDB('workerTokenAddress', db, value_type = Address)
         self._lendingPoolCoreAddress = VarDB('lendingPoolCoreAddress', db, value_type = Address)
         self._snapshotAddress = VarDB('snapshotAddress', db, value_type = Address)
         self._depositComp = DictDB('depositComp', db, value_type = bool)
@@ -93,6 +100,14 @@ class Rewards(IconScoreBase):
         return self._lendingPoolCoreAddress.get()
 
     @external
+    def setWorkerToken(self, _address: Address):
+        self._workerTokenAddress.set(_address)
+
+    @external(readonly=True)
+    def getWorkerToken(self) -> Address:
+        return self._workerTokenAddress.get()
+
+    @external
     def setSnapshot(self, _val: Address):
         self._snapshotAddress.set(_val)
 
@@ -104,12 +119,13 @@ class Rewards(IconScoreBase):
     def distribute(self) -> None:
         pool = self.create_interface_score(self._lendingPoolAddress.get(), LendingPoolInterface)
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        worker = self.create_interface_score(self._workerTokenAddress.get(), WorkerTokenInterface)
         snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
         if self._day.get() >= self._getDay():
             return
         if not self._depositComp[self._day.get()]:
             for user in pool.getDepositWallets(self._depositCompIndex.get()):
-                for reserve in core.getReserves()
+                for reserve in core.getReserves():
                     deposit = self.depositBalance(reserve, user)
                     reserveData = snapshot.reserveDataAt(_reserve, self._day.get())
                     self._depositMulApy[user][self._day.get()] += exaMul(deposit, reserveData['liquidityRate'])
@@ -123,7 +139,7 @@ class Rewards(IconScoreBase):
 
         if not self._borrowComp[self._day.get()]:
             for user in pool.getBorrowWallets(self._borrowCompIndex.get()):
-                for reserve in core.getReserves()
+                for reserve in core.getReserves():
                     borrow = self.borrowBalance(reserve, user)
                     reserveData = snapshot.reserveDataAt(_reserve, self._day.get())
                     self._borrowMulApy[user][self._day.get()] += exaMul(deposit, reserveData['borrowRate'])
