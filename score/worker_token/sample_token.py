@@ -2,6 +2,8 @@ from iconservice import *
 
 TAG = 'SampleToken'
 
+BATCH_SIZE = 100
+
 
 # An interface of ICON Token Standard, IRC-2
 class TokenStandard(ABC):
@@ -44,6 +46,7 @@ class SampleToken(IconScoreBase, TokenStandard):
     _BALANCES = 'balances'
     _TOTAL_SUPPLY = 'total_supply'
     _DECIMALS = 'decimals'
+    _WALLETS = 'wallets'
 
     @eventlog(indexed=3)
     def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
@@ -52,9 +55,9 @@ class SampleToken(IconScoreBase, TokenStandard):
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._total_supply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
-        self._decimals = VarDB(self._DECIMALS, db, value_type=int)
-        self._balances = DictDB(self._BALANCES, db, value_type=int)
-        self._wallets = 
+        self._decimals = VarDB(self._DECIMALS, db, value_type = int)
+        self._balances = DictDB(self._BALANCES, db, value_type = int)
+        self._wallets = ArrayDB(self._WALLETS, db, value_type = Address)
 
     def on_install(self, _initialSupply: int, _decimals: int) -> None:
         super().on_install()
@@ -99,6 +102,9 @@ class SampleToken(IconScoreBase, TokenStandard):
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         if _data is None:
             _data = b'None'
+
+        if _to not in self._wallets:
+            self._wallets.put(_to)
         self._transfer(self.msg.sender, _to, _value, _data)
 
     def _transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
@@ -120,3 +126,15 @@ class SampleToken(IconScoreBase, TokenStandard):
         # Emits an event log `Transfer`
         self.Transfer(_from, _to, _value, _data)
         Logger.debug(f'Transfer({_from}, {_to}, {_value}, {_data})', TAG)
+
+    @external(readonly=True)
+    def getWallets(self, _index: int) -> list:
+        wallets = []
+        for i,wallet in enumerate(self._wallets):
+            if i < _index * BATCH_SIZE:
+                continue
+            if i >= (_index+1) * BATCH_SIZE:
+                break
+            wallets.append(wallet)
+
+        return wallets
