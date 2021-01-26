@@ -487,6 +487,10 @@ class LendingPoolDataProvider(IconScoreBase):
             reserveData['availableLiquidity'] = exaMul(reserveData['availableLiquidity'], todaySicxRate)
             reserveData['totalBorrows'] = exaMul(reserveData['totalBorrows'], todaySicxRate)
         reserveData["exchangePrice"] = price
+        reserveData["totalLiquidityUSD"]=exaMul(reserveData['totalLiquidity'],price)
+        reserveData["availableLiquidityUSD"]=exaMul(reserveData['availableLiquidity'],price)
+        reserveData["totalBorrowsUSD"]=exaMul(reserveData['totalBorrows'],price)
+
 
         return reserveData
 
