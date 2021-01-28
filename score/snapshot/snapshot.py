@@ -2,13 +2,13 @@ from iconservice import *
 
 TAG = 'Snapshot'
 
-class UserData(TypedDict):
+class UserSnapshotData(TypedDict):
     principalOTokenBalance: int
     principalBorrowBalance: int
     userLiquidityCumulativeIndex: int
     userBorrowCumulativeIndex: int
 
-class ReserveData(TypedDict):
+class ReserveSnapshotData(TypedDict):
     liquidityRate: int
     borrowRate: int
     liquidityCumulativeIndex: int
@@ -120,7 +120,7 @@ class Snapshot(IconScoreBase):
         return response
 
     @external
-    def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserData) -> None:
+    def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserSnapshotData) -> None:
 		currentDay = self._getDay()
 		length = self._userData[_user][_reserve]['length'][0]
 		if length == 0:
@@ -148,7 +148,7 @@ class Snapshot(IconScoreBase):
             self._userData[_user][_reserve]['userBorrowCumulativeIndex'][length - 1] = _userData['userBorrowCumulativeIndex']
 
     @external
-    def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveData) -> None:
+    def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveSnapshotData) -> None:
 		currentDay = self._getDay()
 		length = self._reserveData[_reserve]['length'][0]
 		if length == 0:
