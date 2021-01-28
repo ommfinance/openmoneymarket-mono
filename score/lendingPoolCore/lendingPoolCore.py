@@ -46,6 +46,18 @@ class Constant(TypedDict):
     slopeRate1: int
     slopeRate2: int
 
+class UserSnapshotData(TypedDict):
+    principalOTokenBalance: int
+    principalBorrowBalance: int
+    userLiquidityCumulativeIndex: int
+    userBorrowCumulativeIndex: int
+
+class ReserveSnapshotData(TypedDict):
+    liquidityRate: int
+    borrowRate: int
+    liquidityCumulativeIndex: int
+    borrowCumulativeIndex: int
+    lastUpdateTimestamp: int
 
 # An interface to oToken
 class oTokenInterface(InterfaceScore):
@@ -67,10 +79,10 @@ class ReserveInterface(InterfaceScore):
 # An interface to Snapshot
 class SnapshotInterface(InterfaceScore):
     @interface
-    def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserData) -> None:
+    def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserSnapshotData) -> None:
         pass
 
-    def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveData) -> None:
+    def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveSnapshotData) -> None:
         pass
 
 
