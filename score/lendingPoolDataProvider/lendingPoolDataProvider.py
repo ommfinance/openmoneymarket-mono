@@ -287,6 +287,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @external(readonly=True)
     def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
+        response = {}
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserveData = core.getReserveData(_reserve)
         userReserveData = core.getUserReserveData(_reserve, _user)
@@ -307,11 +308,12 @@ class LendingPoolDataProvider(IconScoreBase):
         if self._symbol[_reserve] == "ICX":
             staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
+            response['sICXRate'] = todaySicxRate
             price = exaMul(price, todaySicxRate)
-            currentOTokenBalance = exaMul(currentOTokenBalance, todaySicxRate)
-            principalOTokenBalance = exaMul(principalOTokenBalance, todaySicxRate)
-            currentBorrowBalance = exaMul(currentBorrowBalance, todaySicxRate)
-            principalBorrowBalance = exaMul(principalBorrowBalance, todaySicxRate)
+            # currentOTokenBalance = exaMul(currentOTokenBalance, todaySicxRate)
+            # principalOTokenBalance = exaMul(principalOTokenBalance, todaySicxRate)
+            # currentBorrowBalance = exaMul(currentBorrowBalance, todaySicxRate)
+            # principalBorrowBalance = exaMul(principalBorrowBalance, todaySicxRate)
         currentOTokenBalanceUSD = exaMul(currentOTokenBalance, price)
         principalOTokenBalanceUSD = exaMul(principalOTokenBalance, price)
         currentBorrowBalanceUSD = exaMul(currentBorrowBalance, price)
@@ -481,12 +483,12 @@ class LendingPoolDataProvider(IconScoreBase):
         if self._symbol[_reserve] == "ICX":
             staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
-            reserveData['totalSicxBalance'] = reserveData['totalLiquidity']
-            reserveData['todaySicxRate'] = todaySicxRate
-            reserveData['totalLiquidity'] = exaMul(reserveData['totalLiquidity'], todaySicxRate)
-            reserveData['availableLiquidity'] = exaMul(reserveData['availableLiquidity'], todaySicxRate)
-            reserveData['totalBorrows'] = exaMul(reserveData['totalBorrows'], todaySicxRate)
+            reserveData['sICXRate'] = todaySicxRate
+            # reserveData['totalLiquidity'] = exaMul(reserveData['totalLiquidity'], todaySicxRate)
+            # reserveData['availableLiquidity'] = exaMul(reserveData['availableLiquidity'], todaySicxRate)
+            # reserveData['totalBorrows'] = exaMul(reserveData['totalBorrows'], todaySicxRate)
         reserveData["exchangePrice"] = price
+        price = exaMul(todaySicxRate,price)
         reserveData["totalLiquidityUSD"]=exaMul(reserveData['totalLiquidity'],price)
         reserveData["availableLiquidityUSD"]=exaMul(reserveData['availableLiquidity'],price)
         reserveData["totalBorrowsUSD"]=exaMul(reserveData['totalBorrows'],price)
