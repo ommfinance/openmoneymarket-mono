@@ -38,6 +38,19 @@ class UserDataAttributes(TypedDict):
     originationFee: int
     useAsCollateral: bool
 
+class UserSnapshotData(TypedDict):
+    principalOTokenBalance: int
+    principalBorrowBalance: int
+    userLiquidityCumulativeIndex: int
+    userBorrowCumulativeIndex: int
+
+class ReserveSnapshotData(TypedDict):
+    liquidityRate: int
+    borrowRate: int
+    liquidityCumulativeIndex: int
+    borrowCumulativeIndex: int
+    lastUpdateTimestamp: int
+
 
 class Constant(TypedDict):
     reserve: Address
