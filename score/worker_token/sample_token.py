@@ -128,13 +128,9 @@ class SampleToken(IconScoreBase, TokenStandard):
         Logger.debug(f'Transfer({_from}, {_to}, {_value}, {_data})', TAG)
 
     @external(readonly=True)
-    def getWallets(self, _index: int) -> list:
+    def getWallets(self) -> list:
         wallets = []
-        for i,wallet in enumerate(self._wallets):
-            if i < _index * BATCH_SIZE:
-                continue
-            if i >= (_index+1) * BATCH_SIZE:
-                break
+        for wallet in self._wallets:
             wallets.append(wallet)
 
         return wallets

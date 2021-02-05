@@ -25,7 +25,7 @@ class ReserveInterface(InterfaceScore):
 # An interface for sicx
 class StakingInterface(InterfaceScore):
     @interface
-    def addCollateral(self, _to: Address, _data: bytes = None) -> None:
+    def addCollateral(self, _to: Address, _data: bytes = None) -> int:
         pass
 
 
@@ -119,10 +119,10 @@ class LiquidationManagerInterface(InterfaceScore):
 class RewardInterface(InterfaceScore):
     @interface
     def distribute(self) -> None:
+        pass
 
 
 class LendingPool(IconScoreBase):
-
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._lendingPoolCoreAddress = VarDB('lendingPoolCore', db, value_type=Address)
