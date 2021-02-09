@@ -112,7 +112,7 @@ class Snapshot(IconScoreBase):
                 'borrowRate' : 0,
                 'liquidityCumulativeIndex' : 10**18,
                 'borrowCumulativeIndex' : 10**18,
-                'lastUpdateTimestamp' : self._reserveData[_reserve]['lastUpdateTimestamp'][0]
+                'lastUpdateTimestamp' : self._reserveData[_reserve]['lastUpdateTimestamp'][0],
                 'price' : self._reserveData[_reserve]['price'][0]
             }
         else:
