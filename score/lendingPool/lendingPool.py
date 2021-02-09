@@ -306,6 +306,7 @@ class LendingPool(IconScoreBase):
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         reward.distribute()
         reserveData = core.getReserveData(_reserve)
+       
         oTokenAddress = reserveData['oTokenAddress']
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
         isFirstDeposit = False
@@ -400,7 +401,9 @@ class LendingPool(IconScoreBase):
         self.PrintData("amout of collateral needed USD pool line 268", amountOfCollateralNeededUSD, 0, 0)
         self._require(amountOfCollateralNeededUSD <= userCollateralBalanceUSD,
                       "Borrow error:Insufficient collateral to cover new borrow")
+        
         borrowData = core.updateStateOnBorrow(_reserve, self.msg.sender, _amount, borrowFee)
+        
         core.transferToUser(_reserve, self.msg.sender, _amount)
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
                     borrowData['balanceIncrease'], self.block.timestamp)

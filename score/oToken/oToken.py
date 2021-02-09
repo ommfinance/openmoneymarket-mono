@@ -202,7 +202,7 @@ class OToken(IconScoreBase, TokenStandard):
         return self._lendingPoolAddress.get()
 
     @external(readonly=True)
-    def getUserIndex(self, _user: Address) -> int:
+    def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         return self._userIndexes[_user]
 
     @external
@@ -251,10 +251,7 @@ class OToken(IconScoreBase, TokenStandard):
         dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
         return dataProvider.balanceDecreaseAllowed(self.getReserveAddress(), _user, _amount)
 
-    # This returns the most recent cumulative index for the user
-    @external(readonly=True)
-    def getUserIndex(self, _user: Address) -> int:
-        pass
+   
 
     @external
     def redeem(self, _amount: int, _waitForUnstaking: bool = False) -> None:

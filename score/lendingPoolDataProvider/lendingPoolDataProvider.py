@@ -54,7 +54,7 @@ class oTokenInterface(InterfaceScore):
     def principalBalanceOf(self, _user: Address) -> int:
         pass
 
-    def getUserIndex(self, _user: Address) -> int:
+    def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         pass
 
 
@@ -294,7 +294,7 @@ class LendingPoolDataProvider(IconScoreBase):
         oToken = self.create_interface_score(reserveData['oTokenAddress'], oTokenInterface)
         currentOTokenBalance = oToken.balanceOf(_user)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
-        userLiquidityCumulativeIndex = oToken.getUserIndex(_user)
+        userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
         principalBorrowBalance = userReserveData['principalBorrowBalance']
         currentBorrowBalance = core.getCompoundedBorrowBalance(_reserve, _user)
         borrowRate = reserveData['borrowRate']
