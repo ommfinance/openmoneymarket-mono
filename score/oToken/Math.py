@@ -38,4 +38,10 @@ def calculateCompoundedInterest( _rate: int, _lastUpdateTimestamp: int) ->int:
     return exaPow((ratePerSecond + EXA), timeDifference)
 
 
+def convertToExa(_amount:int,_decimals:int)-> int:
+    if _decimals >= 0:
+        return _balance * EXA // (10 ** _decimals)
 
+def convertExaToOther(_amount:int,_decimals:int)->int:
+    if _decimals >= 0:
+        return _balance * (10 ** _decimals) // EXA
