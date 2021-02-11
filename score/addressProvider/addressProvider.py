@@ -14,6 +14,8 @@ class AddressProvider(IconScoreBase):
         self._lendingPool = VarDB('lendingPool', db, value_type=Address)
         self._lendingPoolDataProvider = VarDB('lendingPoolDataProvider', db, value_type=Address)
         self._staking = VarDB('staking', db, value_type=Address)
+        self._IUSDC = VarDB('iusdc',db,value_type=Address)
+        self._oIUSDC = VarDB ('oiusdc',db,value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -63,15 +65,29 @@ class AddressProvider(IconScoreBase):
             revert(f'Only owner can set the address')
         self._staking.set(_address)
 
+    @external
+    def setIUSDC(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Only owner can set the address')
+        self._IUSDC.set(_address)
+
+    @external
+    def setoIUSDC(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Only owner can set the address')
+        self._oIUSDC.set(_address)
+
     @external(readonly=True)
     def getAllAddresses(self) -> dict:
         response = {"collateral": {
             "USDb": self._USDb.get(),
-            "sICX": self._sICX.get()
+            "sICX": self._sICX.get(),
+            "IUSDC": self._IUSDC.get()
         },
             "oTokens": {
                 "oUSDb": self._oUSDb.get(),
-                "oICX": self._oICX.get()
+                "oICX": self._oICX.get(),
+                "oIUSDC": self._oIUSDC.get()
             },
             "systemContract": {
                 "LendingPool": self._lendingPool.get(),
