@@ -186,12 +186,19 @@ class LendingPoolDataProvider(IconScoreBase):
 
         for _reserve in reserves:
             reserveData = core.getReserveData(_reserve)
+            reserveDecimals = reserveData['decimals']
             reservePrice = oracle.get_reference_data(self._symbol[_reserve], 'USD')
             if self._symbol[_reserve] == 'ICX':
                 reservePrice = exaMul(reservePrice, todayRate)
             reserveTotalLiquidity = reserveData['totalLiquidity']
             reserveAvailableLiquidity = reserveData['availableLiquidity']
             reserveTotalBorrows = reserveData['totalBorrows']
+
+            if reserveDecimals !=18:
+                reserveTotalLiquidity = convertToExa(reserveTotalLiquidity,reserveDecimals)
+                reserveAvailableLiquidity = convertToExa(reserveAvailableLiquidity,reserveDecimals)
+                reserveTotalBorrows = convertToExa(reserveAvailableLiquidity,reserveDecimals)
+                
             totalLiquidityBalanceUSD += exaMul(reserveTotalLiquidity, reservePrice)
             availableLiquidityBalanceUSD += exaMul(reserveAvailableLiquidity, reservePrice)
             totalBorrowBalanceUSD += exaMul(reserveTotalBorrows, reservePrice)
@@ -228,6 +235,13 @@ class LendingPoolDataProvider(IconScoreBase):
                 continue
 
             reserveConfiguration = core.getReserveConfiguration(_reserve)
+            reserveDecimals = reserveConfiguration['decimals']
+
+            # converting the user balances into 18 decimals
+            if  reserveDecimals != 18:
+                userBasicReserveData['underlyingBalance']=convertToExa(userBasicReserveData['underlyingBalance'],reserveDecimals)
+                userBasicReserveData['compoundedBorrowBalance']=convertToExa(userBasicReserveData['compoundedBorrowBalance'],reserveDecimals)
+                userBasicReserveData['originationFee']=convertToExa(userBasicReserveData['originationFee'],reserveDecimals)
 
             reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(self._symbol[_reserve], 'USD')
             if self._symbol[_reserve] == 'ICX':
@@ -298,6 +312,7 @@ class LendingPoolDataProvider(IconScoreBase):
         principalBorrowBalance = userReserveData['principalBorrowBalance']
         currentBorrowBalance = core.getCompoundedBorrowBalance(_reserve, _user)
         borrowRate = reserveData['borrowRate']
+        reserveDecimals = reserveData['decimals']
         liquidityRate = reserveData['liquidityRate']
         originationFee = userReserveData['originationFee']
         userBorrowCumulativeIndex = userReserveData['userBorrowCumulativeIndex']
@@ -314,10 +329,11 @@ class LendingPoolDataProvider(IconScoreBase):
             # principalOTokenBalance = exaMul(principalOTokenBalance, todaySicxRate)
             # currentBorrowBalance = exaMul(currentBorrowBalance, todaySicxRate)
             # principalBorrowBalance = exaMul(principalBorrowBalance, todaySicxRate)
-        currentOTokenBalanceUSD = exaMul(currentOTokenBalance, price)
-        principalOTokenBalanceUSD = exaMul(principalOTokenBalance, price)
-        currentBorrowBalanceUSD = exaMul(currentBorrowBalance, price)
-        principalBorrowBalanceUSD = exaMul(principalBorrowBalance, price)
+        
+        currentOTokenBalanceUSD = exaMul(convertToExa(currentOTokenBalance,reserveDecimals), price)
+        principalOTokenBalanceUSD = exaMul(convertToExa(principalOTokenBalance,reserveDecimals), price)
+        currentBorrowBalanceUSD = exaMul(convertToExa(currentBorrowBalance,reserveDecimals), price)
+        principalBorrowBalanceUSD = exaMul(convertToExa(principalBorrowBalance,reserveDecimals), price)
         response = {
             'currentOTokenBalance': currentOTokenBalance,
             'currentOTokenBalanceUSD': currentOTokenBalanceUSD,
@@ -334,10 +350,14 @@ class LendingPoolDataProvider(IconScoreBase):
             'userBorrowCumulativeIndex': userBorrowCumulativeIndex,
             'lastUpdateTimestamp': lastUpdateTimestamp,
             'useAsCollateral': useAsCollateral,
-            'exchangeRate': price
+            'exchangeRate': price,
+            'decimals' : reserveDecimals
         }
 
         return response
+
+    def convertToExa(self,_balance:int,_decimals:int)->int:
+        return _balance * EXA // (10 ** _decimals)
 
     @external(readonly=True)
     def balanceDecreaseAllowed(self, _reserve: Address, _user: Address, _amount: int) -> bool:
@@ -355,6 +375,9 @@ class LendingPoolDataProvider(IconScoreBase):
         borrowBalanceUSD = userAccountData['totalBorrowBalanceUSD']
         totalFeesUSD = userAccountData['totalFeesUSD']
         currentLiquidationThreshold = userAccountData['currentLiquidationThreshold']
+
+        if reserveConfiguration['decimals'] !=18:
+            _amount = convertToExa(_amount,reserveConfiguration['decimals'])
 
         if borrowBalanceUSD == 0:
             return True
@@ -387,6 +410,10 @@ class LendingPoolDataProvider(IconScoreBase):
 
         price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        reserveConfiguration = core.getReserveConfiguration(_reserve)
+        if reserveConfiguration['decimals'] != 18:
+            _amount = _amount * EXA // (10 ** reserveConfiguration["decimals"])
         if self._symbol[_reserve] == "ICX":
             staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
@@ -420,6 +447,12 @@ class LendingPoolDataProvider(IconScoreBase):
         response = {'badDebt': badDebt, 'borrows': {}, 'collaterals': {}}
         for _reserve in reserves:
             userReserveData = core.getUserBasicReserveData(_reserve, _user)
+            reserveConfiguration = core.getReserveConfiguration(_reserve)
+            reserveDecimals = reserveConfiguration['decimals']
+            if reserveDecimals != 18:
+                userReserveData['compoundedBorrowBalance'] = convertToExa(userReserveData['compoundedBorrowBalance'],reserveDecimals)
+                userReserveData['underlyingBalance'] =convertToExa(userReserveData['underlyingBalance'],reserveDecimals)
+                
             userBorrowBalance = userReserveData['compoundedBorrowBalance']
             price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
             if self._symbol[_reserve] == "ICX":
@@ -488,6 +521,12 @@ class LendingPoolDataProvider(IconScoreBase):
             # reserveData['totalLiquidity'] = exaMul(reserveData['totalLiquidity'], todaySicxRate)
             # reserveData['availableLiquidity'] = exaMul(reserveData['availableLiquidity'], todaySicxRate)
             # reserveData['totalBorrows'] = exaMul(reserveData['totalBorrows'], todaySicxRate)
+        reserveDecimals = reserveData['decimals'] 
+        if reserveDecimals != 18 :
+            reserveData['totalLiquidity'] = convertToExa(reserveData['totalLiquidity'],reserveDecimals)
+            reserveData['availableLiquidity'] = convertToExa(reserveData['availableLiquidity'],reserveDecimals)
+            reserveData['totalBorrows'] = convertToExa(reserveData['totalBorrows'],reserveDecimals)
+
         reserveData["totalLiquidityUSD"]=exaMul(reserveData['totalLiquidity'],price)
         reserveData["availableLiquidityUSD"]=exaMul(reserveData['availableLiquidity'],price)
         reserveData["totalBorrowsUSD"]=exaMul(reserveData['totalBorrows'],price)
