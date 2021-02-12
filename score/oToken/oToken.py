@@ -211,10 +211,10 @@ class OToken(IconScoreBase, TokenStandard):
         if self._userIndexes[_user] == 0:
             return _balance
         else:
-            balance = exaDiv(exaMul(_balance, core.getNormalizedIncome(self.getReserveAddress())),
+            balance = exaDiv(exaMul(convertToExa(_balance,self._decimals.get()), core.getNormalizedIncome(self.getReserveAddress())),
                              self._userIndexes[_user])
-            return balance
-
+            return convertExaToOther(balance,self._decimals.get())
+    
     @external
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
         previousPrincipalBalance = self.principalBalanceOf(_user)
