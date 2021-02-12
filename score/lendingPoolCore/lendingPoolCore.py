@@ -794,7 +794,7 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate, _feeLiquidated,
                                                   _balanceIncrease)
         self.updateReserveInterestRatesAndTimestampInternal(_principalReserve, _amountToLiquidate, 0)
-        self.updateReserveInterestRatesAndTimestampInternal(_collateralToLiquidate,0,_collateralToLiquidate + _liquidatedCollateralForFee)
+        self.updateReserveInterestRatesAndTimestampInternal(_collateralReserve,0,_collateralToLiquidate + _liquidatedCollateralForFee)
 
     def updatePrincipalReserveStateOnLiquidationInternal(self, _principalReserve: Address, _user: Address,
                                                          _amountToLiquidate: int, _balanceIncrease: int) -> None:
