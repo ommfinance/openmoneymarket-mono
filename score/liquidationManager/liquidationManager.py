@@ -153,6 +153,7 @@ class LiquidationManager(IconScoreBase):
                                                 _userCollateralBalance: int, _fee: bool) -> dict:
         priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
         dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
+        core = self.create_interface_score(self.getCoreAddress(), CoreInterface)
 
         collateralConfigs = dataProvider.getReserveConfigurationData(_collateral)
         liquidationBonus = collateralConfigs['liquidationBonus']
@@ -164,13 +165,16 @@ class LiquidationManager(IconScoreBase):
         collateralPrice = priceOracle.get_reference_data(collateralBase, 'USD')
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
 
-        userCollateralUSD = exaMul(_userCollateralBalance, collateralPrice)
-        purchaseAmountUSD = exaMul(_purchaseAmount, principalPrice)
+        reserveConfiguration = core.getReserveConfiguration(_reserve)
+        reserveDecimals = reserveConfiguration['decimals']
 
-        maxCollateralToLiquidate = exaDiv(exaMul(purchaseAmountUSD, EXA + liquidationBonus), collateralPrice)
+        userCollateralUSD = exaMul(convertToExa(_userCollateralBalance,reserveDecimals), collateralPrice)
+        purchaseAmountUSD = exaMul(convertToExa(_purchaseAmount,reserveDecimals), principalPrice)
+
+        maxCollateralToLiquidate = convertExaToOther(exaDiv(exaMul(purchaseAmountUSD, EXA + liquidationBonus), collateralPrice), reserveDecimals)
         if maxCollateralToLiquidate > _userCollateralBalance:
             collateralAmount = _userCollateralBalance
-            principalAmountNeeded = exaDiv(exaDiv(userCollateralUSD, EXA + liquidationBonus), principalPrice)
+            principalAmountNeeded = convertExaToOther(exaDiv(exaDiv(userCollateralUSD, EXA + liquidationBonus), principalPrice), reserveDecimals)
         else:
             collateralAmount = maxCollateralToLiquidate
             principalAmountNeeded = _purchaseAmount
@@ -224,6 +228,13 @@ class LiquidationManager(IconScoreBase):
                                                                  userAccountData['totalCollateralBalanceUSD'],
                                                                  userAccountData['currentLtv'])
         maxPrincipalAmountToLiquidate = exaDiv(maxPrincipalAmountToLiquidateUSD, principalPrice)
+        reserveConfiguration = core.getReserveConfiguration(_reserve)
+        reserveDecimals = reserveConfiguration['decimals']
+
+        # converting the user balances into 18 decimals
+        if  reserveDecimals != 18:
+            maxPrincipalAmountToLiquidate = convertExaToOther(maxPrincipalAmountToLiquidate, reserveDecimals)
+       
         if _purchaseAmount > maxPrincipalAmountToLiquidate:
             actualAmountToLiquidate = maxPrincipalAmountToLiquidate
         else:
