@@ -20,12 +20,20 @@ class InvalidNameError(Exception):
     pass
 
 
-# An interface of tokenFallback.
-# Receiving SCORE that has implemented this interface can handle
-# the receiving or further routine.
+class PrepDelegationDetails(TypedDict):
+    prepAddress: Address
+    prepPercentage: int
+
+
 class TokenFallbackInterface(InterfaceScore):
     @interface
     def tokenFallback(self, _from: Address, _value: int, _data: bytes):
+        pass
+
+
+class DelegationInterface(InterfaceScore):
+    @interface
+    def updateDelegations(self, _delegations: List[PrepDelegationDetails] = None):
         pass
 
 
@@ -52,6 +60,7 @@ class IRC2(TokenStandard, IconScoreBase):
     _STAKED_BALANCES = 'staked_balances'
     _TOTAL_STAKED_BALANCE = 'total_stake_balance'
     _UNSTAKING_PERIOD = 'unstaking_period'
+    _DELEGATION = 'delegation'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -70,6 +79,8 @@ class IRC2(TokenStandard, IconScoreBase):
         self._staked_balances = DictDB(self._STAKED_BALANCES, db, value_type=int, depth=2)
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
+
+        self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
 
     def on_install(self, _tokenName: str,
                    _symbolName: str,
@@ -159,6 +170,16 @@ class IRC2(TokenStandard, IconScoreBase):
 		"""
         return self._balances[_owner]
 
+    @external
+    def setDelegation(self, _delegation: Address):
+        if self.msg.sender != self.owner:
+            revert("Omm token error:Setting address failed,you are not authorized")
+        self._delegation.set(_delegation)
+
+    @external(readonly=True)
+    def getDelegation(self):
+        return self._delegation.get()
+
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
         detail_balance = self.details_balanceOf(_owner)
@@ -183,7 +204,7 @@ class IRC2(TokenStandard, IconScoreBase):
         if _time < 0:
             revert("Time cannot be negative.")
         # total_time = _time * DAY_TO_MICROSECOND  # convert days to microseconds
-        total_time = _time  * MICROSECONDS
+        total_time = _time * MICROSECONDS
         self._unstaking_period.set(total_time)
 
     @external(readonly=True)
@@ -294,7 +315,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        self._require(self.msg.sender not in self._lock_list,"Transfer error:The address is locker")
+        self._require(self.msg.sender not in self._lock_list, "Transfer error:The address is locker")
         if _data is None:
             _data = b'None'
         self._transfer(self.msg.sender, _to, _value, _data)
@@ -335,7 +356,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
         self._staked_balances[_from][Status.AVAILABLE] = (self._staked_balances[_from][Status.AVAILABLE] - _value)
         self._staked_balances[_to][Status.AVAILABLE] = (self._staked_balances[_to][Status.AVAILABLE] + _value)
-        
+
         if _to.is_contract:
             """
 			If the recipient is SCORE,
@@ -390,22 +411,24 @@ class IRC2(TokenStandard, IconScoreBase):
         self._staked_balances[_from][Status.UNSTAKING] = unstake_amount
         self._staked_balances[_from][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
+        delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
+        delegation.updateDelegations()
 
-        
     @external
-    def unstake(self,_value:int)-> None:
+    def unstake(self, _value: int) -> None:
         _from = self.msg.sender
         self._require(_value > 0, "Unstake error:cant unstake less than zero")
         self._makeAvailable(_from)
-        staked_balance=self.staked_balanceOf(_from)
-        self._require(staked_balance >= _value,"Unstake error:not enough staked balance to unstake")
-        self._require(_from not in self._lock_list, "Stake error: The address is locked ")      
-        self._staked_balances[_from][Status.UNSTAKING]=_value
-        self._staked_balances[_from][Status.UNSTAKING_PERIOD] = self.now()+self._unstaking_period.get()
-        self._total_staked_balance.set(self._total_staked_balance.get()-value)
+        staked_balance = self.staked_balanceOf(_from)
+        self._require(staked_balance >= _value, "Unstake error:not enough staked balance to unstake")
+        self._require(_from not in self._lock_list, "Stake error: The address is locked ")
+        self._staked_balances[_from][Status.UNSTAKING] = _value
+        self._staked_balances[_from][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
+        self._total_staked_balance.set(self._total_staked_balance.get() - _value)
 
-
-
+        # update the prep delegations
+        delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
+        delegation.updateDelegations()
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstaking period has already been reached.
