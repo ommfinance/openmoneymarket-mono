@@ -54,33 +54,35 @@ class SampleToken(IconScoreBase, TokenStandard):
         self._total_supply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
         self._decimals = VarDB(self._DECIMALS, db, value_type=int)
         self._balances = DictDB(self._BALANCES, db, value_type=int)
+        self._name = VarDB(self._DECIMALS, db, value_type=str)
+        self._symbol = VarDB(self._DECIMALS, db, value_type=str)
 
-    def on_install(self, _initialSupply: int, _decimals: int) -> None:
+    def on_install(self, _name: str,_symbol:str, _decimals: int) -> None:
         super().on_install()
-
-        if _initialSupply < 0:
-            revert("Initial supply cannot be less than zero")
-
+        intialSupply = 50000000
+        
         if _decimals < 0:
             revert("Decimals cannot be less than zero")
 
-        total_supply = _initialSupply * 10 ** _decimals
+        total_supply = intialSupply * 10 ** _decimals
         Logger.debug(f'on_install: total_supply={total_supply}', TAG)
 
         self._total_supply.set(total_supply)
         self._decimals.set(_decimals)
         self._balances[self.msg.sender] = total_supply
+        self._name.set(_name)
+        self._symbol.set(_symbol)
 
     def on_update(self) -> None:
         super().on_update()
 
     @external(readonly=True)
     def name(self) -> str:
-        return "USDb"
+        return self._name.get()
 
     @external(readonly=True)
     def symbol(self) -> str:
-        return "USDb"
+        return self._symbol.get()
 
     @external(readonly=True)
     def decimals(self) -> int:
@@ -119,3 +121,4 @@ class SampleToken(IconScoreBase, TokenStandard):
         # Emits an event log `Transfer`
         self.Transfer(_from, _to, _value, _data)
         Logger.debug(f'Transfer({_from}, {_to}, {_value}, {_data})', TAG)
+    
