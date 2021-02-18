@@ -38,11 +38,13 @@ class UserDataAttributes(TypedDict):
     originationFee: int
     useAsCollateral: bool
 
+
 class UserSnapshotData(TypedDict):
     principalOTokenBalance: int
     principalBorrowBalance: int
     userLiquidityCumulativeIndex: int
     userBorrowCumulativeIndex: int
+
 
 class ReserveSnapshotData(TypedDict):
     liquidityRate: int
@@ -60,11 +62,13 @@ class Constant(TypedDict):
     slopeRate1: int
     slopeRate2: int
 
+
 class UserSnapshotData(TypedDict):
     principalOTokenBalance: int
     principalBorrowBalance: int
     userLiquidityCumulativeIndex: int
     userBorrowCumulativeIndex: int
+
 
 class ReserveSnapshotData(TypedDict):
     liquidityRate: int
@@ -73,12 +77,13 @@ class ReserveSnapshotData(TypedDict):
     borrowCumulativeIndex: int
     lastUpdateTimestamp: int
 
+
 # An interface to oToken
 class oTokenInterface(InterfaceScore):
     @interface
     def balanceOf(self, _owner: Address) -> int:
         pass
-    
+
     @interface
     def principalBalanceOf(self, _user: Address) -> int:
         pass
@@ -86,6 +91,7 @@ class oTokenInterface(InterfaceScore):
     @interface
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         pass
+
 
 # An interface to PriceOracle
 class OracleInterface(InterfaceScore):
@@ -104,14 +110,31 @@ class ReserveInterface(InterfaceScore):
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
 
+
 # An interface to Snapshot
 class SnapshotInterface(InterfaceScore):
     @interface
     def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserSnapshotData) -> None:
         pass
 
+    @interface
     def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveSnapshotData) -> None:
         pass
+
+
+class StakingInterface(InterfaceScore):
+    @interface
+    def getTodayRate(self) -> int:
+        pass
+
+    @interface
+    def updateDelegation(self, _delegations: dict):
+        pass
+
+
+def _require(_condition: bool, _message: str):
+    if not _condition:
+        revert(_message)
 
 
 class LendingPoolCore(IconScoreBase):
@@ -124,11 +147,14 @@ class LendingPoolCore(IconScoreBase):
         super().__init__(db)
         self.id = VarDB(self.ID, db, str)
         self.reserveList = ArrayDB(self.RESERVE_LIST, db, value_type=Address)
+        self._symbol = DictDB('symbol', db, value_type=str)
         self._lendingPool = VarDB('lendingPool', db, value_type=Address)
         self._constants = DictDB(self.CONSTANTS, db, value_type=int, depth=2)
         self._daoFund = VarDB(self.DAOFUND, db, value_type=Address)
         self._snapshotAddress = VarDB('snapshotAddress', db, value_type=Address)
         self._oracleAddress = VarDB('oracleAddress', db, value_type=Address)
+        self._stakingAddress = VarDB('stakingAddress', db, value_type=Address)
+        self._delegation = VarDB('delegation', db, value_type=Address)
         self.reserve = ReserveDataDB(db)
         self.userReserve = UserReserveDataDB(db)
 
@@ -146,9 +172,9 @@ class LendingPoolCore(IconScoreBase):
     def ReserveUpdated(self, _reserve: Address, _liquidityRate: int, _borrowRate: int, _liquidityCumulativeIndex: int,
                        _borrowCumulativeIndex: int):
         pass
-    
+
     @eventlog(indexed=3)
-    def DaoFundTransfer(self,_amount:int,_reserve:Address,_initiatiator:Address):
+    def DaoFundTransfer(self, _amount: int, _reserve: Address, _initiatiator: Address):
         pass
 
     @external
@@ -160,6 +186,27 @@ class LendingPoolCore(IconScoreBase):
         return self.id.get()
 
     @external
+    def setSymbol(self, _reserveAddress: Address, _sym: str):
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+        self._symbol[_reserveAddress] = _sym
+
+    @external(readonly=True)
+    def getSymbol(self, _reserveAddress: Address) -> str:
+        return self._symbol[_reserveAddress]
+
+    @external
+    def setStakingAddress(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Method can only be invoked by the owner')
+
+        self._stakingAddress.set(_address)
+
+    @external(readonly=True)
+    def getStakingAddress(self) -> Address:
+        return self._stakingAddress.get()
+
+    @external
     def setLendingPool(self, _val: Address):
         if self.msg.sender != self.owner:
             revert("Address set error:You are not authorized to set")
@@ -168,6 +215,16 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def getLendingPool(self) -> Address:
         return self._lendingPool.get()
+
+    @external
+    def setDelegation(self, _delegation: Address):
+        if self.msg.sender != self.owner:
+            revert("Address set error:You are not authorized to set")
+        self._delegation.set(_delegation)
+
+    @external(readonly=True)
+    def getDelegation(self) -> Address:
+        return self._delegation.get()
 
     @external
     def setOracleAddress(self, _address: Address) -> None:
@@ -562,26 +619,26 @@ class LendingPoolCore(IconScoreBase):
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
 
-        userData : UserSnapshotData = {
-            'principalOTokenBalance' : principalOTokenBalance,
-            'principalBorrowBalance' : userReserve['principalBorrowBalance'],
-            'userLiquidityCumulativeIndex' : userLiquidityCumulativeIndex,
-            'userBorrowCumulativeIndex' : userReserve['userBorrowCumulativeIndex']
+        userData: UserSnapshotData = {
+            'principalOTokenBalance': principalOTokenBalance,
+            'principalBorrowBalance': userReserve['principalBorrowBalance'],
+            'userLiquidityCumulativeIndex': userLiquidityCumulativeIndex,
+            'userBorrowCumulativeIndex': userReserve['userBorrowCumulativeIndex']
         }
 
-        reserveData : ReserveSnapshotData ={
-            'liquidityRate' : reserve['liquidityRate'],
-            'borrowRate' : reserve['borrowRate'],
-            'liquidityCumulativeIndex' : reserve['liquidityCumulativeIndex'],
-            'borrowCumulativeIndex' : reserve['borrowCumulativeIndex'],
-            'lastUpdateTimestamp' : reserve['lastUpdateTimestamp'],
-            'price' : price
+        reserveData: ReserveSnapshotData = {
+            'liquidityRate': reserve['liquidityRate'],
+            'borrowRate': reserve['borrowRate'],
+            'liquidityCumulativeIndex': reserve['liquidityCumulativeIndex'],
+            'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
+            'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
+            'price': price
 
         }
 
-        snapshot.updateUserSnapshot(_user,_reserve, userData)
+        snapshot.updateUserSnapshot(_user, _reserve, userData)
         snapshot.updateReserveSnapshot(_reserve, reserveData)
-        
+
     @external
     def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int,
                             _userRedeemEverything: bool) -> None:
@@ -604,20 +661,19 @@ class LendingPoolCore(IconScoreBase):
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
 
-
-        userData : UserSnapshotData = {
-            'principalOTokenBalance' : principalOTokenBalance,
-            'principalBorrowBalance' : userReserve['principalBorrowBalance'],
-            'userLiquidityCumulativeIndex' : userLiquidityCumulativeIndex,
-            'userBorrowCumulativeIndex' : userReserve['userBorrowCumulativeIndex']
+        userData: UserSnapshotData = {
+            'principalOTokenBalance': principalOTokenBalance,
+            'principalBorrowBalance': userReserve['principalBorrowBalance'],
+            'userLiquidityCumulativeIndex': userLiquidityCumulativeIndex,
+            'userBorrowCumulativeIndex': userReserve['userBorrowCumulativeIndex']
         }
 
-        reserveData : ReserveSnapshotData ={
-            'liquidityRate' : reserve['liquidityRate'],
-            'borrowRate' : reserve['borrowRate'],
-            'liquidityCumulativeIndex' : reserve['liquidityCumulativeIndex'],
-            'borrowCumulativeIndex' : reserve['borrowCumulativeIndex'],
-            'lastUpdateTimestamp' : reserve['lastUpdateTimestamp'],
+        reserveData: ReserveSnapshotData = {
+            'liquidityRate': reserve['liquidityRate'],
+            'borrowRate': reserve['borrowRate'],
+            'liquidityCumulativeIndex': reserve['liquidityCumulativeIndex'],
+            'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
+            'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
             'price': price
 
         }
@@ -652,26 +708,26 @@ class LendingPoolCore(IconScoreBase):
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
 
-        userData : UserSnapshotData = {
-            'principalOTokenBalance' : principalOTokenBalance,
-            'principalBorrowBalance' : userReserve['principalBorrowBalance'],
-            'userLiquidityCumulativeIndex' : userLiquidityCumulativeIndex,
-            'userBorrowCumulativeIndex' : userReserve['userBorrowCumulativeIndex']
+        userData: UserSnapshotData = {
+            'principalOTokenBalance': principalOTokenBalance,
+            'principalBorrowBalance': userReserve['principalBorrowBalance'],
+            'userLiquidityCumulativeIndex': userLiquidityCumulativeIndex,
+            'userBorrowCumulativeIndex': userReserve['userBorrowCumulativeIndex']
         }
 
-        reserveData : ReserveSnapshotData ={
-            'liquidityRate' : reserve['liquidityRate'],
-            'borrowRate' : reserve['borrowRate'],
-            'liquidityCumulativeIndex' : reserve['liquidityCumulativeIndex'],
-            'borrowCumulativeIndex' : reserve['borrowCumulativeIndex'],
-            'lastUpdateTimestamp' : reserve['lastUpdateTimestamp'],
-            'price' : price
+        reserveData: ReserveSnapshotData = {
+            'liquidityRate': reserve['liquidityRate'],
+            'borrowRate': reserve['borrowRate'],
+            'liquidityCumulativeIndex': reserve['liquidityCumulativeIndex'],
+            'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
+            'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
+            'price': price
 
         }
 
         snapshot.updateUserSnapshot(_user, _reserve, userData)
         snapshot.updateReserveSnapshot(_reserve, reserveData)
-        
+
         return (
             {
                 "currentBorrowRate": currentBorrowRate,
@@ -684,7 +740,7 @@ class LendingPoolCore(IconScoreBase):
                            _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
-        self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
+        self.DaoFundTransfer(_balanceIncrease // 10, _reserve, self.tx.origin)
         self.updateReserveStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _balanceIncrease)
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
                                             _balanceIncrease, _repaidWholeLoan)
@@ -702,20 +758,20 @@ class LendingPoolCore(IconScoreBase):
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
 
-        userData : UserSnapshotData = {
-            'principalOTokenBalance' : principalOTokenBalance,
-            'principalBorrowBalance' : userReserve['principalBorrowBalance'],
-            'userLiquidityCumulativeIndex' : userLiquidityCumulativeIndex,
-            'userBorrowCumulativeIndex' : userReserve['userBorrowCumulativeIndex']
+        userData: UserSnapshotData = {
+            'principalOTokenBalance': principalOTokenBalance,
+            'principalBorrowBalance': userReserve['principalBorrowBalance'],
+            'userLiquidityCumulativeIndex': userLiquidityCumulativeIndex,
+            'userBorrowCumulativeIndex': userReserve['userBorrowCumulativeIndex']
         }
 
-        reserveData : ReserveSnapshotData ={
-            'liquidityRate' : reserve['liquidityRate'],
-            'borrowRate' : reserve['borrowRate'],
-            'liquidityCumulativeIndex' : reserve['liquidityCumulativeIndex'],
-            'borrowCumulativeIndex' : reserve['borrowCumulativeIndex'],
-            'lastUpdateTimestamp' : reserve['lastUpdateTimestamp'],
-            'price' : price
+        reserveData: ReserveSnapshotData = {
+            'liquidityRate': reserve['liquidityRate'],
+            'borrowRate': reserve['borrowRate'],
+            'liquidityCumulativeIndex': reserve['liquidityCumulativeIndex'],
+            'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
+            'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
+            'price': price
 
         }
 
@@ -794,7 +850,8 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate, _feeLiquidated,
                                                   _balanceIncrease)
         self.updateReserveInterestRatesAndTimestampInternal(_principalReserve, _amountToLiquidate, 0)
-        self.updateReserveInterestRatesAndTimestampInternal(_collateralReserve,0,_collateralToLiquidate + _liquidatedCollateralForFee)
+        self.updateReserveInterestRatesAndTimestampInternal(_collateralReserve, 0,
+                                                            _collateralToLiquidate + _liquidatedCollateralForFee)
 
     def updatePrincipalReserveStateOnLiquidationInternal(self, _principalReserve: Address, _user: Address,
                                                          _amountToLiquidate: int, _balanceIncrease: int) -> None:
@@ -898,6 +955,12 @@ class LendingPoolCore(IconScoreBase):
         # self.PrintData("rates check core line 609", rate['liquidityRate'], rate['borrowRate'], utilizationRate)
 
         return rate
+
+    @external
+    def updatePrepDelegations(self, _delegations: dict):
+        staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+        _require(self.msg.sender == self._delegation.get(), "Update delegation error: You are not authorized")
+        staking.updateDelegation(_delegations)
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
