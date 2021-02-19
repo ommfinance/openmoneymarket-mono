@@ -177,7 +177,7 @@ class IRC2(TokenStandard, IconScoreBase):
     def setDelegation(self, _address: Address):
         if self.msg.sender != self.owner:
             revert("Omm token error:Setting address failed,you are not authorized")
-        self._delegation.set(_delegation)
+        self._delegation.set(_address)
 
     @external(readonly=True)
     def getDelegation(self):
@@ -209,7 +209,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
     @only_owner
     @external
-    def set_unstaking_period(self, _time: int) -> None:
+    def setUnstakingPeriod(self, _time: int) -> None:
         """
         Set the minimum staking period
         :param _time: Staking time period in days.
@@ -265,7 +265,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
     @only_owner
     @external
-    def setMinumumStake(self, _min: int) -> None:
+    def setMinimumStake(self, _min: int) -> None:
         """
         Sets the minimum stake.
 
