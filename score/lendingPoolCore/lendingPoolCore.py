@@ -204,11 +204,11 @@ class LendingPoolCore(IconScoreBase):
 
     @only_owner
     @external
-    def setStakingAddress(self, _address: Address) -> None:
+    def setStaking(self, _address: Address) -> None:
         self._staking.set(_address)
 
     @external(readonly=True)
-    def getStakingAddress(self) -> Address:
+    def getStaking(self) -> Address:
         return self._staking.get()
 
     @only_owner
@@ -223,7 +223,7 @@ class LendingPoolCore(IconScoreBase):
     
     @only_owner
     @external
-    def setLiquidation(self, _address: Address):
+    def setLiquidationManager(self, _address: Address):
         self._liquidation.set(_address)
 
 
@@ -242,11 +242,11 @@ class LendingPoolCore(IconScoreBase):
 
     @only_owner
     @external
-    def setOracleAddress(self, _address: Address) -> None:
+    def setPriceOracle(self, _address: Address) -> None:
         self._priceOracle.set(_address)
 
     @external(readonly=True)
-    def getOracleAddress(self) -> Address:
+    def getPriceOracle(self) -> Address:
         return self._priceOracle.get()
 
     @external(readonly=True)

@@ -172,65 +172,65 @@ class LendingPool(IconScoreBase):
 
     @only_owner
     @external
-    def setLendingPoolCoreAddress(self, _address: Address) -> None:
+    def setLendingPoolCore(self, _address: Address) -> None:
         self._lendingPoolCoreAddress.set(_address)
 
     @external(readonly=True)
-    def getLendingPoolCoreAddress(self) -> Address:
+    def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCoreAddress.get()
 
     @only_owner
     @external
-    def setLiquidationManagerAddress(self, _address: Address) -> None:
+    def setLiquidationManager(self, _address: Address) -> None:
         self._liquidationManagerAddress.set(_address)
 
     @external(readonly=True)
-    def getLiquidationManagerAddress(self) -> Address:
+    def getLiquidationManager(self) -> Address:
         return self._liquidationManagerAddress.get()
 
     @only_owner
     @external
-    def setSICXAddress(self, _address: Address) -> None:
+    def setSICX(self, _address: Address) -> None:
         self._sIcxAddress.set(_address)
 
     @external(readonly=True)
-    def getSICXAddress(self) -> Address:
+    def getSICX(self) -> Address:
         return self._sIcxAddress.get()
 
     @only_owner
     @external
-    def setOICXAddress(self, _address: Address) -> None:
+    def setOICX(self, _address: Address) -> None:
         self._oIcxAddress.set(_address)
 
     @external(readonly=True)
-    def getOICXAddress(self) -> Address:
+    def getOICX(self) -> Address:
         return self._oIcxAddress.get()
 
     @only_owner
     @external
-    def setStakingAddress(self, _address: Address) -> None:
+    def setStaking(self, _address: Address) -> None:
         self._stakingAddress.set(_address)
 
     @external(readonly=True)
-    def getStakingAddress(self) -> Address:
+    def getStaking(self) -> Address:
         return self._stakingAddress.get()
 
     @only_owner
     @external
-    def setRewardAddress(self, _address: Address) -> None:
+    def setReward(self, _address: Address) -> None:
         self._rewardAddress.set(_address)
 
     @external(readonly=True)
-    def getRewardAddress(self) -> Address:
+    def getReward(self) -> Address:
         return self._rewardAddress.get()
 
     @only_owner
     @external
-    def setDataProvider(self, _address: Address) -> None:
+    def setLendingPoolDataProvider(self, _address: Address) -> None:
         self._dataProvider.set(_address)
 
     @external(readonly=True)
-    def getDataProvider(self) -> Address:
+    def getLendingPoolDataProvider(self) -> Address:
         return self._dataProvider.get()
 
     @only_owner

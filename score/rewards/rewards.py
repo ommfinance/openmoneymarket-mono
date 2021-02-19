@@ -163,40 +163,40 @@ class Rewards(IconScoreBase):
         return self._timestampAtStart.get()
     
     @external
-    def setLendingPool(self, _val: Address):
-        self._lendingPoolAddress.set(_val)
+    def setLendingPool(self, _address: Address):
+        self._lendingPoolAddress.set(_address)
 
     @external(readonly=True)
     def getLendingPool(self) -> Address:
         return self._lendingPoolAddress.get()
 
     @external
-    def setOmm(self, _val: Address):
-        self._ommTokenAddress.set(_val)
+    def setOmm(self, _address: Address):
+        self._ommTokenAddress.set(_address)
 
     @external(readonly=True)
     def getOmm(self) -> Address:
         return self._ommTokenAddress.get()
 
     @external
-    def setLendingPoolCore(self, _val: Address):
-        self._lendingPoolCoreAddress.set(_val)
+    def setLendingPoolCore(self, _address: Address):
+        self._lendingPoolCoreAddress.set(_address)
 
     @external(readonly=True)
     def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCoreAddress.get()
 
     @external
-    def setDaoFund(self, _val: Address):
-        self._daoFundAddress.set(_val)
+    def setDaoFund(self, _address: Address):
+        self._daoFundAddress.set(_address)
 
     @external(readonly=True)
     def getDaoFund(self) -> Address:
         return self._daoFundAddress.get()
 
     @external
-    def setLpToken(self, _val: Address):
-        self._lpTokenAddress.set(_val)
+    def setLpToken(self, _address: Address):
+        self._lpTokenAddress.set(_address)
 
     @external(readonly=True)
     def getLpToken(self) -> Address:
@@ -211,8 +211,8 @@ class Rewards(IconScoreBase):
         return self._workerTokenAddress.get()
 
     @external
-    def setSnapshot(self, _val: Address):
-        self._snapshotAddress.set(_val)
+    def setSnapshot(self, _address: Address):
+        self._snapshotAddress.set(_address)
 
     @external(readonly=True)
     def getSnapshot(self) -> Address:

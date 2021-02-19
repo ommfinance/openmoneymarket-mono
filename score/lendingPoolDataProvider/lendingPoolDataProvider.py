@@ -133,11 +133,11 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @only_owner
     @external
-    def setLendingPoolCoreAddress(self, _address: Address) -> None:
+    def setLendingPoolCore(self, _address: Address) -> None:
         self._lendingPoolCore.set(_address)
 
     @external
-    def setLendingPoolAddress(self, _address: Address) -> None:
+    def setLendingPool(self, _address: Address) -> None:
         if self.msg.sender != self.owner:
             revert(f'Method can only be invoked by the owner')
 
@@ -145,7 +145,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @only_owner
     @external
-    def setOracleAddress(self, _address: Address) -> None:
+    def setPriceOracle(self, _address: Address) -> None:
         if self.msg.sender != self.owner:
             revert(f'Method can only be invoked by the owner')
 
@@ -153,37 +153,37 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @only_owner
     @external
-    def setStakingAddress(self, _address: Address) -> None:
+    def setStaking(self, _address: Address) -> None:
         if self.msg.sender != self.owner:
             revert(f'Method can only be invoked by the owner')
 
         self._staking.set(_address)
 
     @external(readonly=True)
-    def getLendingPoolCoreAddress(self) -> Address:
+    def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCore.get()
 
     @external(readonly=True)
-    def getLendingPoolAddress(self) -> Address:
+    def getLendingPool(self) -> Address:
         return self._lendingPool.get()
 
     @external(readonly=True)
-    def getOracleAddress(self) -> Address:
+    def getPriceOracle(self) -> Address:
         return self._priceOracle.get()
 
     @only_owner
     @external
-    def setLiquidationAddress(self, _address: Address) -> None:
+    def setLiquidationManager(self, _address: Address) -> None:
         if self.msg.sender != self.owner:
             revert(f'Method can only be invoked by the owner')
         self._liquidationManager.set(_address)
 
     @external(readonly=True)
-    def getLiquidationAddress(self) -> Address:
+    def getLiquidationManager(self) -> Address:
         return self._liquidationManager.get()
 
     @external(readonly=True)
-    def getStakingAddress(self) -> Address:
+    def getStaking(self) -> Address:
         return self._staking.get()
 
     @external(readonly=True)

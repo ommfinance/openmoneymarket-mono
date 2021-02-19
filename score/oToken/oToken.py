@@ -167,38 +167,38 @@ class OToken(IconScoreBase, TokenStandard):
 
     @onlyOwner
     @external
-    def setCoreAddress(self, _address: Address):
+    def setLendingPoolCore(self, _address: Address):
         self._coreAddress.set(_address)
 
     @external(readonly=True)
-    def getCoreAddress(self) -> Address:
+    def getLendingPoolCore(self) -> Address:
         return self._coreAddress.get()
 
     @onlyOwner
     @external
-    def setReserveAddress(self, _address: Address):
+    def setReserve(self, _address: Address):
         self._reserveAddress.set(_address)
 
     @external(readonly=True)
-    def getReserveAddress(self) -> Address:
+    def getReserve(self) -> Address:
         return self._reserveAddress.get()
 
     @onlyOwner
     @external
-    def setDataProviderAddress(self, _address: Address):
+    def setLendingPoolDataProvider(self, _address: Address):
         self._dataProviderAddress.set(_address)
 
     @external(readonly=True)
-    def getDataProviderAddress(self) -> Address:
+    def getLendingPoolDataProvier(self) -> Address:
         return self._dataProviderAddress.get()
 
     @onlyOwner
     @external
-    def setLendingPoolAddress(self, _address: Address):
+    def setLendingPool(self, _address: Address):
         self._lendingPoolAddress.set(_address)
 
     @external(readonly=True)
-    def getLendingPoolAddress(self) -> Address:
+    def getLendingPool(self) -> Address:
         return self._lendingPoolAddress.get()
 
     @external(readonly=True)
