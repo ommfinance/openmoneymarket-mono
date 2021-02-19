@@ -105,9 +105,7 @@ class FeeProviderInterface(InterfaceScore):
     def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
         pass
 
-    @interface
-    def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
-        pass
+    
 
 
 # An interface to fee provider

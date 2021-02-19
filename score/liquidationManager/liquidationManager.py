@@ -1,5 +1,6 @@
 from iconservice import *
 from .Math import *
+from .utils.checks import *
 
 TAG = 'LiquidationManager'
 
@@ -73,13 +74,17 @@ class OracleInterface(InterfaceScore):
 
 
 class LiquidationManager(IconScoreBase):
+    _LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
+    _LENDINGPOOLCORE =  'lendingPoolCore'
+    _PRICE_ORACLE = 'priceOracle'
+    _FEE_PROVIDER = 'feeProvider'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._dataProviderAddress = VarDB('data_provider_address', db, value_type=Address)
-        self._coreAddress = VarDB('core_address', db, value_type=Address)
-        self._priceOracleAddress = VarDB('price_oracle', db, value_type=Address)
-        self._feeProviderAddress = VarDB('fee_provider_address', db, value_type=Address)
+        self._lendingPoolDataProvider = VarDB(self._LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
+        self._lendingPoolCore = VarDB(self._LENDINGPOOLCORE, db, value_type=Address)
+        self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
+        self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -98,50 +103,50 @@ class LiquidationManager(IconScoreBase):
                         _timestamp: int):
         pass
 
+    @external(readonly=True)
+    def name(self)->str:
+        return "OmmLiquidationManager"
+
+    @only_owner
     @external
-    def setDataProviderAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert("Data provider set error:Not authorized")
-        self._dataProviderAddress.set(_address)
+    def setLendingPoolDataProvider(self, _address: Address) -> None:
+        self._lendingPoolDataProvider.set(_address)
 
     @external(readonly=True)
-    def getDataProviderAddress(self) -> Address:
-        return self._dataProviderAddress.get()
+    def getLendingPoolDataProvider(self) -> Address:
+        return self._lendingPoolDataProvider.get()
 
+    @only_owner
     @external
-    def setFeeProviderAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert("Fee provider set error:Not authorized")
-        self._feeProviderAddress.set(_address)
+    def setFeeProvider(self, _address: Address) -> None:
+        self._feeProvider.set(_address)
 
     @external(readonly=True)
-    def getFeeProviderAddress(self) -> Address:
-        return self._feeProviderAddress.get()
+    def getFeeProvider(self) -> Address:
+        return self._feeProvider.get()
 
+    @only_owner
     @external
-    def setCoreAddress(self, _address: Address):
-        if self.msg.sender != self.owner:
-            revert("Core address set error:Not authorized")
-        self._coreAddress.set(_address)
+    def setLendingPoolCore(self, _address: Address):
+        self._lendingPoolCore.set(_address)
 
     @external(readonly=True)
-    def getCoreAddress(self):
-        return self._coreAddress.get()
+    def getLendingPoolCore(self):
+        return self._lendingPoolCore.get()
 
+    @only_owner
     @external
-    def setOracleAddress(self, _address: Address):
-        if self.msg.sender != self.owner:
-            revert("Core address set error:Not authorized")
-        self._priceOracleAddress.set(_address)
+    def setPriceOracle(self, _address: Address):
+        self._priceOracle.set(_address)
 
     @external(readonly=True)
-    def getOracleAddress(self):
-        return self._priceOracleAddress.get()
+    def getPriceOracle(self):
+        return self._priceOracle.get()
 
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
                          _ltv: int) -> int:
-        priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
+        priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
         badDebtUSD = _totalBorrowBalanceUSD - exaMul(_totalCollateralBalanceUSD - _totalFeesUSD, _ltv)
 
         if badDebtUSD < 0:
@@ -151,9 +156,9 @@ class LiquidationManager(IconScoreBase):
 
     def calculateAvailableCollateralToLiquidate(self, _collateral: Address, _reserve: Address, _purchaseAmount: int,
                                                 _userCollateralBalance: int, _fee: bool) -> dict:
-        priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
-        dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
-        core = self.create_interface_score(self.getCoreAddress(), CoreInterface)
+        priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
+        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
+        core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
 
         collateralConfigs = dataProvider.getReserveConfigurationData(_collateral)
         liquidationBonus = collateralConfigs['liquidationBonus']
@@ -191,10 +196,10 @@ class LiquidationManager(IconScoreBase):
 
     @external
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
-        dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
-        core = self.create_interface_score(self.getCoreAddress(), CoreInterface)
-        priceOracle = self.create_interface_score(self.getOracleAddress(), OracleInterface)
-        dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
+        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
+        core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
+        priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
+        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
         principalBase = dataProvider.getSymbol(_reserve)
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
         userAccountData = dataProvider.getUserAccountData(_user)
@@ -211,18 +216,18 @@ class LiquidationManager(IconScoreBase):
                                                                                  'totalCollateralBalanceUSD'])
 
         if reserveLiquidationThreshold >= userLiquidationThreshold:
-            revert("Liquidation call error: The user cant get liquidated")
+            revert("Liquidation manager SCORE : Unsuccessful liquidation call-user is below liquidation threshold")
 
         if not userAccountData['healthFactorBelowThreshold']:
-            revert("Liquidation call error:The health factor is not below threshold")
+            revert("Liquidation manager SCORE : Unsuccessful liquidation call-health factor is above threshold")
 
         userCollateralBalance = core.getUserUnderlyingAssetBalance(_collateral, _user)
         if userCollateralBalance == 0:
-            revert('Liquidation call error:No collateral to be liquidated')
+            revert('Liquidation manager SCORE : Unsuccessful liquidation call-user dont have any collateral to liquidate')
 
         userBorrowBalances = core.getUserBorrowBalances(_reserve, _user)
         if userBorrowBalances['compoundedBorrowBalance'] == 0:
-            revert('Liquidation call error: No borrow by the user')
+            revert('Liquidation manager SCORE : Unsuccessful liquidation call-user dont have any borrow')
         maxPrincipalAmountToLiquidateUSD = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
                                                                  userAccountData['totalFeesUSD'],
                                                                  userAccountData['totalCollateralBalanceUSD'],
@@ -264,12 +269,12 @@ class LiquidationManager(IconScoreBase):
         # # have a deeper look at this part (transfering principal currency to the pool)
         #
         # principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
-        # principalCurrency.transfer(self.getCoreAddress(), actualAmountToLiquidate)
+        # principalCurrency.transfer(self.getLendingPoolCore(), actualAmountToLiquidate)
 
         if feeLiquidated > 0:
             collateralOtoken.burnOnLiquidation(_user, liquidatedCollateralForFee)
             # the liquidated fee is sent to fee provider
-            core.liquidateFee(_collateral, liquidatedCollateralForFee, self.getFeeProviderAddress())
+            core.liquidateFee(_collateral, liquidatedCollateralForFee, self.getFeeProvider())
             self.OriginationFeeLiquidated(_collateral, _reserve, _user, feeLiquidated, liquidatedCollateralForFee,
                                           self.now())
         self.LiquidationCall(_collateral, _reserve, _user, actualAmountToLiquidate, maxCollateralToLiquidate,

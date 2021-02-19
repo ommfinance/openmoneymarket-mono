@@ -2,6 +2,7 @@ from iconservice import *
 from .ReserveData import *
 from .UserData import *
 from .Math import *
+from .utils.checks import *
 
 TAG = 'LendingPoolCore'
 
@@ -132,29 +133,33 @@ class StakingInterface(InterfaceScore):
         pass
 
 
-def _require(_condition: bool, _message: str):
-    if not _condition:
-        revert(_message)
-
-
 class LendingPoolCore(IconScoreBase):
-    ID = 'id'
-    RESERVE_LIST = 'reserveList'
-    CONSTANTS = 'constants'
-    DAOFUND = 'dao_fund'
+    _ID = 'id'
+    _RESERVE_LIST = '_reserveList'
+    _SYMBOL = 'symbol'
+    _LENDING_POOL = 'lendingPool'
+    _CONSTANTS='constants'
+    _DAOFUND = 'daoFund'
+    _SNAPSHOT = 'snapshot'
+    _PRICE_ORACLE = 'priceOracle'
+    _STAKING = 'staking'
+    _DELEGATION = 'delegation'
+    _LIQUIDATION = 'liquidation'
+
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self.id = VarDB(self.ID, db, str)
-        self.reserveList = ArrayDB(self.RESERVE_LIST, db, value_type=Address)
-        self._symbol = DictDB('symbol', db, value_type=str)
-        self._lendingPool = VarDB('lendingPool', db, value_type=Address)
-        self._constants = DictDB(self.CONSTANTS, db, value_type=int, depth=2)
-        self._daoFund = VarDB(self.DAOFUND, db, value_type=Address)
-        self._snapshotAddress = VarDB('snapshotAddress', db, value_type=Address)
-        self._oracleAddress = VarDB('oracleAddress', db, value_type=Address)
-        self._stakingAddress = VarDB('stakingAddress', db, value_type=Address)
-        self._delegation = VarDB('delegation', db, value_type=Address)
+        self._id = VarDB(self._ID, db, str)
+        self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
+        self._symbol = DictDB(self._SYMBOL, db, value_type=str)
+        self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
+        self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
+        self._daoFund = VarDB(self._DAOFUND, db, value_type=Address)
+        self._snapshot = VarDB(self._SNAPSHOT, db, value_type=Address)
+        self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
+        self._staking = VarDB(self._STAKING, db, value_type=Address)
+        self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
+        self._liquidation = VarDB(self._LIQUIDATION,db,value_type=Address)
         self.reserve = ReserveDataDB(db)
         self.userReserve = UserReserveDataDB(db)
 
@@ -165,10 +170,6 @@ class LendingPoolCore(IconScoreBase):
         super().on_update()
 
     @eventlog(indexed=3)
-    def PrintData(self, _topic: str, _d1: int, _d2: int, _d3: int):
-        pass
-
-    @eventlog(indexed=3)
     def ReserveUpdated(self, _reserve: Address, _liquidityRate: int, _borrowRate: int, _liquidityCumulativeIndex: int,
                        _borrowCumulativeIndex: int):
         pass
@@ -177,193 +178,200 @@ class LendingPoolCore(IconScoreBase):
     def DaoFundTransfer(self, _amount: int, _reserve: Address, _initiatiator: Address):
         pass
 
+    @external(readonly=True)
+    def name(self)->str:
+        return 'OmmLendingPoolCore'
+        
     @external
-    def set_id(self, _val: str):
-        self.id.set(_val)
+    def set_id(self, _value: str):
+        self._id.set(_value)
 
     @external(readonly=True)
     def get_id(self) -> str:
-        return self.id.get()
-
+        return self._id.get()
+    
+    @only_owner
     @external
-    def setSymbol(self, _reserveAddress: Address, _sym: str):
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-        self._symbol[_reserveAddress] = _sym
+    def setSymbol(self, _reserve: Address, _sym: str):
+        self._symbol[_reserve] = _sym
 
     @external(readonly=True)
-    def getSymbol(self, _reserveAddress: Address) -> str:
-        return self._symbol[_reserveAddress]
+    def getSymbol(self, _reserve: Address) -> str:
+        return self._symbol[_reserve]
 
+    @only_owner
     @external
     def setStakingAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
-        self._stakingAddress.set(_address)
+        self._staking.set(_address)
 
     @external(readonly=True)
     def getStakingAddress(self) -> Address:
-        return self._stakingAddress.get()
+        return self._staking.get()
 
+    @only_owner
     @external
-    def setLendingPool(self, _val: Address):
-        if self.msg.sender != self.owner:
-            revert("Address set error:You are not authorized to set")
-        self._lendingPool.set(_val)
+    def setLendingPool(self, _address: Address):
+        self._lendingPool.set(_address)
+
 
     @external(readonly=True)
     def getLendingPool(self) -> Address:
         return self._lendingPool.get()
-
+    
+    @only_owner
     @external
-    def setDelegation(self, _delegation: Address):
-        if self.msg.sender != self.owner:
-            revert("Address set error:You are not authorized to set")
-        self._delegation.set(_delegation)
+    def setLiquidation(self, _address: Address):
+        self._liquidation.set(_address)
+
+
+    @external(readonly=True)
+    def getLiquidation(self) -> Address:
+        return self._liquidation.get()
+
+    @only_owner
+    @external
+    def setDelegation(self, _address: Address):
+        self._delegation.set(_address)
 
     @external(readonly=True)
     def getDelegation(self) -> Address:
         return self._delegation.get()
 
+    @only_owner
     @external
     def setOracleAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
-        self._oracleAddress.set(_address)
+        self._priceOracle.set(_address)
 
     @external(readonly=True)
     def getOracleAddress(self) -> Address:
-        return self._oracleAddress.get()
+        return self._priceOracle.get()
 
     @external(readonly=True)
     def getDaoFund(self) -> Address:
         return self._daoFund.get()
 
+    @only_owner
     @external
     def setDaoFund(self, _address: Address):
-        if self.msg.sender != self.owner:
-            revert("Address set error:You are not authorized to set")
         self._daoFund.set(_address)
 
+    @only_owner
     @external
-    def setSnapshot(self, _val: Address):
-        self._snapshotAddress.set(_val)
+    def setSnapshot(self, _address: Address):
+        self._snapshot.set(_address)
 
     @external(readonly=True)
     def getSnapshot(self) -> Address:
-        return self._snapshotAddress.get()
+        return self._snapshot.get()
 
-    def reservePrefix(self, _reserveAddress: Address) -> bytes:
-        return b'|'.join([RESERVE_DB_PREFIX, self.id.get().encode(), str(_reserveAddress).encode()])
+    def reservePrefix(self, _reserve: Address) -> bytes:
+        return b'|'.join([RESERVE_DB_PREFIX, self._id.get().encode(), str(_reserve).encode()])
 
-    def userReservePrefix(self, _reserveAddress: Address, _userAddress: Address) -> bytes:
-        return b'|'.join(
-            [USER_DB_PREFIX, self.id.get().encode(), str(_reserveAddress).encode(), str(_userAddress).encode()])
+    def userReservePrefix(self, _reserve: Address, _user: Address) -> bytes:
+        return b'|'.join([USER_DB_PREFIX, self._id.get().encode(), str(_reserve).encode(), str(_user).encode()])
 
     # Methods to update the states of a reserve
-    @external
-    def updateTotalBorrows(self, _reserveAddress: Address, _totalBorrows: int):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateTotalBorrows(self, _reserve: Address, _totalBorrows: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].totalBorrows.set(_totalBorrows)
 
-    @external
-    def updateLastUpdateTimestamp(self, _reserveAddress: Address, _lastUpdateTimestamp: int):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateLastUpdateTimestamp(self, _reserve: Address, _lastUpdateTimestamp: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].lastUpdateTimestamp.set(_lastUpdateTimestamp)
 
-    @external
-    def updateLiquidityRate(self, _reserveAddress: Address, _liquidityRate: int):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateLiquidityRate(self, _reserve: Address, _liquidityRate: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].liquidityRate.set(_liquidityRate)
 
-    @external
-    def updateBorrowRate(self, _reserveAddress: Address, _borrowRate: int):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateBorrowRate(self, _reserve: Address, _borrowRate: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].borrowRate.set(_borrowRate)
 
-    @external
-    def updateBorrowCumulativeIndex(self, _reserveAddress: Address, _borrowCumulativeIndex: int):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateBorrowCumulativeIndex(self, _reserve: Address, _borrowCumulativeIndex: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].borrowCumulativeIndex.set(_borrowCumulativeIndex)
 
-    @external
-    def updateLiquidityCumulativeIndex(self, _reserveAddress: Address, _liquidityCumulativeIndex: int):
-        prefix = self.reservePrefix(_reserveAddress)
+
+    def updateLiquidityCumulativeIndex(self, _reserve: Address, _liquidityCumulativeIndex: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].liquidityCumulativeIndex.set(_liquidityCumulativeIndex)
 
-    @external
-    def updateBaseLTVasCollateral(self, _reserveAddress: Address, _baseLTVasCollateral: int):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateBaseLTVasCollateral(self, _reserve: Address, _baseLTVasCollateral: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].baseLTVasCollateral.set(_baseLTVasCollateral)
 
-    @external
-    def updateLiquidationThreshold(self, _reserveAddress: Address, _liquidationThreshold: int):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateLiquidationThreshold(self, _reserve: Address, _liquidationThreshold: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].liquidationThreshold.set(_liquidationThreshold)
 
-    @external
-    def updateLiquidationBonus(self, _reserveAddress: Address, _liquidationBonus: int):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateLiquidationBonus(self, _reserve: Address, _liquidationBonus: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].liquidationBonus.set(_liquidationBonus)
 
-    @external
-    def updateDecimals(self, _reserveAddress: Address, _decimals: int):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateDecimals(self, _reserve: Address, _decimals: int):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].decimals.set(_decimals)
 
-    def updateBorrowingEnabled(self, _reserveAddress: Address, _borrowingEnabled: bool):
-        prefix = self.reservePrefix(_reserveAddress)
+    def updateBorrowingEnabled(self, _reserve: Address, _borrowingEnabled: bool):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].borrowingEnabled.set(_borrowingEnabled)
 
-    @external
-    def updateUsageAsCollateralEnabled(self, _reserveAddress: Address, _usageAsCollateralEnabled: bool):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].usageAsCollateralEnabled.set(_usageAsCollateralEnabled)
 
-    @external
-    def updateIsFreezed(self, _reserveAddress: Address, _isFreezed: bool):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateIsFreezed(self, _reserve: Address, _isFreezed: bool):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].isFreezed.set(_isFreezed)
 
-    @external
-    def updateIsActive(self, _reserveAddress: Address, _isActive: bool):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateIsActive(self, _reserve: Address, _isActive: bool):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].isActive.set(_isActive)
 
-    @external
-    def updateOtokenAddress(self, _reserveAddress: Address, _oTokenAddress: Address):
-        prefix = self.reservePrefix(_reserveAddress)
+    
+    def updateOtokenAddress(self, _reserve: Address, _oTokenAddress: Address):
+        prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].oTokenAddress.set(_oTokenAddress)
 
     # Update methods for user attributes for a specific reserve
-    @external
-    def updateUserPrincipalBorrowBalance(self, _reserveAddress: Address, _userAddress: Address,
+    
+    def updateUserPrincipalBorrowBalance(self, _reserve: Address, _user: Address,
                                          _principalBorrowBalance: int):
-        prefix = self.userReservePrefix(_reserveAddress, _userAddress)
+        prefix = self.userReservePrefix(_reserve, _user)
         self.userReserve[prefix].principalBorrowBalance.set(_principalBorrowBalance)
 
-    @external
-    def updateUserBorrowCumulativeIndex(self, _reserveAddress: Address, _userAddress: Address,
+    
+    def updateUserBorrowCumulativeIndex(self, _reserve: Address, _user: Address,
                                         _userBorrowCumulativeIndex: int):
-        prefix = self.userReservePrefix(_reserveAddress, _userAddress)
+        prefix = self.userReservePrefix(_reserve, _user)
         self.userReserve[prefix].userBorrowCumulativeIndex.set(_userBorrowCumulativeIndex)
 
-    @external
-    def updateUserLastUpdateTimestamp(self, _reserveAddress: Address, _userAddress: Address,
+    
+    def updateUserLastUpdateTimestamp(self, _reserve: Address, _user: Address,
                                       _lastUpdateTimestamp: int):
-        prefix = self.userReservePrefix(_reserveAddress, _userAddress)
+        prefix = self.userReservePrefix(_reserve, _user)
         self.userReserve[prefix].lastUpdateTimestamp.set(_lastUpdateTimestamp)
 
-    @external
-    def updateUserOriginationFee(self, _reserveAddress: Address, _userAddress: Address, _originationFee: int):
-        prefix = self.userReservePrefix(_reserveAddress, _userAddress)
+    
+    def updateUserOriginationFee(self, _reserve: Address, _user: Address, _originationFee: int):
+        prefix = self.userReservePrefix(_reserve, _user)
         self.userReserve[prefix].originationFee.set(_originationFee)
 
-    @external
-    def updateUserReserveUseAsCollateral(self, _reserveAddress: Address, _userAddress: Address, _useAsCollateral: int):
-        prefix = self.userReservePrefix(_reserveAddress, _userAddress)
+    
+    def updateUserReserveUseAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: int):
+        prefix = self.userReservePrefix(_reserve, _user)
         self.userReserve[prefix].useAsCollateral.set(_useAsCollateral)
 
     def _check_reserve(self, _reserve: Address):
@@ -375,17 +383,18 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def getReserves(self) -> list:
         reserves = []
-        for item in self.reserveList:
+        for item in self._reserveList:
             reserves.append(item)
         return reserves
 
     def _addNewReserve(self, _res: Address):
-        self.reserveList.put(_res)
+        self._reserveList.put(_res)
 
     @external
     def isReserveBorrowingEnabled(self, _reserve: Address) -> bool:
         return self.getReserveData(_reserve)['borrowingEnabled']
 
+    @only_owner
     @external
     def addReserveData(self, _reserve: ReserveAttributes):
         reserve_data_obj = createReserveDataObject(_reserve)
@@ -395,67 +404,64 @@ class LendingPoolCore(IconScoreBase):
         addDataToReserve(prefix, self.reserve, reserve_data_obj)
 
     @external(readonly=True)
-    def getReserveData(self, _reserveAddress: Address) -> dict:
-        # if self._check_reserve(_reserveAddress):
-        prefix = self.reservePrefix(_reserveAddress)
-        response = getDataFromReserve(prefix, self.reserve)
-        response['totalLiquidity'] = self.getReserveTotalLiquidity(_reserveAddress)
-        response['availableLiquidity'] = self.getReserveAvailableLiquidity(_reserveAddress)
+    def getReserveData(self, _reserve: Address) -> dict:
+        if self._check_reserve(_reserve):
+            prefix = self.reservePrefix(_reserve)
+            response = getDataFromReserve(prefix, self.reserve)
+            response['totalLiquidity'] = self.getReserveTotalLiquidity(_reserve)
+            response['availableLiquidity'] = self.getReserveAvailableLiquidity(_reserve)
         return response
 
-    @external
-    def addUserReserveData(self, _userReserveData: UserDataAttributes):
-        user_reserve_data_object = createUserReserveDataObject(_userReserveData)
-        if self._check_reserve(user_reserve_data_object.reserveAddress):
-            prefix = self.userReservePrefix(user_reserve_data_object.reserveAddress,
-                                            user_reserve_data_object.userAddress)
-            addDataToUserReserve(prefix, self.userReserve, user_reserve_data_object)
-        else:
-            revert("Reserve error:The reserve is not added to pool")
+
+    # @external
+    # def addUserReserveData(self, _userReserveData: UserDataAttributes):
+    #     user_reserve_data_object = createUserReserveDataObject(_userReserveData)
+    #     if self._check_reserve(user_reserve_data_object.reserveAddress):
+    #         prefix = self.userReservePrefix(user_reserve_data_object.reserveAddress,
+    #                                         user_reserve_data_object.userAddress)
+    #         addDataToUserReserve(prefix, self.userReserve, user_reserve_data_object)
+    #     else:
+    #         revert("Reserve error:The reserve is not added to pool")
 
     @external(readonly=True)
-    def getUserReserveData(self, _reserveAddress: Address, _userAddress: Address) -> dict:
-        if self._check_reserve(_reserveAddress):
-            prefix = self.userReservePrefix(_reserveAddress, _userAddress)
+    def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
+        if self._check_reserve(_reserve):
+            prefix = self.userReservePrefix(_reserve, _user)
             response = getDataFromUserReserve(prefix, self.userReserve)
             return response
 
-    @external
-    def enableAsCollateral(self, _reserve: Address, _baseLTVasCollateral: int, _liquidationThreshold: int,
-                           _liquidationBonus: int) -> None:
-        self.updateUsageAsCollateralEnabled(_reserve, True)
-        self.updateBaseLTVasCollateral(_reserve, _baseLTVasCollateral)
-        self.updateLiquidationThreshold(_reserve, _liquidationThreshold)
-        self.updateLiquidationBonus(_reserve, _liquidationBonus)
+    # @external
+    # def enableAsCollateral(self, _reserve: Address, _baseLTVasCollateral: int, _liquidationThreshold: int,
+    #                        _liquidationBonus: int) -> None:
+    #     self.updateUsageAsCollateralEnabled(_reserve, True)
+    #     self.updateBaseLTVasCollateral(_reserve, _baseLTVasCollateral)
+    #     self.updateLiquidationThreshold(_reserve, _liquidationThreshold)
+    #     self.updateLiquidationBonus(_reserve, _liquidationBonus)
 
-        reserveData = self.getReserveData(_reserve)
-        if reserveData['liquidityCumulativeIndex'] == 0:
-            self.updateLiquidityCumulativeIndex(_reserve, 10 ** 18)
+    #     reserveData = self.getReserveData(_reserve)
+    #     if reserveData['liquidityCumulativeIndex'] == 0:
+    #         self.updateLiquidityCumulativeIndex(_reserve, 10 ** 18)
 
-    @external
-    def disableAsCollateral(self, _reserve: Address) -> None:
-        self.updateUsageAsCollateralEnabled(_reserve, False)
+    # @external
+    # def disableAsCollateral(self, _reserve: Address) -> None:
+    #     self.updateUsageAsCollateralEnabled(_reserve, False)
 
-    @external
-    def enableBorrowing(self, _reserve: Address) -> None:
-        self.updateBorrowingEnabled(_reserve, True)
+    # @external
+    # def enableBorrowing(self, _reserve: Address) -> None:
+    #     self.updateBorrowingEnabled(_reserve, True)
 
-    @external
-    def disableBorrowing(self, _reserve: Address) -> None:
-        self.updateBorrowingEnabled(_reserve, False)
+    # @external
+    # def disableBorrowing(self, _reserve: Address) -> None:
+    #     self.updateBorrowingEnabled(_reserve, False)
 
     # Internal calculations
-    @external(readonly=True)
+    
     def calculateLinearInterest(self, _rate: int, _lastUpdateTimestamp: int) -> int:
         timeDifference = (self.now() - _lastUpdateTimestamp) // 10 ** 6
         timeDelta = exaDiv(timeDifference, SECONDS_PER_YEAR)
         return exaMul(_rate, timeDelta) + EXA
 
-    @external(readonly=True)
-    def getPresentTimestamp(self) -> int:
-        return self.now()
-
-    @external(readonly=True)
+    
     def calculateCompoundedInterest(self, _rate: int, _lastUpdateTimestamp: int) -> int:
         timeDifference = (self.now() - _lastUpdateTimestamp) // 10 ** 6
         ratePerSecond = _rate // SECONDS_PER_YEAR
@@ -468,7 +474,7 @@ class LendingPoolCore(IconScoreBase):
         cumulated = exaMul(interest, reserveData['liquidityCumulativeIndex'])
         return cumulated
 
-    @external
+    
     def updateCumulativeIndexes(self, _reserve: Address) -> None:
         reserveData = self.getReserveData(_reserve)
         totalBorrows = reserveData['totalBorrows']
@@ -515,18 +521,17 @@ class LendingPoolCore(IconScoreBase):
         balance = reserveScore.balanceOf(self.address)
         return balance
 
-    @external(readonly=True)
+    
     def getReserveTotalLiquidity(self, _reserve: Address) -> int:
-        # reserveData = self.getReserveData(_reserve)
         prefix = self.reservePrefix(_reserve)
         reserveData = getDataFromReserve(prefix, self.reserve)
         return self.getReserveAvailableLiquidity(_reserve) + reserveData['totalBorrows']
 
-    @external(readonly=True)
+    
     def getReserveNormalizedIncome(self, _reserve: Address) -> int:
         return self.getNormalizedIncome(_reserve)
 
-    @external(readonly=True)
+    
     def getReserveUtilizationRate(self, _reserve: Address) -> int:
         reserveData = self.getReserveData(_reserve)
         totalBorrows = reserveData['totalBorrows']
@@ -553,14 +558,12 @@ class LendingPoolCore(IconScoreBase):
         }
         return response
 
-    @external
+    
     def updateReserveInterestRatesAndTimestampInternal(self, _reserve: Address, _liquidityAdded: int,
                                                        _liquidityTaken: int) -> None:
-        self.PrintData("params check core line 408", _liquidityAdded, _liquidityTaken, 0)
         reserveData = self.getReserveData(_reserve)
         rate = self.calculateInterestRates(_reserve, self.getReserveAvailableLiquidity(
             _reserve) + _liquidityAdded - _liquidityTaken, reserveData['totalBorrows'])
-        self.PrintData("rate value core line 412", rate['liquidityRate'], rate['borrowRate'], 0)
         self.updateLiquidityRate(_reserve, rate['liquidityRate'])
         self.updateBorrowRate(_reserve, rate['borrowRate'])
         self.updateLastUpdateTimestamp(_reserve, self.block.timestamp)
@@ -568,6 +571,7 @@ class LendingPoolCore(IconScoreBase):
         self.ReserveUpdated(_reserve, rate['liquidityRate'], rate['borrowRate'],
                             reserveData['liquidityCumulativeIndex'], reserveData['borrowCumulativeIndex'])
 
+    @only_owner
     @external
     def setReserveConstants(self, _constants: List[Constant]) -> None:
         for constants in _constants:
@@ -588,16 +592,19 @@ class LendingPoolCore(IconScoreBase):
 
         return data
 
+    @only_lending_pool
     @external
     def transferToUser(self, _reserve: Address, _user: Address, _amount: int, _data: bytes = None) -> None:
         reserveScore = self.create_interface_score(_reserve, ReserveInterface)
         reserveScore.transfer(_user, _amount, _data)
 
+    @only_liquidation
     @external
     def liquidateFee(self, _reserve: Address, _amount: int, _destination: Address) -> None:
         reserveScore = self.create_interface_score(_reserve, ReserveInterface)
         reserveScore.transfer(_destination, _amount)
-
+    
+    @only_lending_pool
     @external
     def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
 
@@ -606,16 +613,16 @@ class LendingPoolCore(IconScoreBase):
 
         if _isFirstDeposit:
             self.setUserUseReserveAsCollateral(_reserve, _user, True)
-        snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
         userReserve = self.getUserReserveData(_reserve, _user)
         reserve = self.getReserveData(_reserve)
         oToken = self.create_interface_score(reserve['oTokenAddress'], oTokenInterface)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
         userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
+        price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
         if self._symbol[_reserve] == "ICX":
-            staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+            staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
 
@@ -639,6 +646,7 @@ class LendingPoolCore(IconScoreBase):
         snapshot.updateUserSnapshot(_user, _reserve, userData)
         snapshot.updateReserveSnapshot(_reserve, reserveData)
 
+    @only_lending_pool
     @external
     def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int,
                             _userRedeemEverything: bool) -> None:
@@ -648,16 +656,16 @@ class LendingPoolCore(IconScoreBase):
         if _userRedeemEverything:
             self.setUserUseReserveAsCollateral(_reserve, _user, False)
 
-        snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
         userReserve = self.getUserReserveData(_reserve, _user)
         reserve = self.getReserveData(_reserve)
         oToken = self.create_interface_score(reserve['oTokenAddress'], oTokenInterface)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
         userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
+        price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
         if self._symbol[_reserve] == "ICX":
-            staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+            staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
 
@@ -681,30 +689,29 @@ class LendingPoolCore(IconScoreBase):
         snapshot.updateUserSnapshot(_user, _reserve, userData)
         snapshot.updateReserveSnapshot(_reserve, reserveData)
 
+    @only_lending_pool
     @external
     def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int):
-        self.PrintData("params check at core line 456", _amountBorrowed, _borrowFee, 0)
         borrowData = self.getUserBorrowBalances(_reserve, _user)
         principalBorrowBalance = borrowData['principalBorrowBalance']
         balanceIncrease = borrowData['borrowBalanceIncrease']
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
         self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
-        self.PrintData("user borrow balances", principalBorrowBalance, balanceIncrease, 0)
         self.updateReserveStateOnBorrowInternal(_reserve, balanceIncrease, _amountBorrowed)
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountBorrowed)
         currentBorrowRate = self.getCurrentBorrowRate(_reserve)
-        snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
         userReserve = self.getUserReserveData(_reserve, _user)
         reserve = self.getReserveData(_reserve)
         oToken = self.create_interface_score(reserve['oTokenAddress'], oTokenInterface)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
         userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
+        price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
         if self._symbol[_reserve] == "ICX":
-            staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+            staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
 
@@ -735,6 +742,7 @@ class LendingPoolCore(IconScoreBase):
             }
         )
 
+    @only_lending_pool
     @external
     def updateStateOnRepay(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
                            _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
@@ -745,16 +753,16 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
                                             _balanceIncrease, _repaidWholeLoan)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, _paybackAmountMinusFees, 0)
-        snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
         userReserve = self.getUserReserveData(_reserve, _user)
         reserve = self.getReserveData(_reserve)
         oToken = self.create_interface_score(reserve['oTokenAddress'], oTokenInterface)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
         userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        price_provider = self.create_interface_score(self._oracleAddress.get(), OracleInterface)
+        price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
         price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
         if self._symbol[_reserve] == "ICX":
-            staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
+            staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
 
@@ -794,9 +802,7 @@ class LendingPoolCore(IconScoreBase):
 
         reserveData = self.getReserveData(_reserve)
         reserveBorrows = reserveData['totalBorrows']
-        self.PrintData("initial total borrows core line 497", reserveBorrows, 0, 0)
         newTotalBorrows = reserveBorrows + _balanceIncrease + _amountBorrowed
-        self.PrintData("new total borrows core line 499", newTotalBorrows, 0, 0)
         self.updateTotalBorrows(_reserve, newTotalBorrows)
 
     def getCurrentBorrowRate(self, _reserve: Address) -> int:
@@ -805,17 +811,13 @@ class LendingPoolCore(IconScoreBase):
 
     def updateUserStateOnBorrowInternal(self, _reserve: Address, _user: Address, _amountBorrowed: int,
                                         _balanceIncrease: int, _borrowFee: int):
-        self.PrintData("params check core line 508", _amountBorrowed, _balanceIncrease, _borrowFee)
         reserveData = self.getReserveData(_reserve)
         userReserveData = self.getUserReserveData(_reserve, _user)
         principalBorrowBalance = userReserveData['principalBorrowBalance']
         userPreviousOriginationFee = userReserveData['originationFee']
         lastReserveBorrowCumulativeIndex = reserveData['borrowCumulativeIndex']
-        self.PrintData("user data core line 514", principalBorrowBalance, userPreviousOriginationFee,
-                       lastReserveBorrowCumulativeIndex)
         self.updateUserBorrowCumulativeIndex(_reserve, _user, lastReserveBorrowCumulativeIndex)
-        self.updateUserPrincipalBorrowBalance(_reserve, _user,
-                                              principalBorrowBalance + _amountBorrowed + _balanceIncrease)
+        self.updateUserPrincipalBorrowBalance(_reserve, _user,principalBorrowBalance + _amountBorrowed + _balanceIncrease)
         self.updateUserOriginationFee(_reserve, _user, userPreviousOriginationFee + _borrowFee)
         self.updateUserLastUpdateTimestamp(_reserve, _user, self.block.timestamp)
 
@@ -823,10 +825,8 @@ class LendingPoolCore(IconScoreBase):
                                        _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
         reserveData = self.getReserveData(_reserve)
         userReserveData = self.getUserReserveData(_reserve, _user)
-        self.updateUserPrincipalBorrowBalance(_reserve, _user, userReserveData[
-            'principalBorrowBalance'] + _balanceIncrease - _paybackAmountMinusFees)
+        self.updateUserPrincipalBorrowBalance(_reserve, _user, userReserveData['principalBorrowBalance'] + _balanceIncrease - _paybackAmountMinusFees)
         self.updateUserBorrowCumulativeIndex(_reserve, _user, reserveData['borrowCumulativeIndex'])
-
         if _repaidWholeLoan:
             self.updateUserBorrowCumulativeIndex(_reserve, _user, 0)
 
@@ -838,6 +838,7 @@ class LendingPoolCore(IconScoreBase):
         reserveData = self.getReserveData(_reserve)
         return reserveData['oTokenAddress']
 
+    @only_lending_pool
     @external
     def updateStateOnLiquidation(self, _principalReserve: Address, _collateralReserve: Address, _user: Address,
                                  _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,
@@ -874,7 +875,7 @@ class LendingPoolCore(IconScoreBase):
 
         self.updateUserLastUpdateTimestamp(_reserve, _user, self.block.timestamp)
 
-    @external
+    
     def setUserUseReserveAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: bool) -> None:
         self.updateUserReserveUseAsCollateral(_reserve, _user, _useAsCollateral)
 
@@ -932,17 +933,14 @@ class LendingPoolCore(IconScoreBase):
             }
         )
 
-    @external(readonly=True)
+    
     def calculateInterestRates(self, _reserve: Address, _availableLiquidity: int, _totalBorrows: int) -> dict:
         constants = self.getReserveConstants(_reserve)
         rate = {}
-        # self.PrintData("params check core line 593", _availableLiquidity, _totalBorrows, 0)
         if _totalBorrows == 0 and _availableLiquidity == 0:
             utilizationRate = 0
         else:
             utilizationRate = exaDiv(_totalBorrows, (_totalBorrows + _availableLiquidity))
-        # self.PrintData("Utilization rate core line 598", utilizationRate, 0, 0)
-
         if utilizationRate < constants['optimalUtilizationRate']:
             rate['borrowRate'] = constants['baseBorrowRate'] + exaMul(
                 exaDiv(utilizationRate, constants['optimalUtilizationRate']), constants['slopeRate1'])
@@ -952,14 +950,12 @@ class LendingPoolCore(IconScoreBase):
                        (EXA - constants['optimalUtilizationRate'])), constants['slopeRate2'])
 
         rate['liquidityRate'] = exaMul(exaMul(rate['borrowRate'], utilizationRate), 9 * EXA // 10)
-        # self.PrintData("rates check core line 609", rate['liquidityRate'], rate['borrowRate'], utilizationRate)
-
         return rate
 
+    @only_delegation
     @external
     def updatePrepDelegations(self, _delegations: dict):
-        staking = self.create_interface_score(self._stakingAddress.get(), StakingInterface)
-        _require(self.msg.sender == self._delegation.get(), "Update delegation error: You are not authorized")
+        staking = self.create_interface_score(self._staking.get(), StakingInterface)
         staking.updateDelegation(_delegations)
 
     @external
