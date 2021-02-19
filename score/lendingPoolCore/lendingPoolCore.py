@@ -78,6 +78,9 @@ class ReserveSnapshotData(TypedDict):
     borrowCumulativeIndex: int
     lastUpdateTimestamp: int
 
+class PrepDelegations(TypedDict):
+    _address: Address
+    _votes_in_per: int
 
 # An interface to oToken
 class oTokenInterface(InterfaceScore):
@@ -129,7 +132,7 @@ class StakingInterface(InterfaceScore):
         pass
 
     @interface
-    def updateDelegation(self, _delegations: dict):
+    def updateDelegation(self, _delegations: List[PrepDelegations]):
         pass
 
 
@@ -181,7 +184,7 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def name(self)->str:
         return 'OmmLendingPoolCore'
-        
+
     @external
     def set_id(self, _value: str):
         self._id.set(_value)
@@ -954,7 +957,7 @@ class LendingPoolCore(IconScoreBase):
 
     @only_delegation
     @external
-    def updatePrepDelegations(self, _delegations: dict):
+    def updatePrepDelegations(self, _delegations: List[PrepDelegations]):
         staking = self.create_interface_score(self._staking.get(), StakingInterface)
         staking.updateDelegation(_delegations)
 
