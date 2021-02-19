@@ -122,14 +122,14 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @only_owner
     @external
-    def setSymbol(self, _reserveAddress: Address, _sym: str):
+    def setSymbol(self, _reserve: Address, _sym: str):
         if self.msg.sender != self.owner:
             revert(f'Method can only be invoked by the owner')
-        self._symbol[_reserveAddress] = _sym
+        self._symbol[_reserve] = _sym
 
     @external
-    def getSymbol(self, _reserveAddress: Address) -> str:
-        return self._symbol[_reserveAddress]
+    def getSymbol(self, _reserve: Address) -> str:
+        return self._symbol[_reserve]
 
     @only_owner
     @external
