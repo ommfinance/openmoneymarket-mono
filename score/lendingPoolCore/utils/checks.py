@@ -17,18 +17,41 @@ class NotAFunctionError(Exception):
 	pass
 
 
-def only_admin(func):
+def only_lending_pool(func):
 	if not isfunction(func):
 		raise NotAFunctionError
 
 	@wraps(func)
 	def __wrapper(self: object, *args, **kwargs):
-		if self.msg.sender != self._admin.get():
+		if self.msg.sender != self._lendingPool.get():
 			raise SenderNotAuthorized(self.msg.sender)
 
 		return func(self, *args, **kwargs)
 	return __wrapper
 
+def only_liquidation(func):
+	if not isfunction(func):
+		raise NotAFunctionError
+
+	@wraps(func)
+	def __wrapper(self: object, *args, **kwargs):
+		if self.msg.sender != self._liquidation.get():
+			raise SenderNotAuthorized(self.msg.sender)
+
+		return func(self, *args, **kwargs)
+	return __wrapper
+
+def only_delegation(func):
+	if not isfunction(func):
+		raise NotAFunctionError
+
+	@wraps(func)
+	def __wrapper(self: object, *args, **kwargs):
+		if self.msg.sender != self._liquidation.get():
+			raise SenderNotAuthorized(self.msg.sender)
+
+		return func(self, *args, **kwargs)
+	return __wrapper
 
 def only_owner(func):
 	if not isfunction(func):
