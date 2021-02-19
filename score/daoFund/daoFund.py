@@ -15,3 +15,11 @@ class DaoFund(IconScoreBase):
 
     def on_update(self) -> None:
         super().on_update()
+
+    @eventlog(indexed=3)
+    def FundReceived(self, _amount: int, _reserve: Address, _time: int):
+        pass
+
+    @external
+    def tokenFallback(self, _from: Address, _value: int, _data: bytes = None) -> None:
+        self.FundReceived(_value,self.msg.sender,self.now())
