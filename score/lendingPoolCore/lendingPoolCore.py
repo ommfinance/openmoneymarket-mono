@@ -228,7 +228,7 @@ class LendingPoolCore(IconScoreBase):
 
 
     @external(readonly=True)
-    def getLiquidation(self) -> Address:
+    def getLiquidationManager(self) -> Address:
         return self._liquidation.get()
 
     @only_owner
