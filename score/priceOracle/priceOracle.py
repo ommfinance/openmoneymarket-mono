@@ -5,9 +5,11 @@ TAG = 'PriceOracle'
 
 class PriceOracle(IconScoreBase):
 
+    PRICE = 'price'
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._price = DictDB( 'price', db, value_type = int, depth = 2)
+        self._price = DictDB(self.PRICE, db, value_type = int, depth = 2)
 
     def on_install(self) -> None:
         super().on_install()

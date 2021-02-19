@@ -61,6 +61,7 @@ class IRC2(TokenStandard, IconScoreBase):
     _TOTAL_STAKED_BALANCE = 'total_stake_balance'
     _UNSTAKING_PERIOD = 'unstaking_period'
     _DELEGATION = 'delegation'
+    _REWARDS = 'rewards'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -81,6 +82,8 @@ class IRC2(TokenStandard, IconScoreBase):
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
 
         self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
+        self._rewards = VarDB(self._REWARDS, db, value_type=Address)
+
 
     def on_install(self, _tokenName: str,
                    _symbolName: str,
@@ -171,7 +174,7 @@ class IRC2(TokenStandard, IconScoreBase):
         return self._balances[_owner]
 
     @external
-    def setDelegation(self, _delegation: Address):
+    def setDelegation(self, _address: Address):
         if self.msg.sender != self.owner:
             revert("Omm token error:Setting address failed,you are not authorized")
         self._delegation.set(_delegation)
@@ -179,6 +182,16 @@ class IRC2(TokenStandard, IconScoreBase):
     @external(readonly=True)
     def getDelegation(self):
         return self._delegation.get()
+
+    @external
+    def setRewards(self, _address: Address):
+        if self.msg.sender != self.owner:
+            revert("Omm token error:Setting address failed,you are not authorized")
+        self._rewards.set(_address)
+
+    @external(readonly=True)
+    def getRewards(self):
+        return self._rewards.get()
 
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
@@ -438,7 +451,7 @@ class IRC2(TokenStandard, IconScoreBase):
             self._staked_balances[_from][Status.AVAILABLE] += curr_unstaked
 
     @only_admin
-    def _mint(self, account: Address, amount: int, _data: bytes) -> None:
+    def mint(self, _amount: int) -> None:
         """
 		Creates amount number of tokens, and assigns to account
 		Increases the balance of that account and total supply.
@@ -457,10 +470,10 @@ class IRC2(TokenStandard, IconScoreBase):
             raise ZeroValueError("Invalid Value")
             pass
 
-        self._total_supply.set(self._total_supply.get() + amount)
-        self._balances[self.address] += amount
+        self._total_supply.set(self._total_supply.get() + _amount)
+        self._balances[self.address] += _amount
 
-        self._transfer(self.address, account, amount, _data)
+        self._transfer(self.address, self._rewards.get(), _amount, b'Transferred to Rewards SCORE')
 
         # Emits an event log Mint
         self.Mint(account, amount, _data)

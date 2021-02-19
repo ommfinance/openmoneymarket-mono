@@ -1,4 +1,5 @@
 from iconservice import *
+from .utils.checks import *
 
 TAG = 'Snapshot'
 
@@ -22,13 +23,18 @@ class ReserveSnapshotData(TypedDict):
 
 class Snapshot(IconScoreBase):
 
+    USER_DATA = 'userData'
+    RESERVE_DATA = 'reserveData'
+    TIMESTAMP_AT_START = 'timestampAtStart'
+    ADMIN = 'admin'
+
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._userData = DictDB("userData", db, value_type = int, depth = 4)
-        self._reserveData = DictDB("reserveData", db, value_type = int, depth = 3)
-        self._blockHeightAtStart = VarDB('blockHeightAtStart', db, value_type = int)
-        self._timestampAtStart = VarDB('timestampAtStart', db, value_type = int)
-
+        self._userData = DictDB(self.USER_DATA, db, value_type = int, depth = 4)
+        self._reserveData = DictDB(self.RESERVE_DATA, db, value_type = int, depth = 3)
+        self._timestampAtStart = VarDB(self.TIMESTAMP_AT_START, db, value_type = int)
+        self._admin = VarDB(self.ADMIN, db, value_type = Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -36,6 +42,7 @@ class Snapshot(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
+    @only_owner
     @external
     def setStartTimestamp(self, _timestamp: int):
         self._timestampAtStart.set(_timestamp)
@@ -43,6 +50,15 @@ class Snapshot(IconScoreBase):
     @external(readonly=True)
     def getStartTimestamp(self) -> Address:
         return self._timestampAtStart.get()
+
+    @only_owner
+    @external
+    def setAdmin(self, _address: Address):
+        self._admin.set(_timestamp)
+
+    @external(readonly=True)
+    def getAdmin(self) -> Address:
+        return self._admin.get()
 
     @external(readonly=True)
     def userDataAt(self, _user: Address, _reserve: Address, _day: int) -> dict:
@@ -127,6 +143,7 @@ class Snapshot(IconScoreBase):
 
         return response
 
+    @only_admin
     @external
     def updateUserSnapshot(self,_user: Address, _reserve: Address, _userData: UserSnapshotData) -> None:
         currentDay = self._getDay()
@@ -155,6 +172,7 @@ class Snapshot(IconScoreBase):
             self._userData[_user][_reserve]['userLiquidityCumulativeIndex'][length - 1] = _userData['userLiquidityCumulativeIndex']
             self._userData[_user][_reserve]['userBorrowCumulativeIndex'][length - 1] = _userData['userBorrowCumulativeIndex']
 
+    @only_admin
     @external
     def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveSnapshotData) -> None:
         currentDay = self._getDay()

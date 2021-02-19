@@ -17,10 +17,13 @@ class SnapshotInterface(InterfaceScore):
 
 class Governance(IconScoreBase):
 
+    REWARDS = 'rewards'
+    SNAPSHOT = 'snapshot'
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._rewards = VarDB('rewards', db, value_type = Address)
-        self._snapshotAddress = VarDB('snapshotAddress', db, value_type = Address)
+        self._rewards = VarDB(self.REWARDS, db, value_type = Address)
+        self._snapshot = VarDB(self.SNAPSHOT, db, value_type = Address)
 
 
     def on_install(self) -> None:
@@ -30,16 +33,16 @@ class Governance(IconScoreBase):
         super().on_update()
 
     @external
-    def setSnapshot(self, _val: Address):
-        self._snapshotAddress.set(_val)
+    def setSnapshot(self, _address: Address):
+        self._snapshot.set(_address)
 
     @external(readonly=True)
     def getSnapshot(self) -> Address:
-        return self._snapshotAddress.get()
+        return self._snapshot.get()
 
     @external
-    def setRewards(self, _val: Address):
-        self._rewards.set(_val)
+    def setRewards(self, _address: Address):
+        self._rewards.set(_address)
 
     @external(readonly=True)
     def getRewards(self) -> Address:
@@ -48,7 +51,7 @@ class Governance(IconScoreBase):
     
     @external
     def setStartTimestamp(self) -> None:
-        snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
         rewards = self.create_interface_score(self._rewards.get(), RewardInterface)
         snapshot.setStartTimestamp(self.now())
         rewards.setStartTimestamp(self.now())

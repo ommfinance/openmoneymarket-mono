@@ -1,8 +1,8 @@
 from iconservice import *
+from .utils.checks import *
 
 TAG = 'LendingPool'
 BATCH_SIZE = 100
-
 
 # An interface to oToken
 class OTokenInterface(InterfaceScore):
@@ -44,7 +44,7 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
-    def getReserveData(self, _reserveAddress: Address) -> dict:
+    def getReserveData(self, _reserve: Address) -> dict:
         pass
 
     @interface
@@ -121,28 +121,36 @@ class RewardInterface(InterfaceScore):
 
 
 class LendingPool(IconScoreBase):
+    LENDING_POOL_CORE = 'lendingPoolCore'
+    LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
+    BORROW_WALLETS = 'borrowWallets'
+    DEPOSIT_WALLETS = 'depositWallets'
+    FEE_PROVIDER = 'feeProvider'
+    sICX_ADDRESS = 'sICXAddress'
+    oICX_ADDRESS = 'oicxAddress'
+    STAKING_ADDRESS = 'stakingAddress'
+    REWARD_ADDRESS = 'rewardAddress'
+    LIQUIDATION_MANAGER_ADDRESS = 'liquidationManagerAddress'
+
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._lendingPoolCoreAddress = VarDB('lendingPoolCore', db, value_type=Address)
-        self._dataProviderAddress = VarDB('lendingPoolDataProvider', db, value_type=Address)
-        self._borrowWallets = ArrayDB('borrowWallets', db, value_type=Address)
-        self._depositWallets = ArrayDB('depositWallets', db, value_type=Address)
-        self._feeProviderAddress = VarDB('feeProvider', db, value_type=Address)
-        self._sIcxAddress = VarDB('SICXAddress', db, value_type=Address)
-        self._oIcxAddress = VarDB('oicxAddress', db, value_type=Address)
-        self._stakingAddress = VarDB('stakingAddress', db, value_type=Address)
-        self._rewardAddress = VarDB('rewardAddress', db, value_type=Address)
-        self._liquidationManagerAddress = VarDB('liquidationManagerAddress', db, value_type=Address)
+        self._lendingPoolCoreAddress = VarDB(self.LENDING_POOL_CORE, db, value_type=Address)
+        self._dataProvider = VarDB(self.LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
+        self._borrowWallets = ArrayDB(self.BORROW_WALLETS, db, value_type=Address)
+        self._depositWallets = ArrayDB(self.DEPOSIT_WALLETS, db, value_type=Address)
+        self._feeProviderAddress = VarDB(self.FEE_PROVIDER, db, value_type=Address)
+        self._sIcxAddress = VarDB(self.sICX_ADDRESS, db, value_type=Address)
+        self._oIcxAddress = VarDB(self.oICX_ADDRESS, db, value_type=Address)
+        self._stakingAddress = VarDB(self.STAKING_ADDRESS, db, value_type=Address)
+        self._rewardAddress = VarDB(self.REWARD_ADDRESS, db, value_type=Address)
+        self._liquidationManagerAddress = VarDB(self.LIQUIDATION_MANAGER_ADDRESS, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
 
     def on_update(self) -> None:
         super().on_update()
-
-    @eventlog(indexed=3)
-    def PrintData(self, _topic: str, _d1: int, _d2: int, _d3: int):
-        pass
 
     @eventlog(indexed=3)
     def Deposit(self, _reserve: Address, _sender: Address, _amount: int, _timestamp: int):
@@ -162,88 +170,72 @@ class LendingPool(IconScoreBase):
               _borrowBalanceIncrease: int, _timestamp: int):
         pass
 
+    @only_owner
     @external
     def setLendingPoolCoreAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
         self._lendingPoolCoreAddress.set(_address)
 
     @external(readonly=True)
     def getLendingPoolCoreAddress(self) -> Address:
         return self._lendingPoolCoreAddress.get()
 
+    @only_owner
+    @external
+    def setLiquidationManagerAddress(self, _address: Address) -> None:
+        self._liquidationManagerAddress.set(_address)
+
     @external(readonly=True)
     def getLiquidationManagerAddress(self) -> Address:
         return self._liquidationManagerAddress.get()
 
-    @external
-    def setLiquidationManagerAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
-        self._liquidationManagerAddress.set(_address)
-
+    @only_owner
     @external
     def setSICXAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
         self._sIcxAddress.set(_address)
 
     @external(readonly=True)
     def getSICXAddress(self) -> Address:
         return self._sIcxAddress.get()
 
+    @only_owner
     @external
     def setOICXAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
         self._oIcxAddress.set(_address)
 
     @external(readonly=True)
     def getOICXAddress(self) -> Address:
         return self._oIcxAddress.get()
 
+    @only_owner
     @external
     def setStakingAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
         self._stakingAddress.set(_address)
 
     @external(readonly=True)
     def getStakingAddress(self) -> Address:
         return self._stakingAddress.get()
 
+    @only_owner
     @external
     def setRewardAddress(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
         self._rewardAddress.set(_address)
 
     @external(readonly=True)
     def getRewardAddress(self) -> Address:
         return self._rewardAddress.get()
 
+    @only_owner
     @external
     def setDataProvider(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
-        self._dataProviderAddress.set(_address)
+        self._dataProvider.set(_address)
 
     @external(readonly=True)
     def getDataProvider(self) -> Address:
-        return self._dataProviderAddress.get()
+        return self._dataProvider.get()
 
+    @only_owner
     @external
     def setFeeProvider(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
         self._feeProviderAddress.set(_address)
 
     @external(readonly=True)
@@ -288,17 +280,17 @@ class LendingPool(IconScoreBase):
         _amount = staking.icx(self.msg.value).addCollateral(self._lendingPoolCoreAddress.get())
         _reserve = self._sIcxAddress.get()
 
-        self._deposit(_reserve, _amount)
+        self._deposit(_reserve, _amount, self.msg.sender)
 
-    def _deposit(self, _reserve: Address, _amount: int):
+    def _deposit(self, _reserve: Address, _amount: int, _sender: Address):
         """
         deposits the underlying asset to the reserve
         :param _reserve:the address of the reserve
         :param _amount:the amount to be deposited
         :return:
         """
-        if self.tx.origin not in self._depositWallets:
-            self._depositWallets.put(self.tx.origin)
+        if _sender not in self._depositWallets:
+            self._depositWallets.put(self.msg.sender)
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
@@ -308,15 +300,15 @@ class LendingPool(IconScoreBase):
         oTokenAddress = reserveData['oTokenAddress']
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
         isFirstDeposit = False
-        if oToken.balanceOf(self.tx.origin) == 0:
+        if oToken.balanceOf(_sender) == 0:
             isFirstDeposit = True
 
-        core.updateStateOnDeposit(_reserve, self.tx.origin, _amount, isFirstDeposit)
-        oToken.mintOnDeposit(self.tx.origin, _amount)
+        core.updateStateOnDeposit(_reserve, _sender, _amount, isFirstDeposit)
+        oToken.mintOnDeposit(_sender, _amount)
         if _reserve != self._sIcxAddress.get():
             reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
 
-        self.Deposit(_reserve, self.tx.origin, _amount, self.block.timestamp)
+        self.Deposit(_reserve, _sender, _amount, self.block.timestamp)
 
     @external
     def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int,
@@ -361,10 +353,10 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to be borrowed
         :return:
         """
-        if self.tx.origin not in self._borrowWallets:
-            self._borrowWallets.put(self.tx.origin)
+        if self.msg.sender not in self._borrowWallets:
+            self._borrowWallets.put(self.msg.sender)
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
-        dataProvider = self.create_interface_score(self._dataProviderAddress.get(), DataProviderInterface)
+        dataProvider = self.create_interface_score(self._dataProvider.get(), DataProviderInterface)
         feeProvider = self.create_interface_score(self._feeProviderAddress.get(), FeeProviderInterface)
 
         self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in  the reserve")
@@ -406,8 +398,8 @@ class LendingPool(IconScoreBase):
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
                     borrowData['balanceIncrease'], self.block.timestamp)
 
-    @external
-    def repay(self, _reserve: Address, _amount: int):
+
+    def _repay(self, _reserve: Address, _amount: int, _sender: Address):
         """
         repays a borrow on the specific reserve, for the specified amount (or for the whole amount, if -1 is send as params for _amount).
         :param _reserve:the address of the reserve
@@ -416,8 +408,8 @@ class LendingPool(IconScoreBase):
         """
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
-        borrowData = core.getUserBorrowBalances(_reserve, self.tx.origin)
-        userBasicReserveData = core.getUserBasicReserveData(_reserve, self.tx.origin)
+        borrowData = core.getUserBorrowBalances(_reserve, _sender)
+        userBasicReserveData = core.getUserBasicReserveData(_reserve, _sender)
 
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
@@ -429,17 +421,17 @@ class LendingPool(IconScoreBase):
             paybackAmount = _amount
 
         if paybackAmount <= userBasicReserveData['originationFee']:
-            core.updateStateOnRepay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
+            core.updateStateOnRepay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                                     False)
             # core.transferToFeeCollectionAddress
             reserve.transfer(self._feeProviderAddress.get(), paybackAmount)
 
-            self.Repay(_reserve, self.tx.origin, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
+            self.Repay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                        self.block.timestamp)
             return
 
         paybackAmountMinusFees = paybackAmount - userBasicReserveData['originationFee']
-        core.updateStateOnRepay(_reserve, self.tx.origin, paybackAmountMinusFees,
+        core.updateStateOnRepay(_reserve, _sender, paybackAmountMinusFees,
                                 userBasicReserveData['originationFee'], borrowData['borrowBalanceIncrease'],
                                 borrowData['compoundedBorrowBalance'] == paybackAmountMinusFees)
 
@@ -448,7 +440,7 @@ class LendingPool(IconScoreBase):
             reserve.transfer(self._feeProviderAddress.get(), userBasicReserveData['originationFee'])
 
         reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
-        self.Repay(_reserve, self.tx.origin, paybackAmountMinusFees, userBasicReserveData['originationFee'],
+        self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
                    borrowData['borrowBalanceIncrease'], self.block.timestamp)
 
     @payable
@@ -467,10 +459,10 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(self.getLendingPoolCoreAddress(), CoreInterface)
         liquidation = liquidationManager.liquidationCall(_collateral, _reserve, _user, _purchaseAmount)
         principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
-        core.transferToUser(_collateral, self.tx.origin, liquidation['maxCollateralToLiquidate'])
+        core.transferToUser(_collateral, self.msg.sender, liquidation['maxCollateralToLiquidate'])
         principalCurrency.transfer(self.getLendingPoolCoreAddress(), liquidation['actualAmountToLiquidate'])
         if _purchaseAmount > liquidation['actualAmountToLiquidate']:
-            principalCurrency.transfer(self.tx.origin, _purchaseAmount - liquidation['actualAmountToLiquidate'])
+            principalCurrency.transfer(self.msg.sender, _purchaseAmount - liquidation['actualAmountToLiquidate'])
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
@@ -481,9 +473,9 @@ class LendingPool(IconScoreBase):
         if set(d.keys()) != set(["method", "params"]):
             revert('Invalid parameters.')
         if d["method"] == "deposit":
-            self._deposit(self.msg.sender, d["params"].get("amount", -1))
+            self._deposit(self.msg.sender, d["params"].get("amount", -1), _from)
         elif d["method"] == "repay":
-            self.repay(self.msg.sender, d["params"].get("amount", -1))
+            self._repay(self.msg.sender, d["params"].get("amount", -1), _from)
         elif d["method"] == "liquidationCall":
             self.liquidationCall(Address.from_string(d["params"].get("_collateral")),
                                  Address.from_string(d["params"].get("_reserve")),
