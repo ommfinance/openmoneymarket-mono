@@ -108,7 +108,7 @@ class OMMToken(IconScoreBase, TokenStandard):
     def mint(self, _amount: int):
         self._total_supply.set(self._total_supply.get() + _amount)
         self._balances[self.address] = _amount
-        self._transfer(self.address, self._rewards.get(),_amount)
+        self._transfer(self.address, self._rewards.get(),_amount,b'OmmToken Transferred to Rewards')
         
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):

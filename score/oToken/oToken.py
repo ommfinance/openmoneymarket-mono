@@ -207,7 +207,7 @@ class OToken(IconScoreBase, TokenStandard):
 
     @external
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
-        core = self.create_interface_score(self.getCoreAddress(), LendingPoolCoreInterface)
+        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
         if self._userIndexes[_user] == 0:
             return _balance
         else:
@@ -220,7 +220,7 @@ class OToken(IconScoreBase, TokenStandard):
         previousPrincipalBalance = self.principalBalanceOf(_user)
         balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
         self._mint(_user, balanceIncrease)
-        core = self.create_interface_score(self.getCoreAddress(), LendingPoolCoreInterface)
+        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
         self._userIndexes[_user] = core.getNormalizedIncome(self.getReserveAddress())
         # self._userIndexes[_user] = 1000000234 * 10 ** 10
         return (

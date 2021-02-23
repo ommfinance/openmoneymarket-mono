@@ -42,7 +42,7 @@ class Snapshot(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
-    @only_owner
+    @only_admin
     @external
     def setStartTimestamp(self, _timestamp: int):
         self._timestampAtStart.set(_timestamp)
@@ -54,7 +54,7 @@ class Snapshot(IconScoreBase):
     @only_owner
     @external
     def setAdmin(self, _address: Address):
-        self._admin.set(_timestamp)
+        self._admin.set(_address)
 
     @external(readonly=True)
     def getAdmin(self) -> Address:

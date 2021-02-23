@@ -25,7 +25,7 @@ class ReserveInterface(InterfaceScore):
 # An interface for sicx
 class StakingInterface(InterfaceScore):
     @interface
-    def addCollateral(self, _to: Address, _data: bytes = None) -> int:
+    def stakeICX(self, _to: Address, _data: bytes = None) -> int:
         pass
 
 
@@ -274,10 +274,10 @@ class LendingPool(IconScoreBase):
 
         # add_collateral must be a method in staking contract
         # self.getSICXAddress() must be replaced by self.getStakingAddress()
-        staking = self.create_interface_score(self.getStakingAddress(), StakingInterface)
+       staking = self.create_interface_score(self.getStaking(), StakingInterface)
 
         # _amount will now be equal to equivalent amt of sICX
-        _amount = staking.icx(self.msg.value).addCollateral(self._lendingPoolCoreAddress.get())
+        _amount = staking.icx(self.msg.value).stakeICX(self._lendingPoolCoreAddress.get())
         _reserve = self._sIcxAddress.get()
 
         self._deposit(_reserve, _amount, self.msg.sender)
@@ -294,7 +294,7 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        reward.distribute()
+        # reward.distribute()
         reserveData = core.getReserveData(_reserve)
        
         oTokenAddress = reserveData['oTokenAddress']

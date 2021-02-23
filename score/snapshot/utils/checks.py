@@ -6,6 +6,8 @@ from iconservice import *
 class SenderNotScoreOwnerError(Exception):
 	pass
 
+class SenderNotAuthorized(Exception):
+	pass
 
 def only_owner(func):
 	if not isfunction(func):
