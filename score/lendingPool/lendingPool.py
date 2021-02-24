@@ -274,12 +274,11 @@ class LendingPool(IconScoreBase):
 
         # add_collateral must be a method in staking contract
         # self.getSICXAddress() must be replaced by self.getStakingAddress()
-       staking = self.create_interface_score(self.getStaking(), StakingInterface)
+        staking = self.create_interface_score(self.getStaking(), StakingInterface)
 
         # _amount will now be equal to equivalent amt of sICX
         _amount = staking.icx(self.msg.value).stakeICX(self._lendingPoolCoreAddress.get())
         _reserve = self._sIcxAddress.get()
-
         self._deposit(_reserve, _amount, self.msg.sender)
 
     def _deposit(self, _reserve: Address, _amount: int, _sender: Address):
@@ -296,14 +295,14 @@ class LendingPool(IconScoreBase):
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         # reward.distribute()
         reserveData = core.getReserveData(_reserve)
-       
         oTokenAddress = reserveData['oTokenAddress']
+        
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
         isFirstDeposit = False
         if oToken.balanceOf(_sender) == 0:
             isFirstDeposit = True
-
         core.updateStateOnDeposit(_reserve, _sender, _amount, isFirstDeposit)
+        
         oToken.mintOnDeposit(_sender, _amount)
         if _reserve != self._sIcxAddress.get():
             reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
@@ -327,7 +326,7 @@ class LendingPool(IconScoreBase):
             revert(f'There is not enough liquidity available to redeem')
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        reward.distribute()
+        # reward.distribute()
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
         if _waitForUnstaking:
@@ -362,11 +361,10 @@ class LendingPool(IconScoreBase):
         self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in  the reserve")
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        reward.distribute()
+        # reward.distribute()
 
         availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
-        self.PrintData("available liquidity at pool line 245", availableLiquidity, 0, 0)
-
+        
         self._require(availableLiquidity >= _amount, "Borrow error:Not enough available liquidity in the reserve")
 
         userData = dataProvider.getUserAccountData(self.msg.sender)
@@ -376,7 +374,7 @@ class LendingPool(IconScoreBase):
         currentLTV = userData['currentLtv']
         currentLiquidationThreshold = userData['currentLiquidationThreshold']
         healthFactorBelowThreshold = userData['healthFactorBelowThreshold']
-        self.PrintData("data at pool line 256", userCollateralBalanceUSD, userBorrowBalanceUSD, userTotalFeesUSD)
+        
 
         self._require(userCollateralBalanceUSD > 0, "Borrow error:The user dont have any collateral")
         self._require(not healthFactorBelowThreshold, "Borrow error:Health factor is below threshold")
@@ -388,7 +386,6 @@ class LendingPool(IconScoreBase):
                                                                                 userBorrowBalanceUSD,
                                                                                 userTotalFeesUSD, currentLTV)
 
-        self.PrintData("amout of collateral needed USD pool line 268", amountOfCollateralNeededUSD, 0, 0)
         self._require(amountOfCollateralNeededUSD <= userCollateralBalanceUSD,
                       "Borrow error:Insufficient collateral to cover new borrow")
         
@@ -413,7 +410,7 @@ class LendingPool(IconScoreBase):
 
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        reward.distribute()
+        # reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
 
