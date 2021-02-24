@@ -189,7 +189,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._dataProviderAddress.set(_address)
 
     @external(readonly=True)
-    def getLendingPoolDataProvier(self) -> Address:
+    def getLendingPoolDataProvider(self) -> Address:
         return self._dataProviderAddress.get()
 
     @onlyOwner
@@ -211,17 +211,17 @@ class OToken(IconScoreBase, TokenStandard):
         if self._userIndexes[_user] == 0:
             return _balance
         else:
-            balance = exaDiv(exaMul(convertToExa(_balance,self._decimals.get()), core.getNormalizedIncome(self.getReserveAddress())),
+            balance = exaDiv(exaMul(convertToExa(_balance,self._decimals.get()), core.getNormalizedIncome(self.getReserve())),
                              self._userIndexes[_user])
             return convertExaToOther(balance,self._decimals.get())
-    
+
     @external
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
         previousPrincipalBalance = self.principalBalanceOf(_user)
         balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
         self._mint(_user, balanceIncrease)
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
-        self._userIndexes[_user] = core.getNormalizedIncome(self.getReserveAddress())
+        self._userIndexes[_user] = core.getNormalizedIncome(self.getReserve())
         # self._userIndexes[_user] = 1000000234 * 10 ** 10
         return (
             {
@@ -248,10 +248,10 @@ class OToken(IconScoreBase, TokenStandard):
     # The transfer is only allowed if transferring this amount of the underlying collateral doesn't bring the health factor below 1
     @external(readonly=True)
     def isTransferAllowed(self, _user: Address, _amount: int) -> bool:
-        dataProvider = self.create_interface_score(self.getDataProviderAddress(), DataProviderInterface)
-        return dataProvider.balanceDecreaseAllowed(self.getReserveAddress(), _user, _amount)
+        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
+        return dataProvider.balanceDecreaseAllowed(self.getReserve(), _user, _amount)
 
-   
+
 
     @external
     def redeem(self, _amount: int, _waitForUnstaking: bool = False) -> None:
@@ -282,12 +282,12 @@ class OToken(IconScoreBase, TokenStandard):
         if currentBalance - amountToRedeem == 0:
             userIndexReset = self._resetDataOnZeroBalanceInternal(self.msg.sender)
 
-        pool = self.create_interface_score(self.getLendingPoolAddress(), LendingPoolInterface)
-        pool.redeemUnderlying(self.getReserveAddress(), self.msg.sender, amountToRedeem,
-                              currentBalance - amountToRedeem, _waitForUnstaking)
+        pool = self.create_interface_score(self.getLendingPool(), LendingPoolInterface)
+        pool.redeemUnderlying(self.getReserve(), self.msg.sender, amountToRedeem,currentBalance - amountToRedeem, _waitForUnstaking)
         if userIndexReset:
             index = 0
         self.Redeem(self.msg.sender, amountToRedeem, balanceIncrease, index)
+        # revert('success')
 
     def _resetDataOnZeroBalanceInternal(self, _user: Address):
         self._userIndexes[self.msg.sender] = 0
