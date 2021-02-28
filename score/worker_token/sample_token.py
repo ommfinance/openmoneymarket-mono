@@ -77,6 +77,7 @@ class SampleToken(IconScoreBase, TokenStandard):
 
     def on_update(self) -> None:
         super().on_update()
+    
 
     @external(readonly=True)
     def name(self) -> str:
