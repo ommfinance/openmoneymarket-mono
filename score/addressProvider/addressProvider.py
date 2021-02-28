@@ -14,6 +14,9 @@ class AddressProvider(IconScoreBase):
     LENDING_POOL = 'lendingPool'
     LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
     STAKING = 'staking'
+    DELEGATION ='delegation'
+    OMM_TOKEN = 'ommToken'
+    REWARDS = 'rewards'
 
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -27,6 +30,10 @@ class AddressProvider(IconScoreBase):
         self._staking = VarDB(self.STAKING, db, value_type=Address)
         self._IUSDC = VarDB(self.IUSDC, db, value_type=Address)
         self._oIUSDC = VarDB (self.oIUSDC, db, value_type=Address)
+        self._ommToken = VarDB(self.OMM_TOKEN,db,value_type=Address)
+        self._delegation = VarDB(self.DELEGATION,db,value_type=Address)
+        self._rewards = VarDB(self.REWARDS,db,value_type=Address)
+
 
     def on_install(self) -> None:
         super().on_install()
@@ -93,6 +100,27 @@ class AddressProvider(IconScoreBase):
             revert(f'Only owner can set the address')
         self._oIUSDC.set(_address)
 
+    @only_owner
+    @external
+    def setOmmToken(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Only owner can set the address')
+        self._ommToken.set(_address)
+    
+    @only_owner
+    @external
+    def setDelegation(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Only owner can set the address')
+        self._delegation.set(_address)
+
+    @only_owner
+    @external
+    def setRewards(self, _address: Address) -> None:
+        if self.msg.sender != self.owner:
+            revert(f'Only owner can set the address')
+        self._rewards.set(_address)
+
     @external(readonly=True)
     def getAllAddresses(self) -> dict:
         response = {"collateral": {
@@ -108,7 +136,10 @@ class AddressProvider(IconScoreBase):
             "systemContract": {
                 "LendingPool": self._lendingPool.get(),
                 "LendingPoolDataProvider": self._lendingPoolDataProvider.get(),
-                "Staking": self._staking.get()
+                "Staking": self._staking.get(),
+                "Delegation": self._delegation.get(),
+                "OmmToken": self._ommToken.get(),
+                "Rewards": self._rewards.get()
             }
         }
 
