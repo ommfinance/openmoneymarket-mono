@@ -532,14 +532,15 @@ class LendingPoolDataProvider(IconScoreBase):
             # reserveData['availableLiquidity'] = exaMul(reserveData['availableLiquidity'], todaySicxRate)
             # reserveData['totalBorrows'] = exaMul(reserveData['totalBorrows'], todaySicxRate)
         reserveDecimals = reserveData['decimals'] 
-        if reserveDecimals != 18 :
-            reserveData['totalLiquidity'] = convertToExa(reserveData['totalLiquidity'],reserveDecimals)
-            reserveData['availableLiquidity'] = convertToExa(reserveData['availableLiquidity'],reserveDecimals)
-            reserveData['totalBorrows'] = convertToExa(reserveData['totalBorrows'],reserveDecimals)
+        # if reserveDecimals != 18 :
+        #     reserveData['totalLiquidity'] = convertToExa(reserveData['totalLiquidity'],reserveDecimals)
+        #     reserveData['availableLiquidity'] = convertToExa(reserveData['availableLiquidity'],reserveDecimals)
+        #     reserveData['totalBorrows'] = convertToExa(reserveData['totalBorrows'],reserveDecimals)
 
-        reserveData["totalLiquidityUSD"]=exaMul(reserveData['totalLiquidity'],price)
-        reserveData["availableLiquidityUSD"]=exaMul(reserveData['availableLiquidity'],price)
-        reserveData["totalBorrowsUSD"]=exaMul(reserveData['totalBorrows'],price)
+        reserveData["totalLiquidityUSD"]=exaMul(convertToExa(reserveData['totalLiquidity'],reserveDecimals),price)
+        reserveData["availableLiquidityUSD"]=exaMul(convertToExa(reserveData['availableLiquidity'],reserveDecimals),price)
+        reserveData["totalBorrowsUSD"]=exaMul(convertToExa(reserveData['totalBorrows'],reserveDecimals),price)
+
 
 
         return reserveData
