@@ -119,6 +119,10 @@ class Rewards(IconScoreBase):
     def Distribution(self,_recipient: str, _user: Address, _value: int):
         pass
 
+    @eventlog(indexed = 1)
+    def State(self,_state: str):
+        pass
+
     @only_owner
     @external
     def setDistPercentage(self, _deposit: int, _borrow: int, _ommICX: int, _ommUSDb: int, _worker: int,  _daoFund: int):
@@ -252,10 +256,11 @@ class Rewards(IconScoreBase):
         if self._day.get() >= self._getDay():
             return
 
-        if self._distComplete['deposit'] and self._distComplete['borrow'] and  self._distComplete['ommICX'] and self._distComplete['ommUSDb']:
+        if self._distComplete['daoFund']:
             self._initialize()
 
         if not self._precompute['deposit']:
+            self.State("precompute deposit")
             totalAmount = 0
             depositWalletList = pool.getDepositWallets(self._compIndex['deposit'])
             for user in depositWalletList:
@@ -278,7 +283,7 @@ class Rewards(IconScoreBase):
                 self._compIndex['deposit'] += 1
 
         elif not self._distComplete['deposit'] and self._check('deposit'):
-            
+            self.State("distribute deposit")
             totalAmount = self._totalAmount['deposit']
             tokenDistTracker =  self._tokenDistTracker['deposit']
             depositWalletList = pool.getDepositWallets(self._distIndex['deposit'])
@@ -302,6 +307,7 @@ class Rewards(IconScoreBase):
                 self._distIndex['deposit'] += 1
 
         elif not self._precompute['borrow']:
+            self.State("precompute borrow")
             totalAmount = 0
             borrowWalletList = pool.getBorrowWallets(self._compIndex['borrow'])
             for user in borrowWalletList:
@@ -319,12 +325,13 @@ class Rewards(IconScoreBase):
             
 
             if len(borrowWalletList) < BATCH_SIZE:
-                self._precompute['borrrow'] = True
+                self._precompute['borrow'] = True
                 self._compIndex['borrow'] = 0
             else:
                 self._compIndex['borrow'] += 1
 
         elif not self._distComplete['borrow'] and self._check('borrow'):
+            self.State("distribute borrow")
             totalAmount = self._totalAmount['borrow']
             tokenDistTracker = self._tokenDistTracker['borrow']
             borrowWalletList = pool.getBorrowWallets(self._distIndex['borrow'])
@@ -338,7 +345,7 @@ class Rewards(IconScoreBase):
                 totalAmount -= self._amountMulApy['borrow'][user][self._day.get()]
                 tokenDistTracker -= tokenAmount
                 
-            self._totalAmount['borrow'] = tokenAmount
+            self._totalAmount['borrow'] = totalAmount
             self._tokenDistTracker['borrow'] = tokenDistTracker
 
             if len(borrowWalletList) < BATCH_SIZE:
@@ -348,11 +355,13 @@ class Rewards(IconScoreBase):
                 self._distIndex['borrow'] += 1
 
         elif not self._precompute['ommICX']:
+            self.State("precompute ommICX")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
             self._totalAmount['ommICX'] = data_source.getTotalValue("SICXICX", self._day.get())
             self._precompute['ommICX'] = True
         
         elif not self._distComplete['ommICX'] and self._check('ommICX'):
+            self.State("distribute ommICX")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
             data_batch = data_source.getDataBatch("SICXICX", self._day.get(), BATCH_SIZE, self._offset["SICXICX"])
             self._offset["SICXICX"] += BATCH_SIZE
@@ -378,11 +387,13 @@ class Rewards(IconScoreBase):
                 self._offset["SICXICX"] = 0
 
         elif not self._precompute['ommUSDb']:
+            self.State("precompute ommUSDb")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
             self._totalAmount['ommUSDb'] = data_source.getTotalValue("SICXICD",self._day.get())
             self._precompute['ommUSDb'] = True
         
         elif not self._distComplete['ommUSDb'] and self._check('ommUSDb'):
+            self.State("distribute ommUSDb")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
             data_batch = data_source.getDataBatch("SICXICD", self._day.get(), BATCH_SIZE , self._offset["SICXICD"])
             self._offset["SICXICD"] += BATCH_SIZE
@@ -408,6 +419,7 @@ class Rewards(IconScoreBase):
                 self._offset["SICXICD"] = 0
 
         elif not self._distComplete['worker']:
+            self.State("distribute worker")
             totalSupply = worker.totalSupply()
             tokenDistTracker = self._tokenDistTracker['worker']
             for user in worker.getWallets():
@@ -422,6 +434,7 @@ class Rewards(IconScoreBase):
             self._distComplete['worker'] = True
 
         elif not self._distComplete['daoFund']:
+            self.State("distribute daoFund")
             ommToken.transfer(self._daoFundAddress.get(), self._tokenDistTracker['daoFund'])
             self._distComplete['daoFund'] = True
             self.Distribution("daoFund", self._daoFundAddress.get(),  self._tokenDistTracker['daoFund'] )  
