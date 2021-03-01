@@ -626,8 +626,8 @@ class LendingPoolCore(IconScoreBase):
         }
         
         
-        # snapshot.updateUserSnapshot(_user, _reserve, userData)
-        # snapshot.updateReserveSnapshot(_reserve, reserveData)
+        snapshot.updateUserSnapshot(_user, _reserve, userData)
+        snapshot.updateReserveSnapshot(_reserve, reserveData)
         # revert(f'user {_user} reserve {_reserve} utype{type(_user)} resType{type(_reserve)}')
 
 
@@ -671,8 +671,8 @@ class LendingPoolCore(IconScoreBase):
 
         }
 
-        # snapshot.updateUserSnapshot(_user, _reserve, userData)
-        # snapshot.updateReserveSnapshot(_reserve, reserveData)
+        snapshot.updateUserSnapshot(_user, _reserve, userData)
+        snapshot.updateReserveSnapshot(_reserve, reserveData)
 
     @only_lending_pool
     @external
@@ -717,8 +717,8 @@ class LendingPoolCore(IconScoreBase):
 
         }
 
-        # snapshot.updateUserSnapshot(_user, _reserve, userData)
-        # snapshot.updateReserveSnapshot(_reserve, reserveData)
+        snapshot.updateUserSnapshot(_user, _reserve, userData)
+        snapshot.updateReserveSnapshot(_reserve, reserveData)
 
         return (
             {
@@ -768,8 +768,8 @@ class LendingPoolCore(IconScoreBase):
 
         }
 
-        # snapshot.updateUserSnapshot(_user, _reserve, userData)
-        # snapshot.updateReserveSnapshot(_reserve, reserveData)
+        snapshot.updateUserSnapshot(_user, _reserve, userData)
+        snapshot.updateReserveSnapshot(_reserve, reserveData)
 
     def updateReserveStateOnBorrowInternal(self, _reserve: Address, _balanceIncrease: int, _amountBorrowed: int):
         self.updateCumulativeIndexes(_reserve)

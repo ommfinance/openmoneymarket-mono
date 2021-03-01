@@ -293,7 +293,7 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        # reward.distribute()
+        reward.distribute()
         reserveData = core.getReserveData(_reserve)
         oTokenAddress = reserveData['oTokenAddress']
         
@@ -326,7 +326,7 @@ class LendingPool(IconScoreBase):
             revert(f'There is not enough liquidity available to redeem')
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        # reward.distribute()
+        reward.distribute()
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
         if _waitForUnstaking:
@@ -361,7 +361,7 @@ class LendingPool(IconScoreBase):
         self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in  the reserve")
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        # reward.distribute()
+        reward.distribute()
 
         availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
         
@@ -410,7 +410,7 @@ class LendingPool(IconScoreBase):
 
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        # reward.distribute()
+        reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
 

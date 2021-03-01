@@ -208,7 +208,7 @@ class Snapshot(IconScoreBase):
             self._reserveData[_reserve]['price'][length] = _reserveData['price']
 
     @external(readonly = True)
-    def _getDay(self) -> None:
+    def _getDay(self) -> int:
         return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
 
     @external(readonly = True)

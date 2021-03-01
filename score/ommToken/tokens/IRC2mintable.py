@@ -17,7 +17,7 @@ class IRC2Mintable(IRC2):
 		"""
 		if _data is None:
 			_data = b'None'
-		self._mint(self.msg.sender, _amount, _data)
+		self._mint(_amount, _data)
 
 	@external
 	def mintTo(self, _account: Address, _amount: int, _data: bytes = None) -> None:

@@ -33,7 +33,7 @@ class TokenStandard(ABC):
 
 
 # An interface of tokenFallback.
-# Receiving SCORE that has implemented this interface can handle
+# Receiving CORE that has implemented this interface can handle
 # the receiving or further routine.
 class TokenFallbackInterface(InterfaceScore):
     @interface
@@ -41,7 +41,7 @@ class TokenFallbackInterface(InterfaceScore):
         pass
 
 
-class SampleToken(IconScoreBase, TokenStandard):
+class WorkerToken(IconScoreBase, TokenStandard):
 
     _BALANCES = 'balances'
     _TOTAL_SUPPLY = 'total_supply'
@@ -77,6 +77,7 @@ class SampleToken(IconScoreBase, TokenStandard):
 
     def on_update(self) -> None:
         super().on_update()
+    
 
     @external(readonly=True)
     def name(self) -> str:

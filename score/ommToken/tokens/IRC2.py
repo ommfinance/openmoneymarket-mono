@@ -315,11 +315,11 @@ class IRC2(TokenStandard, IconScoreBase):
         return lockList
 
     @eventlog(indexed=3)
-    def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
+    def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes = None):
         pass
 
     @eventlog(indexed=1)
-    def Mint(self, account: Address, amount: int, _data: bytes):
+    def Mint(self, amount: int, _data: bytes = None):
         pass
 
     @eventlog(indexed=1)
@@ -451,7 +451,7 @@ class IRC2(TokenStandard, IconScoreBase):
             self._staked_balances[_from][Status.AVAILABLE] += curr_unstaked
 
     @only_admin
-    def mint(self, _amount: int) -> None:
+    def _mint(self, _amount: int, _data: bytes = None) -> None:
         """
 		Creates amount number of tokens, and assigns to account
 		Increases the balance of that account and total supply.
@@ -466,7 +466,7 @@ class IRC2(TokenStandard, IconScoreBase):
 			if the `amount` is less than or equal to zero.
 		"""
 
-        if amount <= 0:
+        if _amount <= 0:
             raise ZeroValueError("Invalid Value")
             pass
 
@@ -476,4 +476,4 @@ class IRC2(TokenStandard, IconScoreBase):
         self._transfer(self.address, self._rewards.get(), _amount, b'Transferred to Rewards SCORE')
 
         # Emits an event log Mint
-        self.Mint(account, amount, _data)
+        self.Mint(_amount, _data)
