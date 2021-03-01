@@ -315,11 +315,11 @@ class IRC2(TokenStandard, IconScoreBase):
         return lockList
 
     @eventlog(indexed=3)
-    def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
+    def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes = None):
         pass
 
     @eventlog(indexed=1)
-    def Mint(self, amount: int, _data: bytes):
+    def Mint(self, amount: int, _data: bytes = None):
         pass
 
     @eventlog(indexed=1)

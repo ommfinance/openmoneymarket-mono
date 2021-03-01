@@ -95,6 +95,7 @@ class Rewards(IconScoreBase):
         self._tokenDistTracker = DictDB('tokenDistTracker', db, value_type = int)
         self._distPercentage = DictDB('distPercentage', db, value_type = int)
         self._offset = DictDB('offset', db, value_type = int)
+        self._admin = VarDB('admin', db, value_type = Address)
 
         
     def on_install(self) -> None:
@@ -177,6 +178,15 @@ class Rewards(IconScoreBase):
     @external(readonly=True)
     def getOmm(self) -> Address:
         return self._ommTokenAddress.get()
+
+    @only_owner
+    @external
+    def setAdmin(self, _address: Address):
+        self._admin.set(_address)
+
+    @external(readonly=True)
+    def getAdmin(self) -> Address:
+        return self._admin.get()
 
     @only_owner
     @external
