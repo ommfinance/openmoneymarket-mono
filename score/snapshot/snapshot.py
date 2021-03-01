@@ -27,6 +27,7 @@ class Snapshot(IconScoreBase):
     RESERVE_DATA = 'reserveData'
     TIMESTAMP_AT_START = 'timestampAtStart'
     ADMIN = 'admin'
+    GOVERNANCE = 'governance'
 
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -35,6 +36,7 @@ class Snapshot(IconScoreBase):
         self._reserveData = DictDB(self.RESERVE_DATA, db, value_type = int, depth = 3)
         self._timestampAtStart = VarDB(self.TIMESTAMP_AT_START, db, value_type = int)
         self._admin = VarDB(self.ADMIN, db, value_type = Address)
+        self._governance = VarDB(self.GOVERNANCE, db , value_type = Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -42,7 +44,8 @@ class Snapshot(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
-    @only_admin
+    
+    @only_governance
     @external
     def setStartTimestamp(self, _timestamp: int):
         self._timestampAtStart.set(_timestamp)
@@ -59,6 +62,15 @@ class Snapshot(IconScoreBase):
     @external(readonly=True)
     def getAdmin(self) -> Address:
         return self._admin.get()
+
+    @only_owner
+    @external
+    def setGovernance(self, _address: Address):
+        self._governance.set(_address)
+
+    @external(readonly=True)
+    def getGovernance(self) -> Address:
+        return self._governance.get()
 
     @external(readonly=True)
     def userDataAt(self, _user: Address, _reserve: Address, _day: int) -> dict:

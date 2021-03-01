@@ -22,6 +22,18 @@ def only_owner(func):
 		return func(self, *args, **kwargs)
 	return __wrapper
 
+def only_governance(func):
+	if not isfunction(func):
+		raise NotAFunctionError
+
+	@wraps(func)
+	def __wrapper(self: object, *args, **kwargs):
+		if self.msg.sender != self._governance.get():
+			raise SenderNotAuthorized(self.msg.sender)
+
+		return func(self, *args, **kwargs)
+	return __wrapper
+
 def only_admin(func):
 	if not isfunction(func):
 		raise NotAFunctionError
@@ -33,5 +45,8 @@ def only_admin(func):
 
 		return func(self, *args, **kwargs)
 	return __wrapper
+
+
+
 
 
