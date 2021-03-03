@@ -290,7 +290,7 @@ class OToken(IconScoreBase, TokenStandard):
         # revert('success')
 
     def _resetDataOnZeroBalanceInternal(self, _user: Address):
-        self._userIndexes[self.msg.sender] = 0
+        self._userIndexes[_user] = 0
         return True
 
     @external
@@ -317,7 +317,7 @@ class OToken(IconScoreBase, TokenStandard):
         self.BurnOnLiquidation(_user, _value, balanceIncrease, index)
 
     
-    def executeTransfer(self, _from: Address, _to: Address, _value: int):
+    def _executeTransfer(self, _from: Address, _to: Address, _value: int):
         fromCumulated = self._cumulateBalanceInternal(_from)
         toCumulated = self._cumulateBalanceInternal(_to)
         fromBalance = fromCumulated['principalBalance']
@@ -362,7 +362,8 @@ class OToken(IconScoreBase, TokenStandard):
 
         if not self.isTransferAllowed(self.msg.sender, _value):
             revert("Transfer error:Transfer cannot be allowed")
-        self.executeTransfer(_from,_to,_value)
+
+        self._executeTransfer(_from,_to,_value)
         self._balances[_from] -= _value
         self._balances[_to] += _value
 
