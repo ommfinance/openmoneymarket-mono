@@ -316,12 +316,8 @@ class OToken(IconScoreBase, TokenStandard):
             index = 0
         self.BurnOnLiquidation(_user, _value, balanceIncrease, index)
 
-    # This may not be required as we only allow collateral as an asset that can be received on liquidation
-    @external
-    def transferOnLiquidation(self, _from: Address, _to: Address, _value: int) -> None:
-        self._executeTransferInternal(_from, _to, _value)
-
-    def _executeTransferInternal(self, _from: Address, _to: Address, _value: int):
+    
+    def executeTransfer(self, _from: Address, _to: Address, _value: int):
         fromCumulated = self._cumulateBalanceInternal(_from)
         toCumulated = self._cumulateBalanceInternal(_to)
         fromBalance = fromCumulated['principalBalance']
@@ -330,12 +326,10 @@ class OToken(IconScoreBase, TokenStandard):
         toBalanceIncrease = toCumulated['balanceIncrease']
         toIndex = toCumulated['index']
 
-        self._transfer(_from, _to, _value, b'')
         fromIndexReset = False
         if fromBalance - _value == 0:
             fromIndexReset = self._resetDataOnZeroBalanceInternal(_from)
-        if fromIndexReset:
-            fromIndex = 0
+        
         self.BalanceTransfer(_from, _to, _value, fromBalanceIncrease, toBalanceIncrease, fromIndex, toIndex)
 
     @external
@@ -366,6 +360,9 @@ class OToken(IconScoreBase, TokenStandard):
         if self._balances[_from] < _value:
             revert(f"Token transfer error:Insufficient balance.")
 
+        if not self.isTransferAllowed(self.msg.sender, _value):
+            revert("Transfer error:Transfer cannot be allowed")
+        self.executeTransfer(_from,_to,_value)
         self._balances[_from] -= _value
         self._balances[_to] += _value
 
