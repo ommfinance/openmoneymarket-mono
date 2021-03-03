@@ -304,7 +304,7 @@ class OToken(IconScoreBase, TokenStandard):
 
     @external
     def burnOnLiquidation(self, _user: Address, _value: int) -> None:
-        cumulated = self._cumulateBalanceInternal(self.msg.sender)
+        cumulated = self._cumulateBalanceInternal(_user)
         currentBalance = cumulated['principalBalance']
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
