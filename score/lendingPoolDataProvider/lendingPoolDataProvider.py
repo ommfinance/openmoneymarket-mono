@@ -91,6 +91,11 @@ class StakingInterface(InterfaceScore):
     def getUserUnstakeInfo(self, _address: Address) -> list:
         pass
 
+class FeeProviderInterface(InterfaceScore):
+    @interface
+    def getLoanOriginationFeePercentage(self) -> int:
+        pass
+
 
 class LendingPoolDataProvider(IconScoreBase):
     _SYMBOL='symbol'
@@ -99,6 +104,7 @@ class LendingPoolDataProvider(IconScoreBase):
     _PRICE_ORACLE='priceOracle'
     _LIQUIDATION_MANAGER='liquidationManager'
     _STAKING='staking'
+    _FEE_PROVIDER = 'feeProvider'
 
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -109,6 +115,7 @@ class LendingPoolDataProvider(IconScoreBase):
         self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
         self._liquidationManager = VarDB(self._LIQUIDATION_MANAGER, db, value_type=Address)
         self._staking = VarDB(self._STAKING, db, value_type=Address)
+        self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -136,27 +143,25 @@ class LendingPoolDataProvider(IconScoreBase):
     def setLendingPoolCore(self, _address: Address) -> None:
         self._lendingPoolCore.set(_address)
 
+    @only_owner
     @external
     def setLendingPool(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
         self._lendingPool.set(_address)
 
     @only_owner
     @external
-    def setPriceOracle(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
+    def setFeeProvider(self, _address: Address) -> None:
+        self._feeProvider.set(_address)
 
+    
+    @only_owner
+    @external
+    def setPriceOracle(self, _address: Address) -> None:
         self._priceOracle.set(_address)
 
     @only_owner
     @external
     def setStaking(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
-
         self._staking.set(_address)
 
     @external(readonly=True)
@@ -171,11 +176,13 @@ class LendingPoolDataProvider(IconScoreBase):
     def getPriceOracle(self) -> Address:
         return self._priceOracle.get()
 
+    @external(readonly=True)
+    def getFeeProvider(self) -> Address:
+        return self._feeProvider.get()
+
     @only_owner
     @external
     def setLiquidationManager(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
         self._liquidationManager.set(_address)
 
     @external(readonly=True)
@@ -488,7 +495,7 @@ class LendingPoolDataProvider(IconScoreBase):
                 response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveUnderlyingBalance,
                                                                    'underlyingBalanceUSD': exaMul(price,
                                                                                                   userReserveUnderlyingBalance)}
-
+                                                                                                  
         return response
 
     @external(readonly=True)
@@ -541,8 +548,6 @@ class LendingPoolDataProvider(IconScoreBase):
         reserveData["availableLiquidityUSD"]=exaMul(convertToExa(reserveData['availableLiquidity'],reserveDecimals),price)
         reserveData["totalBorrowsUSD"]=exaMul(convertToExa(reserveData['totalBorrows'],reserveDecimals),price)
 
-
-
         return reserveData
 
     @external(readonly=True)
@@ -580,3 +585,10 @@ class LendingPoolDataProvider(IconScoreBase):
                 unstake = {'amount': unstakedRecords["amount"], 'unstakingBlockHeight': unstakedRecords["blockHeight"]}
                 response.append(unstake)
         return response
+
+    @external(readonly = True)
+    def getLoanOriginationFeePercentage(self) -> int:
+        feeProvider = self.create_interface_score(self._feeProvider.get(), FeeProviderInterface)
+        return feeProvider.getLoanOriginationFeePercentage()
+
+    
