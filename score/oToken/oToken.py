@@ -290,7 +290,7 @@ class OToken(IconScoreBase, TokenStandard):
         # revert('success')
 
     def _resetDataOnZeroBalanceInternal(self, _user: Address):
-        self._userIndexes[self.msg.sender] = 0
+        self._userIndexes[_user] = 0
         return True
 
     @external
@@ -304,7 +304,7 @@ class OToken(IconScoreBase, TokenStandard):
 
     @external
     def burnOnLiquidation(self, _user: Address, _value: int) -> None:
-        cumulated = self._cumulateBalanceInternal(self.msg.sender)
+        cumulated = self._cumulateBalanceInternal(_user)
         currentBalance = cumulated['principalBalance']
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
@@ -316,12 +316,8 @@ class OToken(IconScoreBase, TokenStandard):
             index = 0
         self.BurnOnLiquidation(_user, _value, balanceIncrease, index)
 
-    # This may not be required as we only allow collateral as an asset that can be received on liquidation
-    @external
-    def transferOnLiquidation(self, _from: Address, _to: Address, _value: int) -> None:
-        self._executeTransferInternal(_from, _to, _value)
-
-    def _executeTransferInternal(self, _from: Address, _to: Address, _value: int):
+    
+    def _executeTransfer(self, _from: Address, _to: Address, _value: int):
         fromCumulated = self._cumulateBalanceInternal(_from)
         toCumulated = self._cumulateBalanceInternal(_to)
         fromBalance = fromCumulated['principalBalance']
@@ -330,12 +326,10 @@ class OToken(IconScoreBase, TokenStandard):
         toBalanceIncrease = toCumulated['balanceIncrease']
         toIndex = toCumulated['index']
 
-        self._transfer(_from, _to, _value, b'')
         fromIndexReset = False
         if fromBalance - _value == 0:
             fromIndexReset = self._resetDataOnZeroBalanceInternal(_from)
-        if fromIndexReset:
-            fromIndex = 0
+        
         self.BalanceTransfer(_from, _to, _value, fromBalanceIncrease, toBalanceIncrease, fromIndex, toIndex)
 
     @external
@@ -366,6 +360,10 @@ class OToken(IconScoreBase, TokenStandard):
         if self._balances[_from] < _value:
             revert(f"Token transfer error:Insufficient balance.")
 
+        if not self.isTransferAllowed(self.msg.sender, _value):
+            revert("Transfer error:Transfer cannot be allowed")
+
+        self._executeTransfer(_from,_to,_value)
         self._balances[_from] -= _value
         self._balances[_to] += _value
 
