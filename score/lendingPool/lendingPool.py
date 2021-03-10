@@ -413,9 +413,11 @@ class LendingPool(IconScoreBase):
         reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
-
-        if _amount != -1 and _amount < paybackAmount:
+        returnAmount = 0 
+        if  _amount < paybackAmount:
             paybackAmount = _amount
+        else :
+            returnAmount = _amount - paybackAmount
 
         if paybackAmount <= userBasicReserveData['originationFee']:
             core.updateStateOnRepay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
@@ -437,6 +439,9 @@ class LendingPool(IconScoreBase):
             reserve.transfer(self._feeProviderAddress.get(), userBasicReserveData['originationFee'])
 
         reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
+        # transfer excess amount back to the user
+        if returnAmount > 0 :
+            reserve.transfer(_sender,returnAmount)
         self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
                    borrowData['borrowBalanceIncrease'], self.block.timestamp)
 
