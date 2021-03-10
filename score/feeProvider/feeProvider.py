@@ -1,5 +1,6 @@
 from iconservice import *
 from .Math import *
+from .utils.checks import * 
 
 TAG = 'FeeProvider'
 
@@ -17,12 +18,13 @@ class FeeProvider(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
+    @only_owner
     @external
     def setLoanOriginationFeePercentage(self, _percentage: int) -> None:
         self._originationFeePercent.set(_percentage)
         
     @external(readonly = True)
-    def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
+    def calculateOriginationFee(self, _amount: int) -> int:
         return exaMul(_amount, self.getLoanOriginationFeePercentage())
         
     @external(readonly = True)
