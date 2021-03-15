@@ -355,6 +355,10 @@ class LendingPool(IconScoreBase):
         """
 
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        reserveData = core.getReserveData(_reserve)
+        if self.msg.sender != reserveData['oTokenAddress']:
+            revert(f'{TAG}'
+                   f'{self.msg.sender} is unauthorized to call,only otoken can invoke the method')
         if core.getReserveAvailableLiquidity(_reserve) < _amount:
             revert(f'There is not enough liquidity available to redeem')
 
