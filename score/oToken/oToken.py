@@ -305,7 +305,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._userIndexes[_user] = 0
         return True
 
-    
+    @only_lending_pool
     @external
     def mintOnDeposit(self, _user: Address, _amount: int) -> None:
         cumulated = self._cumulateBalanceInternal(_user)
@@ -315,6 +315,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._mint(_user, _amount)
         self.MintOnDeposit(_user, _amount, balanceIncrease, index)
 
+    @only_liquidation
     @external
     def burnOnLiquidation(self, _user: Address, _value: int) -> None:
         cumulated = self._cumulateBalanceInternal(_user)
