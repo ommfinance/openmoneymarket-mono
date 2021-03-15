@@ -116,18 +116,6 @@ class ReserveInterface(InterfaceScore):
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
 
-
-# An interface to Snapshot
-class SnapshotInterface(InterfaceScore):
-    @interface
-    def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserSnapshotData) -> None:
-        pass
-
-    @interface
-    def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveSnapshotData) -> None:
-        pass
-
-
 class StakingInterface(InterfaceScore):
     @interface
     def getTodayRate(self) -> int:
@@ -145,7 +133,6 @@ class LendingPoolCore(IconScoreBase):
     _LENDING_POOL = 'lendingPool'
     _CONSTANTS = 'constants'
     _DAOFUND = 'daoFund'
-    _SNAPSHOT = 'snapshot'
     _PRICE_ORACLE = 'priceOracle'
     _STAKING = 'staking'
     _DELEGATION = 'delegation'
@@ -159,7 +146,6 @@ class LendingPoolCore(IconScoreBase):
         self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
         self._daoFund = VarDB(self._DAOFUND, db, value_type=Address)
-        self._snapshot = VarDB(self._SNAPSHOT, db, value_type=Address)
         self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
         self._staking = VarDB(self._STAKING, db, value_type=Address)
         self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
@@ -257,14 +243,6 @@ class LendingPoolCore(IconScoreBase):
     def setDaoFund(self, _address: Address):
         self._daoFund.set(_address)
 
-    @only_owner
-    @external
-    def setSnapshot(self, _address: Address):
-        self._snapshot.set(_address)
-
-    @external(readonly=True)
-    def getSnapshot(self) -> Address:
-        return self._snapshot.get()
 
     def reservePrefix(self, _reserve: Address) -> bytes:
         return b'|'.join([RESERVE_DB_PREFIX, self._id.get().encode(), str(_reserve).encode()])
@@ -592,44 +570,7 @@ class LendingPoolCore(IconScoreBase):
 
         if _isFirstDeposit:
             self.setUserUseReserveAsCollateral(_reserve, _user, True)
-        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
-
-        userReserve = self.getUserReserveData(_reserve, _user)
-        reserve = self.getReserveData(_reserve)
-        oToken = self.create_interface_score(reserve['oTokenAddress'], oTokenInterface)
-        principalOTokenBalance = oToken.principalBalanceOf(_user)
-        userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
-        
-        if self._symbol[_reserve] == "ICX":
-            staking = self.create_interface_score(self._staking.get(), StakingInterface)
-            todaySicxRate = staking.getTodayRate()
-            price = exaMul(price, todaySicxRate)
-
-        
-        userData: UserSnapshotData = {
-            'principalOTokenBalance': principalOTokenBalance,
-            'principalBorrowBalance': userReserve['principalBorrowBalance'],
-            'userLiquidityCumulativeIndex': userLiquidityCumulativeIndex,
-            'userBorrowCumulativeIndex': userReserve['userBorrowCumulativeIndex']
-        }
-
-        reserveData: ReserveSnapshotData = {
-            'liquidityRate': reserve['liquidityRate'],
-            'borrowRate': reserve['borrowRate'],
-            'liquidityCumulativeIndex': reserve['liquidityCumulativeIndex'],
-            'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
-            'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
-            'price': price
-
-        }
-        
-        
-        snapshot.updateUserSnapshot(_user, _reserve, userData)
-        snapshot.updateReserveSnapshot(_reserve, reserveData)
-        # revert(f'user {_user} reserve {_reserve} utype{type(_user)} resType{type(_reserve)}')
-
+      
 
     @only_lending_pool
     @external
@@ -641,38 +582,7 @@ class LendingPoolCore(IconScoreBase):
         if _userRedeemEverything:
             self.setUserUseReserveAsCollateral(_reserve, _user, False)
 
-        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
-        userReserve = self.getUserReserveData(_reserve, _user)
-        reserve = self.getReserveData(_reserve)
-        oToken = self.create_interface_score(reserve['oTokenAddress'], oTokenInterface)
-        principalOTokenBalance = oToken.principalBalanceOf(_user)
-        userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
-        if self._symbol[_reserve] == "ICX":
-            staking = self.create_interface_score(self._staking.get(), StakingInterface)
-            todaySicxRate = staking.getTodayRate()
-            price = exaMul(price, todaySicxRate)
-
-        userData: UserSnapshotData = {
-            'principalOTokenBalance': principalOTokenBalance,
-            'principalBorrowBalance': userReserve['principalBorrowBalance'],
-            'userLiquidityCumulativeIndex': userLiquidityCumulativeIndex,
-            'userBorrowCumulativeIndex': userReserve['userBorrowCumulativeIndex']
-        }
-
-        reserveData: ReserveSnapshotData = {
-            'liquidityRate': reserve['liquidityRate'],
-            'borrowRate': reserve['borrowRate'],
-            'liquidityCumulativeIndex': reserve['liquidityCumulativeIndex'],
-            'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
-            'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
-            'price': price
-
-        }
-
-        snapshot.updateUserSnapshot(_user, _reserve, userData)
-        snapshot.updateReserveSnapshot(_reserve, reserveData)
+        
 
     @only_lending_pool
     @external
@@ -687,39 +597,7 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountBorrowed)
         currentBorrowRate = self.getCurrentBorrowRate(_reserve)
-        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
-        userReserve = self.getUserReserveData(_reserve, _user)
-        reserve = self.getReserveData(_reserve)
-        oToken = self.create_interface_score(reserve['oTokenAddress'], oTokenInterface)
-        principalOTokenBalance = oToken.principalBalanceOf(_user)
-        userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
-        if self._symbol[_reserve] == "ICX":
-            staking = self.create_interface_score(self._staking.get(), StakingInterface)
-            todaySicxRate = staking.getTodayRate()
-            price = exaMul(price, todaySicxRate)
-
-        userData: UserSnapshotData = {
-            'principalOTokenBalance': principalOTokenBalance,
-            'principalBorrowBalance': userReserve['principalBorrowBalance'],
-            'userLiquidityCumulativeIndex': userLiquidityCumulativeIndex,
-            'userBorrowCumulativeIndex': userReserve['userBorrowCumulativeIndex']
-        }
-
-        reserveData: ReserveSnapshotData = {
-            'liquidityRate': reserve['liquidityRate'],
-            'borrowRate': reserve['borrowRate'],
-            'liquidityCumulativeIndex': reserve['liquidityCumulativeIndex'],
-            'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
-            'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
-            'price': price
-
-        }
-
-        snapshot.updateUserSnapshot(_user, _reserve, userData)
-        snapshot.updateReserveSnapshot(_reserve, reserveData)
-
+       
         return (
             {
                 "currentBorrowRate": currentBorrowRate,
@@ -738,38 +616,7 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
                                             _balanceIncrease, _repaidWholeLoan)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, _paybackAmountMinusFees, 0)
-        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
-        userReserve = self.getUserReserveData(_reserve, _user)
-        reserve = self.getReserveData(_reserve)
-        oToken = self.create_interface_score(reserve['oTokenAddress'], oTokenInterface)
-        principalOTokenBalance = oToken.principalBalanceOf(_user)
-        userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
-        if self._symbol[_reserve] == "ICX":
-            staking = self.create_interface_score(self._staking.get(), StakingInterface)
-            todaySicxRate = staking.getTodayRate()
-            price = exaMul(price, todaySicxRate)
-
-        userData: UserSnapshotData = {
-            'principalOTokenBalance': principalOTokenBalance,
-            'principalBorrowBalance': userReserve['principalBorrowBalance'],
-            'userLiquidityCumulativeIndex': userLiquidityCumulativeIndex,
-            'userBorrowCumulativeIndex': userReserve['userBorrowCumulativeIndex']
-        }
-
-        reserveData: ReserveSnapshotData = {
-            'liquidityRate': reserve['liquidityRate'],
-            'borrowRate': reserve['borrowRate'],
-            'liquidityCumulativeIndex': reserve['liquidityCumulativeIndex'],
-            'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
-            'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
-            'price': price
-
-        }
-
-        snapshot.updateUserSnapshot(_user, _reserve, userData)
-        snapshot.updateReserveSnapshot(_reserve, reserveData)
+        
 
     def updateReserveStateOnBorrowInternal(self, _reserve: Address, _balanceIncrease: int, _amountBorrowed: int):
         self.updateCumulativeIndexes(_reserve)

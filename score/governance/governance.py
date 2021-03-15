@@ -1,4 +1,5 @@
 from iconservice import *
+from .utils.checks import * 
 
 TAG = 'Governance'
 
@@ -32,6 +33,7 @@ class Governance(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
+    @only_owner
     @external
     def setSnapshot(self, _address: Address):
         self._snapshot.set(_address)
@@ -40,6 +42,7 @@ class Governance(IconScoreBase):
     def getSnapshot(self) -> Address:
         return self._snapshot.get()
 
+    @only_owner
     @external
     def setRewards(self, _address: Address):
         self._rewards.set(_address)
@@ -48,7 +51,7 @@ class Governance(IconScoreBase):
     def getRewards(self) -> Address:
         return self._rewards.get()
 
-    
+    @only_owner
     @external
     def setStartTimestamp(self) -> None:
         snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)

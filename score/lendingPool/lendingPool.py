@@ -98,6 +98,14 @@ class DataProviderInterface(InterfaceScore):
                                      _userCurrentFeesUSD: int, _userCurrentLtv: int) -> int:
         pass
 
+    @interface
+    def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
+        pass
+
+    @interface
+    def getReserveData(self, _reserve: Address) -> dict:
+        pass
+
 
 # An interface to fee provider
 class FeeProviderInterface(InterfaceScore):
@@ -114,9 +122,21 @@ class LiquidationManagerInterface(InterfaceScore):
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> str:
         pass
 
+
+# An interface to Rewards
 class RewardInterface(InterfaceScore):
     @interface
     def distribute(self) -> None:
+        pass
+
+# An interface to Snapshot
+class SnapshotInterface(InterfaceScore):
+    @interface
+    def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserSnapshotData) -> None:
+        pass
+
+    @interface
+    def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveSnapshotData) -> None:
         pass
 
 
@@ -131,6 +151,7 @@ class LendingPool(IconScoreBase):
     STAKING_ADDRESS = 'stakingAddress'
     REWARD_ADDRESS = 'rewardAddress'
     LIQUIDATION_MANAGER_ADDRESS = 'liquidationManagerAddress'
+    SNAPSHOT = 'snapshot'
 
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -144,6 +165,7 @@ class LendingPool(IconScoreBase):
         self._oIcxAddress = VarDB(self.oICX_ADDRESS, db, value_type=Address)
         self._stakingAddress = VarDB(self.STAKING_ADDRESS, db, value_type=Address)
         self._rewardAddress = VarDB(self.REWARD_ADDRESS, db, value_type=Address)
+        self._snapshot = VarDB(self.SNAPSHOT, db, value_type=Address)
         self._liquidationManagerAddress = VarDB(self.LIQUIDATION_MANAGER_ADDRESS, db, value_type=Address)
 
     def on_install(self) -> None:
@@ -242,6 +264,15 @@ class LendingPool(IconScoreBase):
     def getFeeProvider(self) -> Address:
         return self._feeProviderAddress.get()
 
+    @only_owner
+    @external
+    def setSnapshot(self, _address: Address):
+        self._snapshot.set(_address)
+
+    @external(readonly=True)
+    def getSnapshot(self) -> Address:
+        return self._snapshot.get()
+
     @external(readonly=True)
     def getBorrowWallets(self,  _index: int) -> list:
         wallets = []
@@ -289,7 +320,7 @@ class LendingPool(IconScoreBase):
         :return:
         """
         if _sender not in self._depositWallets:
-            self._depositWallets.put(self.msg.sender)
+            self._depositWallets.put(_sender)
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
@@ -306,6 +337,8 @@ class LendingPool(IconScoreBase):
         oToken.mintOnDeposit(_sender, _amount)
         if _reserve != self._sIcxAddress.get():
             reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
+
+        self._updateSnapshot(_reserve, _user)
 
         self.Deposit(_reserve, _sender, _amount, self.block.timestamp)
 
@@ -338,6 +371,8 @@ class LendingPool(IconScoreBase):
             return
 
         core.transferToUser(_reserve, _user, _amount)
+
+        self._updateSnapshot(_reserve, _user)
         self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
 
     def _require(self, _condition: bool, _message: str):
@@ -392,6 +427,7 @@ class LendingPool(IconScoreBase):
         borrowData = core.updateStateOnBorrow(_reserve, self.msg.sender, _amount, borrowFee)
         
         core.transferToUser(_reserve, self.msg.sender, _amount)
+        self._updateSnapshot(_reserve, self.msg.sender)
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
                     borrowData['balanceIncrease'], self.block.timestamp)
 
@@ -437,6 +473,8 @@ class LendingPool(IconScoreBase):
             reserve.transfer(self._feeProviderAddress.get(), userBasicReserveData['originationFee'])
 
         reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
+        self._updateSnapshot(_reserve, _sender)
+        
         self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
                    borrowData['borrowBalanceIncrease'], self.block.timestamp)
 
@@ -460,6 +498,39 @@ class LendingPool(IconScoreBase):
         principalCurrency.transfer(self.getLendingPoolCoreAddress(), liquidation['actualAmountToLiquidate'])
         if _purchaseAmount > liquidation['actualAmountToLiquidate']:
             principalCurrency.transfer(self.msg.sender, _purchaseAmount - liquidation['actualAmountToLiquidate'])
+        
+        self._updateSnapshot(_reserve, _user)
+        self._updateSnapshot( _collateral)
+
+
+    
+    
+    def _updateSnapshot(self, _reserve: Address, _user: Address = None):
+        dataProvider = self.create_interface_score(self._dataProvider.get(), DataProviderInterface)
+        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
+        
+        if _user:
+            userReserve = dataProvider.getUserReserveData(_reserve,_user)
+            userData: UserSnapshotData = {
+                'principalOTokenBalance': userReserve['principalOTokenBalance'],
+                'principalBorrowBalance': userReserve['principalBorrowBalance'],
+                'userLiquidityCumulativeIndex': userReserve['userLiquidityCumulativeIndex'],
+                'userBorrowCumulativeIndex': userReserve['userBorrowCumulativeIndex']
+            }
+            snapshot.updateUserSnapshot(_user, _reserve, userData)
+
+        reserve = dataProvider.getReserveData(_reserve)
+        reserveData: ReserveSnapshotData = {
+            'liquidityRate': reserve['liquidityRate'],
+            'borrowRate': reserve['borrowRate'],
+            'liquidityCumulativeIndex': reserve['liquidityCumulativeIndex'],
+            'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
+            'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
+            'price': reserve['exchangePrice']
+
+        }
+
+        snapshot.updateReserveSnapshot(_reserve, reserveData)
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
