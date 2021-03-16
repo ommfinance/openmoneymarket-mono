@@ -217,7 +217,7 @@ class OToken(IconScoreBase, TokenStandard):
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         return self._userIndexes[_user]
 
-    @external
+    
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
         if self._userIndexes[_user] == 0:
@@ -227,7 +227,7 @@ class OToken(IconScoreBase, TokenStandard):
                              self._userIndexes[_user])
             return convertExaToOther(balance,self._decimals.get())
 
-    @external
+    
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
         previousPrincipalBalance = self.principalBalanceOf(_user)
         balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
