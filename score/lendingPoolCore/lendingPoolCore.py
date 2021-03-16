@@ -64,21 +64,6 @@ class Constant(TypedDict):
     slopeRate2: int
 
 
-class UserSnapshotData(TypedDict):
-    principalOTokenBalance: int
-    principalBorrowBalance: int
-    userLiquidityCumulativeIndex: int
-    userBorrowCumulativeIndex: int
-
-
-class ReserveSnapshotData(TypedDict):
-    liquidityRate: int
-    borrowRate: int
-    liquidityCumulativeIndex: int
-    borrowCumulativeIndex: int
-    lastUpdateTimestamp: int
-
-
 class PrepDelegations(TypedDict):
     _address: Address
     _votes_in_per: int
@@ -353,7 +338,7 @@ class LendingPoolCore(IconScoreBase):
     def _addNewReserve(self, _res: Address):
         self._reserveList.put(_res)
 
-    @external
+    @external(readonly=True)
     def isReserveBorrowingEnabled(self, _reserve: Address) -> bool:
         return self.getReserveData(_reserve)['borrowingEnabled']
 
