@@ -1,6 +1,7 @@
 from iconservice import *
 from .IIRC2 import TokenStandard
 from .Math import *
+from .utils.checks import *
 
 TAG = 'OToken'
 
@@ -45,6 +46,7 @@ class OToken(IconScoreBase, TokenStandard):
     _RESERVE_ADDRESS = 'reserve_address'
     _DATA_PROVIDER = 'data_provider'
     _LENDING_POOL = 'lending_pool'
+    _LIQUIDATION = 'liquidation'
     _USER_INDEXES = 'user_indexes'
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -62,6 +64,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._reserveAddress = VarDB(self._RESERVE_ADDRESS, db, Address)
         self._dataProviderAddress = VarDB(self._DATA_PROVIDER, db, value_type=Address)
         self._lendingPoolAddress = VarDB(self._LENDING_POOL, db, value_type=Address)
+        self._liquidation =VarDB(self._LIQUIDATION,db,value_type=Address)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
 
     def on_install(self, _name: str, _symbol: str, _decimals: int = 18) -> None:
@@ -176,6 +179,15 @@ class OToken(IconScoreBase, TokenStandard):
 
     @onlyOwner
     @external
+    def setLiquidation(self, _address: Address):
+        self._liquidation.set(_address)
+
+    @external(readonly=True)
+    def getLiquidation(self) -> Address:
+        return self._liquidation.get()
+
+    @onlyOwner
+    @external
     def setReserve(self, _address: Address):
         self._reserveAddress.set(_address)
 
@@ -205,7 +217,7 @@ class OToken(IconScoreBase, TokenStandard):
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         return self._userIndexes[_user]
 
-    @external
+    
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
         if self._userIndexes[_user] == 0:
@@ -215,7 +227,7 @@ class OToken(IconScoreBase, TokenStandard):
                              self._userIndexes[_user])
             return convertExaToOther(balance,self._decimals.get())
 
-    @external
+    
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
         previousPrincipalBalance = self.principalBalanceOf(_user)
         balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
@@ -293,6 +305,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._userIndexes[_user] = 0
         return True
 
+    @only_lending_pool
     @external
     def mintOnDeposit(self, _user: Address, _amount: int) -> None:
         cumulated = self._cumulateBalanceInternal(_user)
@@ -302,6 +315,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._mint(_user, _amount)
         self.MintOnDeposit(_user, _amount, balanceIncrease, index)
 
+    @only_liquidation
     @external
     def burnOnLiquidation(self, _user: Address, _value: int) -> None:
         cumulated = self._cumulateBalanceInternal(_user)

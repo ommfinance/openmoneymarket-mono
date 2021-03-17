@@ -33,7 +33,7 @@ class TokenFallbackInterface(InterfaceScore):
 
 class DelegationInterface(InterfaceScore):
     @interface
-    def updateDelegations(self, _delegations: List[PrepDelegationDetails] = None):
+    def updateDelegations(self, _delegations: List[PrepDelegationDetails] = None, _user: Address = None):
         pass
 
 
@@ -83,7 +83,6 @@ class IRC2(TokenStandard, IconScoreBase):
 
         self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
         self._rewards = VarDB(self._REWARDS, db, value_type=Address)
-
 
     def on_install(self, _tokenName: str,
                    _symbolName: str,
@@ -425,7 +424,7 @@ class IRC2(TokenStandard, IconScoreBase):
         self._staked_balances[_from][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
-        delegation.updateDelegations()
+        delegation.updateDelegations(_user=_from)
 
     @external
     def unstake(self, _value: int) -> None:
@@ -441,7 +440,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
         # update the prep delegations
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
-        delegation.updateDelegations()
+        delegation.updateDelegations(_user=_from)
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstaking period has already been reached.

@@ -1,6 +1,7 @@
 from iconservice import *
 from .Math import *
-from .utils.checks import * 
+from .utils.checks import *
+
 TAG = 'Delegation'
 
 
@@ -17,12 +18,12 @@ class OmmTokenInterface(InterfaceScore):
 
 class LendingPoolCoreInterface(InterfaceScore):
     @interface
-    def updatePrepDelegations(self, _delegations:  List[PrepDelegations]):
+    def updatePrepDelegations(self, _delegations: List[PrepDelegations]):
         pass
 
 
 class Delegation(IconScoreBase):
-    _PREPS ='preps'
+    _PREPS = 'preps'
     _USER_PREPS = 'userPreps'
     _PERCENTAGE_DELEGATIONS = 'percentageDelegations'
     _PREP_VOTES = 'prepVotes'
@@ -57,7 +58,7 @@ class Delegation(IconScoreBase):
             revert(_message)
 
     @external(readonly=True)
-    def name(self)->str:
+    def name(self) -> str:
         return "OmmDelegation"
 
     @only_owner
@@ -105,9 +106,13 @@ class Delegation(IconScoreBase):
         return prepList
 
     @external
-    def updateDelegations(self, _delegations: List[PrepDelegations] = None):
+    def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
         delegations = []
-        user = self.tx.origin
+        if _user is not None and self.msg.sender == self._ommToken.get():
+            user = _user
+        else:
+            user = self.msg.sender
+
         totalPercentage = 0
         if _delegations is None:
             userDelegationDetails = self.getUserDelegationDetails(user)
@@ -115,7 +120,8 @@ class Delegation(IconScoreBase):
                 delegationDetails = {"prepAddress": key, "prepPercentage": value}
                 delegations.append(delegationDetails)
         else:
-            self._require(len(_delegations) <= 5, "Delegation SCORE : Add error-Cant take more than 5 preps for a user ")
+            self._require(len(_delegations) <= 5,
+                          "Delegation SCORE : Add error-Cant take more than 5 preps for a user ")
 
         if len(delegations) == 0:
             delegations = _delegations
@@ -170,11 +176,11 @@ class Delegation(IconScoreBase):
         prepList = self.getPrepList()
         totalPercentage = 0
         for index, prep in enumerate(prepList):
-            votesPercentage = {'_address':prep,'_votes_in_per':0}
+            votesPercentage = {'_address': prep, '_votes_in_per': 0}
             if index == len(prepList) - 1:
                 votesPercentage['_votes_in_per'] = 100 * EXA - totalPercentage
             else:
                 votesPercentage['_votes_in_per'] = exaDiv(self._prepVotes[prep], self._totalVotes.get()) * 100
-                totalPercentage+=votesPercentage['_votes_in_per']
+                totalPercentage += votesPercentage['_votes_in_per']
             prepDelegations.append(votesPercentage)
         return prepDelegations
