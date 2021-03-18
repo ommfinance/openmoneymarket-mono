@@ -5,7 +5,7 @@ from .utils.checks import *
 TAG = 'Rewards'
 
 BATCH_SIZE = 100
-DAY_IN_MICROSECONDS = 10*60 * 10**6
+DAY_IN_MICROSECONDS = 86400 * 10**6
 
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
@@ -106,11 +106,8 @@ class Rewards(IconScoreBase):
         self._recipients.put('ommICX')
         self._recipients.put('ommUSDb')
         self._recipients.put('daoFund')
-        self._distComplete['deposit'] = True
-        self._distComplete['borrow'] = True
-        self._distComplete['ommICX'] = True
-        self._distComplete['ommUSDb'] = True
-      
+        self._distComplete['daoFund'] = True
+            
     def on_update(self) -> None:
         super().on_update()
         
@@ -242,6 +239,7 @@ class Rewards(IconScoreBase):
             ommToken.transfer(self._daoFundAddress.get(), self._tokenDistTracker[_recipient])
             self._distComplete[_recipient] = True
             self._tokenDistTracker[_recipient] = 0
+            self.Distribution("daoFund", self._daoFundAddress.get(), self._tokenDistTracker[_recipient] )
             return False
         
         return True
@@ -268,12 +266,12 @@ class Rewards(IconScoreBase):
                 for reserve in core.getReserves():
                     deposit = self._depositBalance(reserve, user)
                     reserveData = snapshot.reserveDataAt(reserve, self._day.get())
-                    deposit = exaMul(deposit,reserveData['price'])
-                    amountMulApy += exaMul(deposit, reserveData['liquidityRate'])
-                    totalAmount += exaMul(deposit, reserveData['liquidityRate'])
+                    depositUSD = exaMul(deposit,reserveData['price'])
+                    amountMulApy += exaMul(depositUSD, reserveData['liquidityRate'])
+                    totalAmount += exaMul(depositUSD, reserveData['liquidityRate'])
 
                 self._amountMulApy['deposit'][user][self._day.get()] += amountMulApy
-
+           
             self._totalAmount['deposit'] += totalAmount
             
             if len(depositWalletList) < BATCH_SIZE:
@@ -315,9 +313,9 @@ class Rewards(IconScoreBase):
                 for reserve in core.getReserves():
                     borrow = self._borrowBalance(reserve, user)
                     reserveData = snapshot.reserveDataAt(reserve, self._day.get())
-                    borrow = exaMul(borrow, reserveData['price'])
-                    amountMulApy += exaMul(borrow, reserveData['borrowRate'])
-                    totalAmount += exaMul(borrow, reserveData['borrowRate'])
+                    borrowUSD = exaMul(borrow, reserveData['price'])
+                    amountMulApy += exaMul(borrowUSD, reserveData['borrowRate'])
+                    totalAmount += exaMul(borrowUSD, reserveData['borrowRate'])
                 
                 self._amountMulApy['borrow'][user][self._day.get()] += amountMulApy
 
@@ -389,26 +387,38 @@ class Rewards(IconScoreBase):
         elif not self._precompute['ommUSDb']:
             self.State("precompute ommUSDb")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            self._totalAmount['ommUSDb'] = data_source.getTotalValue("SICXICD",self._day.get())
+            totalAmount = data_source.getTotalValue("SICXICD",self._day.get())
+            self._totalAmount['ommUSDb'] = data_source.getTotalValue("SICXICD",self._day.get()) + totalAmount
             self._precompute['ommUSDb'] = True
+            self.State("precompute ommUSDb")
         
         elif not self._distComplete['ommUSDb'] and self._check('ommUSDb'):
             self.State("distribute ommUSDb")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            data_batch = data_source.getDataBatch("SICXICD", self._day.get(), BATCH_SIZE , self._offset["SICXICD"])
+            data_batch1 = data_source.getDataBatch("SICXICD", self._day.get(), BATCH_SIZE , self._offset["SICXICD"])
+            data_batch2 = data_source.getDataBatch("SICXICD", self._day.get(), BATCH_SIZE , self._offset["SICXICD"])
             self._offset["SICXICD"] += BATCH_SIZE
                 
-            if data_batch:
+            if data_batch1 or data_batch2:
                 totalAmount = self._totalAmount['ommUSDb']
                 tokenDistTracker = self._tokenDistTracker['ommUSDb']
 
-                for user in data_batch:
+                for user in data_batch1:
                     if tokenDistTracker <= 0:
                         break
-                    tokenAmount = exaMul(exaDiv(data_batch[user], totalAmount),tokenDistTracker)
+                    tokenAmount = exaMul(exaDiv(data_batch1[user], totalAmount),tokenDistTracker)
                     self._tokenValue[Address.from_string(user)]['ommUSDb'] += tokenAmount
                     self.Distribution("ommUSDb", Address.from_string(user), tokenAmount )
-                    totalAmount -= data_batch[user]
+                    totalAmount -= data_batch1[user]
+                    tokenDistTracker -= tokenAmount
+
+                for user in data_batch2:
+                    if tokenDistTracker <= 0:
+                        break
+                    tokenAmount = exaMul(exaDiv(data_batch2[user], totalAmount),tokenDistTracker)
+                    self._tokenValue[Address.from_string(user)]['ommUSDb'] += tokenAmount
+                    self.Distribution("ommUSDb", Address.from_string(user), tokenAmount )
+                    totalAmount -= data_batch2[user]
                     tokenDistTracker -= tokenAmount
                     
                 self._totalAmount['ommUSDb'] = totalAmount
@@ -437,7 +447,8 @@ class Rewards(IconScoreBase):
             self.State("distribute daoFund")
             ommToken.transfer(self._daoFundAddress.get(), self._tokenDistTracker['daoFund'])
             self._distComplete['daoFund'] = True
-            self.Distribution("daoFund", self._daoFundAddress.get(),  self._tokenDistTracker['daoFund'] )  
+            self.Distribution("daoFund", self._daoFundAddress.get(),  self._tokenDistTracker['daoFund'] )
+            self._day.set(self._day.get() + 1)  
 
     @external
     def claimRewards(self):
@@ -454,9 +465,9 @@ class Rewards(IconScoreBase):
     def getRewards(self , _user: Address):
         response = {}
         total= 0
-        for receipient in self._recipients:
-            response[receipient] = self._tokenValue[_user][receipient]
-            total += self._tokenValue[_user][receipient]
+        for recipient in self._recipients:
+            response[recipient] = self._tokenValue[_user][recipient]
+            total += self._tokenValue[_user][recipient]
         
         response['total'] = total
         return response
@@ -478,7 +489,7 @@ class Rewards(IconScoreBase):
         for value in ['worker','daoFund']:
             self._distComplete[value] = False
             self._tokenDistTracker[value] = exaMul(self.tokenDistributionPerDay(self._day.get()), self._distPercentage[value])
-        self._day.set(self._day.get() + 1)
+        
 
 
     def _depositBalance(self, _reserve: Address, _user: Address) -> int:
@@ -544,4 +555,3 @@ class Rewards(IconScoreBase):
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
         pass
 
-    

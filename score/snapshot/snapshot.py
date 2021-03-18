@@ -3,7 +3,7 @@ from .utils.checks import *
 
 TAG = 'Snapshot'
 
-DAY_IN_MICROSECONDS =  10*60* 10**6
+DAY_IN_MICROSECONDS = 86400 * 10**6
 
 class UserSnapshotData(TypedDict):
     principalOTokenBalance: int
@@ -51,7 +51,7 @@ class Snapshot(IconScoreBase):
         self._timestampAtStart.set(_timestamp)
 
     @external(readonly=True)
-    def getStartTimestamp(self) -> Address:
+    def getStartTimestamp(self) -> int:
         return self._timestampAtStart.get()
 
     @only_owner
@@ -223,6 +223,3 @@ class Snapshot(IconScoreBase):
     def _getDay(self) -> int:
         return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
 
-    @external(readonly = True)
-    def getStartTimestamp(self) -> int:
-        self._timestampAtStart.get()
