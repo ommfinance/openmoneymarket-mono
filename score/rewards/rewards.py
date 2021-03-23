@@ -5,7 +5,7 @@ from .utils.checks import *
 TAG = 'Rewards'
 
 BATCH_SIZE = 100
-DAY_IN_MICROSECONDS = 10*60 * 10**6
+DAY_IN_MICROSECONDS = 86400* 10**6
 
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
@@ -106,13 +106,12 @@ class Rewards(IconScoreBase):
         self._recipients.put('ommICX')
         self._recipients.put('ommUSDb')
         self._recipients.put('daoFund')
-        self._distComplete['deposit'] = True
-        self._distComplete['borrow'] = True
-        self._distComplete['ommICX'] = True
-        self._distComplete['ommUSDb'] = True
+        self._distComplete['daoFund'] = True
+        
       
     def on_update(self) -> None:
         super().on_update()
+        self._distComplete['daoFund'] = True
         
 
     @eventlog(indexed = 3)
@@ -122,6 +121,10 @@ class Rewards(IconScoreBase):
     @eventlog(indexed = 1)
     def State(self,_state: str):
         pass
+
+    @external(readonly=True)
+    def name(self) -> str :
+        return "OmmRewardsManager" 
 
     @only_owner
     @external
