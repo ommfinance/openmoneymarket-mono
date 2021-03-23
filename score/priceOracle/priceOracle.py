@@ -25,6 +25,10 @@ class PriceOracle(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
+    @external(readonly=True)
+    def name(self) -> str :
+        return "OmmPriceOracleProxy" 
+
     @external
     @only_owner    
     def toggleOraclePriceBool(self):

@@ -41,6 +41,10 @@ class AddressProvider(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
+    @external(readonly=True)
+    def name(self) -> str :
+        return "OmmAddressProvider" 
+
     @only_owner
     @external
     def setLendingPool(self, _address: Address) -> None:

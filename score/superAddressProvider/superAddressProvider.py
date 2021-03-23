@@ -28,6 +28,10 @@ class SuperAddressProvider(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
+    @external(readonly=True)
+    def name(self) -> str :
+        return "OmmSuperAddressProvider" 
+        
     @only_owner
     @external
     def addEnv(self, _env: Environments) -> None:
