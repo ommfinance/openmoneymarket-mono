@@ -18,6 +18,7 @@ class ReserveSnapshotData(TypedDict):
     liquidityCumulativeIndex: int
     borrowCumulativeIndex: int
     lastUpdateTimestamp: int
+    price:int
 
 
 # An interface to oToken
@@ -214,6 +215,10 @@ class LendingPool(IconScoreBase):
     @external(readonly=True)
     def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCoreAddress.get()
+
+    @external(readonly=True)
+    def name(self) -> str:
+        return "OmmLendingPool"
 
     @only_owner
     @external
@@ -431,7 +436,7 @@ class LendingPool(IconScoreBase):
         self._require(userCollateralBalanceUSD > 0, "Borrow error:The user dont have any collateral")
         self._require(not healthFactorBelowThreshold, "Borrow error:Health factor is below threshold")
 
-        borrowFee = feeProvider.calculateOriginationFee(self.msg.sender, _amount)
+        borrowFee = feeProvider.calculateOriginationFee(_amount)
 
         self._require(borrowFee > 0, "Borrow error:borrow amount is very small")
         amountOfCollateralNeededUSD = dataProvider.calculateCollateralNeededUSD(_reserve, _amount, borrowFee,
@@ -544,6 +549,7 @@ class LendingPool(IconScoreBase):
         }
 
         snapshot.updateReserveSnapshot(_reserve, reserveData)
+
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
