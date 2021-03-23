@@ -31,4 +31,4 @@ class IRC2Mintable(IRC2):
 		"""
 		if _data is None:
 			_data = b'None'
-		self._mint(_account, _amount, _data)
+		self._mint(_amount, _data)
