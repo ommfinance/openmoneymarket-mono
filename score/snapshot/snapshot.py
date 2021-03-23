@@ -3,7 +3,7 @@ from .utils.checks import *
 
 TAG = 'Snapshot'
 
-DAY_IN_MICROSECONDS =  10*60* 10**6
+DAY_IN_MICROSECONDS =  86400 * 10**6
 
 class UserSnapshotData(TypedDict):
     principalOTokenBalance: int
@@ -44,7 +44,10 @@ class Snapshot(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
-    
+    @external(readonly=True)
+    def name(self) -> str :
+        return "OmmSnapshotManager"  
+
     @only_governance
     @external
     def setStartTimestamp(self, _timestamp: int):
