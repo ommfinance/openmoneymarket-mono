@@ -47,7 +47,7 @@ def only_delegation(func):
 
 	@wraps(func)
 	def __wrapper(self: object, *args, **kwargs):
-		if self.msg.sender != self._liquidation.get():
+		if self.msg.sender != self._delegation.get():
 			raise SenderNotAuthorized(self.msg.sender)
 
 		return func(self, *args, **kwargs)
