@@ -107,7 +107,7 @@ class StakingInterface(InterfaceScore):
         pass
 
     @interface
-    def updateDelegation(self, _delegations: List[PrepDelegations]):
+    def delegate(self, _delegations: List[PrepDelegations]):
         pass
 
 
@@ -773,7 +773,7 @@ class LendingPoolCore(IconScoreBase):
     @external
     def updatePrepDelegations(self, _delegations: List[PrepDelegations]):
         staking = self.create_interface_score(self._staking.get(), StakingInterface)
-        staking.updateDelegation(_delegations)
+        staking.delegate(_delegations)
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
