@@ -156,7 +156,8 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def name(self) -> str:
         return 'OmmLendingPoolCore'
-
+        
+    @only_owner
     @external
     def set_id(self, _value: str):
         self._id.set(_value)
