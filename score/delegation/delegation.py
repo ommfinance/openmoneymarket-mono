@@ -79,23 +79,25 @@ class Delegation(IconScoreBase):
     def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCore.get()
 
-    def clearPrevious(self,_user:Address):
-        for index in range(5):
+    @external
+    def clearPrevious(self, _user: Address):
+        if self.msg.sender == self._ommToken.get() or self.msg.sender == _user:
+            for index in range(5):
 
-            # removing votes
-            prepVote = exaMul(self._percentageDelegations[_user][index], self._userVotes[_user])
-            # print(user,self._userPreps[user][index],prepVote)
-            if prepVote > 0:
-                self._prepVotes[self._userPreps[_user][index]] -= prepVote
+                # removing votes
+                prepVote = exaMul(self._percentageDelegations[_user][index], self._userVotes[_user])
+                # print(user,self._userPreps[user][index],prepVote)
+                if prepVote > 0:
+                    self._prepVotes[self._userPreps[_user][index]] -= prepVote
 
-            # resetting the preferences
-            self._userPreps[_user][index] = ZERO_SCORE_ADDRESS
-            self._percentageDelegations[_user][index] = 0
+                # resetting the preferences
+                self._userPreps[_user][index] = ZERO_SCORE_ADDRESS
+                self._percentageDelegations[_user][index] = 0
 
-            # adjusting total votes
-            self._totalVotes.set(self._totalVotes.get() - prepVote)
-            # self._totalVotes -=prepVote
-        self._userVotes[_user] = 0
+                # adjusting total votes
+                self._totalVotes.set(self._totalVotes.get() - prepVote)
+                # self._totalVotes -=prepVote
+            self._userVotes[_user] = 0
 
     @external(readonly=True)
     def getPrepList(self) -> list:
@@ -115,18 +117,19 @@ class Delegation(IconScoreBase):
         totalPercentage = 0
         if _delegations is None:
             userDelegationDetails = self.getUserDelegationDetails(user)
-            if  userDelegationDetails:
+            if userDelegationDetails:
                 for key, value in userDelegationDetails.items():
                     delegationDetails = {"_address": key, "_votes_in_per": value}
                     delegations.append(delegationDetails)
         else:
-            self._require(len(_delegations) <= 5,"Delegation SCORE : Add error-Cant take more than 5 preps for a user ")
+            self._require(len(_delegations) <= 5,
+                          "Delegation SCORE : Add error-Cant take more than 5 preps for a user ")
             delegations = _delegations
 
         # revert(f'this is {delegations}')
         ommToken = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
         userStakedToken = ommToken.details_balanceOf(user)['stakedBalance']
-        if  len(delegations) > 0:
+        if len(delegations) > 0:
             # resetting previous delegation prefereneces
             self.clearPrevious(user)
             index = 0
@@ -149,7 +152,8 @@ class Delegation(IconScoreBase):
                 # self._totalVotes += prepVote
                 totalPercentage += delegation['_votes_in_per']
                 index += 1
-            self._require(totalPercentage == EXA, "Delegation SCORE :Update error- sum of percentages not equal to 100 ")
+            self._require(totalPercentage == EXA,
+                          "Delegation SCORE :Update error- sum of percentages not equal to 100 ")
             self._userVotes[user] = userStakedToken
 
             # get updated prep percentages and updating the preference
@@ -159,7 +163,6 @@ class Delegation(IconScoreBase):
             core.updatePrepDelegations(updatedDelegation)
         # revert(f'this is userStaked {userStakedToken} delegation{delegations}')
 
-
     @external(readonly=True)
     def prepVotes(self, _prep: Address):
         return self._prepVotes[_prep]
@@ -168,7 +171,7 @@ class Delegation(IconScoreBase):
     def getUserDelegationDetails(self, _user: Address) -> List[PrepDelegations]:
         userDetails = []
         for index in range(5):
-            userPreference:PrepDelegations = {}
+            userPreference: PrepDelegations = {}
             # userDetails[index] = self._userPreps[_user][index]
             if self._userPreps[_user][index] != ZERO_SCORE_ADDRESS and self._userPreps[_user][index] is not None:
                 # userDetails[str(self._userPreps[_user][index])] = self._percentageDelegations[_user][index]
@@ -185,7 +188,7 @@ class Delegation(IconScoreBase):
         prepList = self.getPrepList()
         totalPercentage = 0
         for index, prep in enumerate(prepList):
-            votesPercentage:PrepDelegations = {'_address': prep, '_votes_in_per': 0}
+            votesPercentage: PrepDelegations = {'_address': prep, '_votes_in_per': 0}
             if index == len(prepList) - 1:
                 votesPercentage['_votes_in_per'] = 100 * EXA - totalPercentage
             else:
