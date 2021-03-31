@@ -407,25 +407,17 @@ class IRC2(TokenStandard, IconScoreBase):
     @external
     def stake(self, _value: int) -> None:
         _from = self.msg.sender
-        self._require(_value > 0, "Stake error:cant stake less than zero")
-        self._require(self._balances[_from] > _value, "Stake error:Out of balance")
         self._require(_value > self._minimum_stake.get(), "Stake error:Stake amount must be greater than minimum stake")
         self._check_first_time(_from)
         self._makeAvailable(_from)
+        self._require((self._balances[_from] - self._staked_balances[_from][Status.UNSTAKING]) >= _value, "Stake error: ")
         self._require(_from not in self._lock_list, "Stake error: The address is locked ")
-        old_stake = self._staked_balances[_from][Status.STAKED] + self._staked_balances[_from][Status.UNSTAKING]
+        old_stake = self._staked_balances[_from][Status.STAKED] 
         new_stake = _value
-        stake_increment = _value - self._staked_balances[_from][Status.STAKED]
-        unstake_amount: int = 0
-        if new_stake > old_stake:
-            offset: int = new_stake - old_stake
-            self._staked_balances[_from][Status.AVAILABLE] = self._staked_balances[_from][Status.AVAILABLE] - offset
-        else:
-            unstake_amount = old_stake - new_stake
-
+        stake_increment = new_stake - old_stake
+        self._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
+        self._staked_balances[_from][Status.AVAILABLE] = self._staked_balances[_from][Status.AVAILABLE] - stake_increment
         self._staked_balances[_from][Status.STAKED] = _value
-        self._staked_balances[_from][Status.UNSTAKING] = unstake_amount
-        self._staked_balances[_from][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
         delegation.updateDelegations(_user=_from)
@@ -483,31 +475,3 @@ class IRC2(TokenStandard, IconScoreBase):
 
         # Emits an event log Mint
         self.Mint(_amount, _data)
-
-    @external
-    def testMint(self, _amount: int, _data: bytes = None) -> None:
-            """
-            Creates amount number of tokens, and assigns to account
-            Increases the balance of that account and total supply.
-            This is an internal function
-
-            :param account: The account at whhich token is to be created.
-            :param amount: Number of tokens to be created at the `account`.
-            :param _data: Any information or message
-
-            Raises
-            ZeroValueError
-                if the `amount` is less than or equal to zero.
-            """
-
-            if _amount <= 0:
-                raise ZeroValueError("Invalid Value")
-                pass
-
-            self._total_supply.set(self._total_supply.get() + _amount)
-            self._balances[self.address] += _amount
-
-            self._transfer(self.address, self.msg.sender, _amount, b'Transferred to Rewards SCORE')
-
-            # Emits an event log Mint
-            self.Mint(_amount, _data)
