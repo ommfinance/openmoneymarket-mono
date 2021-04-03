@@ -388,8 +388,9 @@ class LendingPool(IconScoreBase):
         if _waitForUnstaking:
             self._require(self.msg.sender == self._oIcxAddress.get(),
                           "Redeem with wait for unstaking failed: Invalid token")
-            transferData = "{\"method\": \"unstake\"}".encode("utf-8")
-            core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferData)
+            transferData = {"method":"unstake","user":str(_user)}          
+            transferDataBytes = json_dumps(transferData).encode("utf-8")
+            core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferDataBytes)
             self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
             return
 
@@ -470,9 +471,11 @@ class LendingPool(IconScoreBase):
         reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
-
-        if _amount != -1 and _amount < paybackAmount:
+        returnAmount = 0 
+        if  _amount < paybackAmount:
             paybackAmount = _amount
+        else :
+            returnAmount = _amount - paybackAmount
 
         if paybackAmount <= userBasicReserveData['originationFee']:
             core.updateStateOnRepay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
@@ -495,7 +498,9 @@ class LendingPool(IconScoreBase):
 
         reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
         self._updateSnapshot(_reserve, _sender)
-
+        # transfer excess amount back to the user
+        if returnAmount > 0 :
+            reserve.transfer(_sender,returnAmount)
         self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
                    borrowData['borrowBalanceIncrease'], self.block.timestamp)
 
