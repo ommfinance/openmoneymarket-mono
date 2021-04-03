@@ -274,7 +274,7 @@ class OToken(IconScoreBase, TokenStandard):
         :param _amount: The amount of oToken.
 
         """
-        if _amount <= 0 and _amount != "-1":
+        if _amount <= 0 and _amount != -1:
             revert(f'Amount to redeem needs to be greater than zero')
         # if _waitForUnstaking:
         #     revert(f'Unstaking to be implemented')
