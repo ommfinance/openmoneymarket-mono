@@ -576,7 +576,8 @@ class LendingPoolCore(IconScoreBase):
         principalBorrowBalance = borrowData['principalBorrowBalance']
         balanceIncrease = borrowData['borrowBalanceIncrease']
         reserve = self.create_interface_score(_reserve, ReserveInterface)
-        reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
+        if balanceIncrease > 0:
+            reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
         self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
         self.updateReserveStateOnBorrowInternal(_reserve, balanceIncrease, _amountBorrowed)
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
@@ -595,7 +596,8 @@ class LendingPoolCore(IconScoreBase):
     def updateStateOnRepay(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
                            _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
         reserve = self.create_interface_score(_reserve, ReserveInterface)
-        reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
+        if _balanceIncrease > 0:
+            reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
         self.DaoFundTransfer(_balanceIncrease // 10, _reserve, self.tx.origin)
         self.updateReserveStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _balanceIncrease)
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
@@ -777,4 +779,8 @@ class LendingPoolCore(IconScoreBase):
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
+        pass
+
+    @payable
+    def fallback(self) -> None:
         pass
