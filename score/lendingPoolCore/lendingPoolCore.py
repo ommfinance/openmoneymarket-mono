@@ -114,7 +114,6 @@ class StakingInterface(InterfaceScore):
 class LendingPoolCore(IconScoreBase):
     _ID = 'id'
     _RESERVE_LIST = '_reserveList'
-    _SYMBOL = 'symbol'
     _LENDING_POOL = 'lendingPool'
     _CONSTANTS = 'constants'
     _DAOFUND = 'daoFund'
@@ -127,7 +126,6 @@ class LendingPoolCore(IconScoreBase):
         super().__init__(db)
         self._id = VarDB(self._ID, db, str)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
-        self._symbol = DictDB(self._SYMBOL, db, value_type=str)
         self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
         self._daoFund = VarDB(self._DAOFUND, db, value_type=Address)
@@ -164,15 +162,6 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def get_id(self) -> str:
         return self._id.get()
-
-    @only_owner
-    @external
-    def setSymbol(self, _reserve: Address, _sym: str):
-        self._symbol[_reserve] = _sym
-
-    @external(readonly=True)
-    def getSymbol(self, _reserve: Address) -> str:
-        return self._symbol[_reserve]
 
     @only_owner
     @external
@@ -657,7 +646,7 @@ class LendingPoolCore(IconScoreBase):
         reserveData = self.getReserveData(_reserve)
         return reserveData['oTokenAddress']
 
-    @only_lending_pool
+    @only_liquidation_manager
     @external
     def updateStateOnLiquidation(self, _principalReserve: Address, _collateralReserve: Address, _user: Address,
                                  _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,

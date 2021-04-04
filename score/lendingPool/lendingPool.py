@@ -501,7 +501,7 @@ class LendingPool(IconScoreBase):
 
     @payable
     @external
-    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int):
+    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int, _sender: Address):
         """
         liquidates an undercollateralized loan
         :param _collateral:the address of the collateral to be liquidated
@@ -515,10 +515,10 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
         liquidation = liquidationManager.liquidationCall(_collateral, _reserve, _user, _purchaseAmount)
         principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
-        core.transferToUser(_collateral, self.msg.sender, liquidation['maxCollateralToLiquidate'])
+        core.transferToUser(_collateral, _sender, liquidation['maxCollateralToLiquidate'])
         principalCurrency.transfer(self.getLendingPoolCore(), liquidation['actualAmountToLiquidate'])
         if _purchaseAmount > liquidation['actualAmountToLiquidate']:
-            principalCurrency.transfer(self.msg.sender, _purchaseAmount - liquidation['actualAmountToLiquidate'])
+            principalCurrency.transfer(_sender, _purchaseAmount - liquidation['actualAmountToLiquidate'])
 
         self._updateSnapshot(_reserve, _user)
         self._updateSnapshot(_collateral)
@@ -567,6 +567,6 @@ class LendingPool(IconScoreBase):
             self.liquidationCall(Address.from_string(d["params"].get("_collateral")),
                                  Address.from_string(d["params"].get("_reserve")),
                                  Address.from_string(d["params"].get("_user")),
-                                 d["params"].get("_purchaseAmount"))
+                                 d["params"].get("_purchaseAmount"), _from)
         else:
             revert(f'No valid method called, data: {_data}')

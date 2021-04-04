@@ -30,10 +30,6 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
-    def getReserveConfiguration(self, _reserve) -> dict:
-        pass
-
-    @interface
     def getCompoundedBorrowBalance(self, _reserve: Address, _user: Address) -> int:
         pass
 
@@ -73,15 +69,6 @@ class LiquidationInterface(InterfaceScore):
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
                          _ltv: int) -> int:
         pass
-
-
-# An interface to liquidation manager
-class LiquidationInterface(InterfaceScore):
-    @interface
-    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
-                         _ltv: int) -> int:
-        pass
-
 
 class StakingInterface(InterfaceScore):
     @interface
@@ -456,7 +443,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @external(readonly=True)
     def getUserLiquidationData(self, _user: Address) -> dict:
-        liquidationManager = self.create_interface_score(self.getLiquidationAddress(), LiquidationInterface)
+        liquidationManager = self.create_interface_score(self.getLiquidationManager(), LiquidationInterface)
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
         reserves = core.getReserves()

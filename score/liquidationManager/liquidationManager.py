@@ -33,6 +33,10 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
+    def getReserveConfiguration(self, _reserve: Address) -> dict:
+        pass
+
+    @interface
     def getUserOriginationFee(self, _reserve: Address, _user: Address) -> int:
         pass
 

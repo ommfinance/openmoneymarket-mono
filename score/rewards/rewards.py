@@ -111,7 +111,7 @@ class Rewards(IconScoreBase):
       
     def on_update(self) -> None:
         super().on_update()
-        self._distComplete['daoFund'] = True
+        
         
 
     @eventlog(indexed = 3)
@@ -456,12 +456,22 @@ class Rewards(IconScoreBase):
     @external(readonly = True)
     def getRewards(self , _user: Address):
         response = {}
+        ommRewards = 0
+        liquidityRewards = 0
         total= 0
         for receipient in self._recipients:
-            response[receipient] = self._tokenValue[_user][receipient]
-            total += self._tokenValue[_user][receipient]
+            tokenAmount = self._tokenValue[_user][receipient]
+            response[receipient] = tokenAmount
+            if receipient in ["deposit","borrow","daoFund","worker"]:
+                ommRewards += tokenAmount
+            else:
+                liquidityRewards += tokenAmount
+            total += tokenAmount
         
+        response['ommRewards'] = ommRewards
+        response['liquidityRewards'] = liquidityRewards
         response['total'] = total
+
         return response
 
     @external(readonly=True)
@@ -539,8 +549,8 @@ class Rewards(IconScoreBase):
         elif _day < 1460:
             return 10**23
         else: 
-            index = _day // 365 - 3
-            return (97**index * (10**23)) // (100**index)
+            index = _day // 365 - 4
+            return ((103**index * 3 * (383 * 10**24)) // 365) // (100**(index+1))
 
 
     @external
