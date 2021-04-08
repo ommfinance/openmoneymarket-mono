@@ -176,11 +176,13 @@ class LiquidationManager(IconScoreBase):
 
         reserveConfiguration = core.getReserveConfiguration(_reserve)
         reserveDecimals = reserveConfiguration['decimals']
+        reserveConfiguration = core.getReserveConfiguration(_collateral)
+        collateralDecimals = reserveConfiguration['decimals']
 
-        userCollateralUSD = exaMul(convertToExa(_userCollateralBalance,reserveDecimals), collateralPrice)
+        userCollateralUSD = exaMul(convertToExa(_userCollateralBalance,collateralDecimals), collateralPrice)
         purchaseAmountUSD = exaMul(convertToExa(_purchaseAmount,reserveDecimals), principalPrice)
 
-        maxCollateralToLiquidate = convertExaToOther(exaDiv(exaMul(purchaseAmountUSD, EXA + liquidationBonus), collateralPrice), reserveDecimals)
+        maxCollateralToLiquidate = convertExaToOther(exaDiv(exaMul(purchaseAmountUSD, EXA + liquidationBonus), collateralPrice), collateralDecimals)
         if maxCollateralToLiquidate > _userCollateralBalance:
             collateralAmount = _userCollateralBalance
             principalAmountNeeded = convertExaToOther(exaDiv(exaDiv(userCollateralUSD, EXA + liquidationBonus), principalPrice), reserveDecimals)
@@ -248,6 +250,7 @@ class LiquidationManager(IconScoreBase):
             actualAmountToLiquidate = maxPrincipalAmountToLiquidate
         else:
             actualAmountToLiquidate = _purchaseAmount
+
         liquidationDetails = self.calculateAvailableCollateralToLiquidate(_collateral, _reserve,
                                                                           actualAmountToLiquidate,
                                                                           userCollateralBalance, False)
