@@ -231,7 +231,8 @@ class OToken(IconScoreBase, TokenStandard):
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
         previousPrincipalBalance = self.principalBalanceOf(_user)
         balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
-        self._mint(_user, balanceIncrease)
+        if balanceIncrease > 0 :
+            self._mint(_user, balanceIncrease)
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
         self._userIndexes[_user] = core.getNormalizedIncome(self.getReserve())
         # self._userIndexes[_user] = 1000000234 * 10 ** 10
@@ -273,7 +274,7 @@ class OToken(IconScoreBase, TokenStandard):
         :param _amount: The amount of oToken.
 
         """
-        if _amount <= 0 and _amount != "-1":
+        if _amount <= 0 and _amount != -1:
             revert(f'Amount to redeem needs to be greater than zero')
         # if _waitForUnstaking:
         #     revert(f'Unstaking to be implemented')
@@ -409,6 +410,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._balances[account] += amount
 
         # Emits an event log Mint
+        self.Transfer(ZERO_SCORE_ADDRESS,account,amount,None)
         self.Mint(account, amount)
 
     def _burn(self, account: Address, amount: int) -> None:
@@ -428,4 +430,5 @@ class OToken(IconScoreBase, TokenStandard):
         self._balances[account] -= amount
 
         # Emits an event log Burn
+        self.Transfer(account,ZERO_SCORE_ADDRESS,amount,None)
         self.Burn(account, amount)

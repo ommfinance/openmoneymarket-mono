@@ -179,7 +179,7 @@ class IRC2(TokenStandard, IconScoreBase):
         self._delegation.set(_address)
 
     @external(readonly=True)
-    def getDelegation(self):
+    def getDelegation(self) -> Address:
         return self._delegation.get()
 
     @external
@@ -189,7 +189,7 @@ class IRC2(TokenStandard, IconScoreBase):
         self._rewards.set(_address)
 
     @external(readonly=True)
-    def getRewards(self):
+    def getRewards(self) -> Address:
         return self._rewards.get()
 
     @external(readonly=True)
@@ -218,6 +218,10 @@ class IRC2(TokenStandard, IconScoreBase):
         # total_time = _time * DAY_TO_MICROSECOND  # convert days to microseconds
         total_time = _time * MICROSECONDS
         self._unstaking_period.set(total_time)
+
+    @external(readonly=True)
+    def getUnstakingPeriod(self)->int:
+        return self._unstaking_period.get()
 
     @external(readonly=True)
     def details_balanceOf(self, _owner: Address) -> dict:
@@ -273,7 +277,7 @@ class IRC2(TokenStandard, IconScoreBase):
         return self._minimum_stake.set(_min)
 
     @external(readonly=True)
-    def getMinimumStake(self) -> Address:
+    def getMinimumStake(self) -> int:
         """
         Returns the minimum stake value
         """
@@ -403,25 +407,17 @@ class IRC2(TokenStandard, IconScoreBase):
     @external
     def stake(self, _value: int) -> None:
         _from = self.msg.sender
-        self._require(_value > 0, "Stake error:cant stake less than zero")
-        self._require(self._balances[_from] > _value, "Stake error:Out of balance")
         self._require(_value > self._minimum_stake.get(), "Stake error:Stake amount must be greater than minimum stake")
         self._check_first_time(_from)
         self._makeAvailable(_from)
+        self._require((self._balances[_from] - self._staked_balances[_from][Status.UNSTAKING]) >= _value, "Stake error: ")
         self._require(_from not in self._lock_list, "Stake error: The address is locked ")
-        old_stake = self._staked_balances[_from][Status.STAKED] + self._staked_balances[_from][Status.UNSTAKING]
+        old_stake = self._staked_balances[_from][Status.STAKED] 
         new_stake = _value
-        stake_increment = _value - self._staked_balances[_from][Status.STAKED]
-        unstake_amount: int = 0
-        if new_stake > old_stake:
-            offset: int = new_stake - old_stake
-            self._staked_balances[_from][Status.AVAILABLE] = self._staked_balances[_from][Status.AVAILABLE] - offset
-        else:
-            unstake_amount = old_stake - new_stake
-
+        stake_increment = new_stake - old_stake
+        self._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
+        self._staked_balances[_from][Status.AVAILABLE] = self._staked_balances[_from][Status.AVAILABLE] - stake_increment
         self._staked_balances[_from][Status.STAKED] = _value
-        self._staked_balances[_from][Status.UNSTAKING] = unstake_amount
-        self._staked_balances[_from][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
         delegation.updateDelegations(_user=_from)
@@ -434,6 +430,9 @@ class IRC2(TokenStandard, IconScoreBase):
         staked_balance = self.staked_balanceOf(_from)
         self._require(staked_balance >= _value, "Unstake error:not enough staked balance to unstake")
         self._require(_from not in self._lock_list, "Stake error: The address is locked ")
+        if self._staked_balances[_from][Status.UNSTAKING] > 0:
+            revert("you already have a unstaking order,try after the amount is unstaked")
+        self._staked_balances[_from][Status.STAKED] -= _value
         self._staked_balances[_from][Status.UNSTAKING] = _value
         self._staked_balances[_from][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
         self._total_staked_balance.set(self._total_staked_balance.get() - _value)

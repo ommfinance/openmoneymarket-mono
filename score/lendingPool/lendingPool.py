@@ -18,6 +18,7 @@ class ReserveSnapshotData(TypedDict):
     liquidityCumulativeIndex: int
     borrowCumulativeIndex: int
     lastUpdateTimestamp: int
+    price:int
 
 
 # An interface to oToken
@@ -215,6 +216,10 @@ class LendingPool(IconScoreBase):
     def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCoreAddress.get()
 
+    @external(readonly=True)
+    def name(self) -> str:
+        return "OmmLendingPool"
+
     @only_owner
     @external
     def setLiquidationManager(self, _address: Address) -> None:
@@ -383,8 +388,9 @@ class LendingPool(IconScoreBase):
         if _waitForUnstaking:
             self._require(self.msg.sender == self._oIcxAddress.get(),
                           "Redeem with wait for unstaking failed: Invalid token")
-            transferData = "{\"method\": \"unstake\"}".encode("utf-8")
-            core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferData)
+            transferData = {"method":"unstake","user":str(_user)}          
+            transferDataBytes = json_dumps(transferData).encode("utf-8")
+            core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferDataBytes)
             self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
             return
 
@@ -431,7 +437,7 @@ class LendingPool(IconScoreBase):
         self._require(userCollateralBalanceUSD > 0, "Borrow error:The user dont have any collateral")
         self._require(not healthFactorBelowThreshold, "Borrow error:Health factor is below threshold")
 
-        borrowFee = feeProvider.calculateOriginationFee(self.msg.sender, _amount)
+        borrowFee = feeProvider.calculateOriginationFee(_amount)
 
         self._require(borrowFee > 0, "Borrow error:borrow amount is very small")
         amountOfCollateralNeededUSD = dataProvider.calculateCollateralNeededUSD(_reserve, _amount, borrowFee,
@@ -465,9 +471,11 @@ class LendingPool(IconScoreBase):
         reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
-
-        if _amount != -1 and _amount < paybackAmount:
+        returnAmount = 0 
+        if  _amount < paybackAmount:
             paybackAmount = _amount
+        else :
+            returnAmount = _amount - paybackAmount
 
         if paybackAmount <= userBasicReserveData['originationFee']:
             core.updateStateOnRepay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
@@ -490,13 +498,15 @@ class LendingPool(IconScoreBase):
 
         reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
         self._updateSnapshot(_reserve, _sender)
-
+        # transfer excess amount back to the user
+        if returnAmount > 0 :
+            reserve.transfer(_sender,returnAmount)
         self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
                    borrowData['borrowBalanceIncrease'], self.block.timestamp)
 
     @payable
     @external
-    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int):
+    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int, _sender: Address):
         """
         liquidates an undercollateralized loan
         :param _collateral:the address of the collateral to be liquidated
@@ -510,10 +520,10 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
         liquidation = liquidationManager.liquidationCall(_collateral, _reserve, _user, _purchaseAmount)
         principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
-        core.transferToUser(_collateral, self.msg.sender, liquidation['maxCollateralToLiquidate'])
+        core.transferToUser(_collateral, _sender, liquidation['maxCollateralToLiquidate'])
         principalCurrency.transfer(self.getLendingPoolCore(), liquidation['actualAmountToLiquidate'])
         if _purchaseAmount > liquidation['actualAmountToLiquidate']:
-            principalCurrency.transfer(self.msg.sender, _purchaseAmount - liquidation['actualAmountToLiquidate'])
+            principalCurrency.transfer(_sender, _purchaseAmount - liquidation['actualAmountToLiquidate'])
 
         self._updateSnapshot(_reserve, _user)
         self._updateSnapshot(_collateral)
@@ -545,6 +555,7 @@ class LendingPool(IconScoreBase):
 
         snapshot.updateReserveSnapshot(_reserve, reserveData)
 
+
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
         try:
@@ -561,6 +572,6 @@ class LendingPool(IconScoreBase):
             self.liquidationCall(Address.from_string(d["params"].get("_collateral")),
                                  Address.from_string(d["params"].get("_reserve")),
                                  Address.from_string(d["params"].get("_user")),
-                                 d["params"].get("_purchaseAmount"))
+                                 d["params"].get("_purchaseAmount"), _from)
         else:
             revert(f'No valid method called, data: {_data}')

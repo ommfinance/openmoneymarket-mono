@@ -107,14 +107,13 @@ class StakingInterface(InterfaceScore):
         pass
 
     @interface
-    def updateDelegation(self, _delegations: List[PrepDelegations]):
+    def delegate(self, _delegations: List[PrepDelegations]):
         pass
 
 
 class LendingPoolCore(IconScoreBase):
     _ID = 'id'
     _RESERVE_LIST = '_reserveList'
-    _SYMBOL = 'symbol'
     _LENDING_POOL = 'lendingPool'
     _CONSTANTS = 'constants'
     _DAOFUND = 'daoFund'
@@ -127,7 +126,6 @@ class LendingPoolCore(IconScoreBase):
         super().__init__(db)
         self._id = VarDB(self._ID, db, str)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
-        self._symbol = DictDB(self._SYMBOL, db, value_type=str)
         self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
         self._daoFund = VarDB(self._DAOFUND, db, value_type=Address)
@@ -165,15 +163,6 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def get_id(self) -> str:
         return self._id.get()
-
-    @only_owner
-    @external
-    def setSymbol(self, _reserve: Address, _sym: str):
-        self._symbol[_reserve] = _sym
-
-    @external(readonly=True)
-    def getSymbol(self, _reserve: Address) -> str:
-        return self._symbol[_reserve]
 
     @only_owner
     @external
@@ -577,7 +566,8 @@ class LendingPoolCore(IconScoreBase):
         principalBorrowBalance = borrowData['principalBorrowBalance']
         balanceIncrease = borrowData['borrowBalanceIncrease']
         reserve = self.create_interface_score(_reserve, ReserveInterface)
-        reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
+        if balanceIncrease > 0:
+            reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
         self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
         self.updateReserveStateOnBorrowInternal(_reserve, balanceIncrease, _amountBorrowed)
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
@@ -596,7 +586,8 @@ class LendingPoolCore(IconScoreBase):
     def updateStateOnRepay(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
                            _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
         reserve = self.create_interface_score(_reserve, ReserveInterface)
-        reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
+        if _balanceIncrease > 0:
+            reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
         self.DaoFundTransfer(_balanceIncrease // 10, _reserve, self.tx.origin)
         self.updateReserveStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _balanceIncrease)
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
@@ -658,7 +649,7 @@ class LendingPoolCore(IconScoreBase):
         reserveData = self.getReserveData(_reserve)
         return reserveData['oTokenAddress']
 
-    @only_lending_pool
+    @only_liquidation_manager
     @external
     def updateStateOnLiquidation(self, _principalReserve: Address, _collateralReserve: Address, _user: Address,
                                  _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,
@@ -774,8 +765,12 @@ class LendingPoolCore(IconScoreBase):
     @external
     def updatePrepDelegations(self, _delegations: List[PrepDelegations]):
         staking = self.create_interface_score(self._staking.get(), StakingInterface)
-        staking.updateDelegation(_delegations)
+        staking.delegate(_delegations)
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
+        pass
+
+    @payable
+    def fallback(self) -> None:
         pass

@@ -33,6 +33,10 @@ class Governance(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
+    @external(readonly=True)
+    def name(self) -> str :
+        return "OmmGovernanceManager" 
+        
     @only_owner
     @external
     def setSnapshot(self, _address: Address):
