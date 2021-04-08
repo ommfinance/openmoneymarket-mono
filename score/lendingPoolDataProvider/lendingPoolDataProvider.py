@@ -457,34 +457,33 @@ class LendingPoolDataProvider(IconScoreBase):
             userReserveData = core.getUserBasicReserveData(_reserve, _user)
             reserveConfiguration = core.getReserveConfiguration(_reserve)
             reserveDecimals = reserveConfiguration['decimals']
-            if reserveDecimals != 18:
-                userReserveData['compoundedBorrowBalance'] = convertToExa(userReserveData['compoundedBorrowBalance'],
-                                                                          reserveDecimals)
-                userReserveData['underlyingBalance'] = convertToExa(userReserveData['underlyingBalance'],
+          
+            userBorrowBalance = convertToExa(userReserveData['compoundedBorrowBalance'],
                                                                     reserveDecimals)
-
-            userBorrowBalance = userReserveData['compoundedBorrowBalance']
+            userReserveUnderlyingBalance = convertToExa(userReserveData['underlyingBalance'],
+                                                                    reserveDecimals)
+        
             price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
             if self._symbol[_reserve] == "ICX":
                 staking = self.create_interface_score(self._staking.get(), StakingInterface)
                 todaySicxRate = staking.getTodayRate()
                 price = exaMul(price, todaySicxRate)
-            userReserveUnderlyingBalance = userReserveData['underlyingBalance']
+        
             if userBorrowBalance > 0:
                 if badDebt > exaMul(price, userBorrowBalance):
                     maxAmountToLiquidateUSD = exaMul(price, userBorrowBalance)
-                    maxAmountToLiquidate = userBorrowBalance
+                    maxAmountToLiquidate = userReserveData['compoundedBorrowBalance']
                 else:
                     maxAmountToLiquidateUSD = badDebt
-                    maxAmountToLiquidate = exaDiv(badDebt, price)
+                    maxAmountToLiquidate = convertExaToOther(exaDiv(badDebt, price), reserveDecimals)
 
-                response['borrows'][self._symbol[_reserve]] = {'compoundedBorrowBalance': userBorrowBalance,
+                response['borrows'][self._symbol[_reserve]] = {'compoundedBorrowBalance':  userReserveData['compoundedBorrowBalance'],
                                                                'compoundedBorrowBalanceUSD': exaMul(price,
                                                                                                     userBorrowBalance),
                                                                'maxAmountToLiquidate': maxAmountToLiquidate,
                                                                'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD}
             if userReserveUnderlyingBalance > 0:
-                response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveUnderlyingBalance,
+                response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveData['underlyingBalance'],
                                                                    'underlyingBalanceUSD': exaMul(price,
                                                                                                   userReserveUnderlyingBalance)}
 
