@@ -190,11 +190,11 @@ class LiquidationManager(IconScoreBase):
 
         collateralPrice = priceOracle.get_reference_data(collateralBase, 'USD')
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
-        if collateralBase == 'icx':
+        if collateralBase == 'ICX':
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             sicxRate = staking.getTodayRate()
             collateralPrice = exaMul(collateralPrice, sicxRate)
-        if principalPrice == 'icx':
+        if principalPrice == 'ICX':
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             sicxRate = staking.getTodayRate()
             principalPrice = exaMul(principalPrice, sicxRate)
