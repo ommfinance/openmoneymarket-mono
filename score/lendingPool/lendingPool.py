@@ -294,27 +294,11 @@ class LendingPool(IconScoreBase):
 
     @external(readonly=True)
     def getBorrowWallets(self, _index: int) -> list:
-        wallets = []
-        for i, wallet in enumerate(self._borrowWallets):
-            if i < _index * BATCH_SIZE:
-                continue
-            if i >= (_index + 1) * BATCH_SIZE:
-                break
-            wallets.append(wallet)
-
-        return wallets
-
+        return self._get_array_items(self._borrowWallets, _index)
+        
     @external(readonly=True)
     def getDepositWallets(self, _index: int) -> list:
-        wallets = []
-        for i, wallet in enumerate(self._depositWallets):
-            if i < _index * BATCH_SIZE:
-                continue
-            if i >= (_index + 1) * BATCH_SIZE:
-                break
-            wallets.append(wallet)
-
-        return wallets
+        return self._get_array_items(self._depositWallets, _index)
 
     @payable
     @external
@@ -575,3 +559,20 @@ class LendingPool(IconScoreBase):
                                  d["params"].get("_purchaseAmount"), _from)
         else:
             revert(f'No valid method called, data: {_data}')
+
+
+    def _get_array_items(self, arraydb, index: int = 0) -> list:
+        items = []
+        length = len(arraydb)
+        start = index * BATCH_SIZE
+
+        if start >= length:
+            return items
+
+        end = start + BATCH_SIZE
+        end = length if end > length else end
+
+        for idx in range(start, end):
+            items.append(arraydb[idx])
+
+        return items
