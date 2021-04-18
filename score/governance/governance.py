@@ -57,10 +57,10 @@ class Governance(IconScoreBase):
 
     @only_owner
     @external
-    def setStartTimestamp(self) -> None:
+    def setStartTimestamp(self, _timestamp: int) -> None:
         snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
         rewards = self.create_interface_score(self._rewards.get(), RewardInterface)
-        snapshot.setStartTimestamp(self.now())
-        rewards.setStartTimestamp(self.now())
+        snapshot.setStartTimestamp(_timestamp)
+        rewards.setStartTimestamp(_timestamp)
 
 
