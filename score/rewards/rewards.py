@@ -111,6 +111,7 @@ class Rewards(IconScoreBase):
       
     def on_update(self) -> None:
         super().on_update()
+        self._distComplete['daoFund'] = True
         
         
 
@@ -360,14 +361,14 @@ class Rewards(IconScoreBase):
         elif not self._precompute['ommICX']:
             self.State("precompute ommICX")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            self._totalAmount['ommICX'] = data_source.getTotalValue("SICXICX", self._day.get())
+            self._totalAmount['ommICX'] = data_source.getTotalValue("OMMSICX", self._day.get())
             self._precompute['ommICX'] = True
-        
+
         elif not self._distComplete['ommICX'] and self._check('ommICX'):
             self.State("distribute ommICX")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            data_batch = data_source.getDataBatch("SICXICX", self._day.get(), BATCH_SIZE, self._offset["SICXICX"])
-            self._offset["SICXICX"] += BATCH_SIZE
+            data_batch = data_source.getDataBatch("OMMSICX", self._day.get(), BATCH_SIZE, self._offset["OMMSICX"])
+            self._offset["OMMSICX"] += BATCH_SIZE
             
             if data_batch:
                 totalAmount = self._totalAmount['ommICX']
@@ -387,31 +388,42 @@ class Rewards(IconScoreBase):
 
             else:
                 self._distComplete['ommICX'] = True
-                self._offset["SICXICX"] = 0
+                self._offset["OMMSICX"] = 0
 
         elif not self._precompute['ommUSDb']:
             self.State("precompute ommUSDb")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            self._totalAmount['ommUSDb'] = data_source.getTotalValue("SICXICD",self._day.get())
+            self._totalAmount['ommUSDb'] = data_source.getTotalValue("OMMIUSDC",self._day.get())
+            self._totalAmount['ommUSDb'] += data_source.getTotalValue("OMMUSDB",self._day.get())
             self._precompute['ommUSDb'] = True
         
         elif not self._distComplete['ommUSDb'] and self._check('ommUSDb'):
             self.State("distribute ommUSDb")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            data_batch = data_source.getDataBatch("SICXICD", self._day.get(), BATCH_SIZE , self._offset["SICXICD"])
-            self._offset["SICXICD"] += BATCH_SIZE
+            data_batch1 = data_source.getDataBatch("OMMIUSDC", self._day.get(), BATCH_SIZE , self._offset["OMMUSDB"])
+            data_batch2 = data_source.getDataBatch("OMMUSDB", self._day.get(), BATCH_SIZE , self._offset["OMMUSDB"])
+            self._offset["OMMUSDB"] += BATCH_SIZE
                 
-            if data_batch:
+            if data_batch1 or data_batch2:
                 totalAmount = self._totalAmount['ommUSDb']
                 tokenDistTracker = self._tokenDistTracker['ommUSDb']
 
-                for user in data_batch:
+                for user in data_batch1:
                     if tokenDistTracker <= 0:
                         break
-                    tokenAmount = exaMul(exaDiv(data_batch[user], totalAmount),tokenDistTracker)
+                    tokenAmount = exaMul(exaDiv(data_batch1[user], totalAmount),tokenDistTracker)
+                    self._tokenValue[Address.from_string(user)]['ommUSDb'] += tokenAmount
+                    self.Distribution("ommIUSDC", Address.from_string(user), tokenAmount )
+                    totalAmount -= data_batch1[user]
+                    tokenDistTracker -= tokenAmount
+
+                for user in data_batch2:
+                    if tokenDistTracker <= 0:
+                        break
+                    tokenAmount = exaMul(exaDiv(data_batch2[user], totalAmount),tokenDistTracker)
                     self._tokenValue[Address.from_string(user)]['ommUSDb'] += tokenAmount
                     self.Distribution("ommUSDb", Address.from_string(user), tokenAmount )
-                    totalAmount -= data_batch[user]
+                    totalAmount -= data_batch2[user]
                     tokenDistTracker -= tokenAmount
                     
                 self._totalAmount['ommUSDb'] = totalAmount
@@ -419,7 +431,7 @@ class Rewards(IconScoreBase):
 
             else:
                 self._distComplete['ommUSDb'] = True
-                self._offset["SICXICD"] = 0
+                self._offset["OMMUSDB"] = 0
 
         elif not self._distComplete['worker']:
             self.State("distribute worker")
