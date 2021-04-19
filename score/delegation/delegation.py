@@ -118,8 +118,8 @@ class Delegation(IconScoreBase):
         if _delegations is None:
             userDelegationDetails = self.getUserDelegationDetails(user)
             if userDelegationDetails:
-                for key, value in userDelegationDetails.items():
-                    delegationDetails = {"_address": key, "_votes_in_per": value}
+                for items in userDelegationDetails:
+                    delegationDetails = {"_address": items['_address'], "_votes_in_per": items['_votes_in_per']}
                     delegations.append(delegationDetails)
         else:
             self._require(len(_delegations) <= 5,
@@ -192,7 +192,9 @@ class Delegation(IconScoreBase):
             if index == len(prepList) - 1:
                 votesPercentage['_votes_in_per'] = 100 * EXA - totalPercentage
             else:
-                votesPercentage['_votes_in_per'] = exaDiv(self._prepVotes[prep], self._totalVotes.get()) * 100
+                votes = exaDiv(self._prepVotes[prep], self._totalVotes.get()) * 100
+                votesPercentage['_votes_in_per'] = votes
                 totalPercentage += votesPercentage['_votes_in_per']
-            prepDelegations.append(votesPercentage)
+            if votes > 0 :
+                prepDelegations.append(votesPercentage)
         return prepDelegations
