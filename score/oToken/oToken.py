@@ -64,7 +64,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._reserveAddress = VarDB(self._RESERVE_ADDRESS, db, Address)
         self._dataProviderAddress = VarDB(self._DATA_PROVIDER, db, value_type=Address)
         self._lendingPoolAddress = VarDB(self._LENDING_POOL, db, value_type=Address)
-        self._liquidation =VarDB(self._LIQUIDATION,db,value_type=Address)
+        self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
 
     def on_install(self, _name: str, _symbol: str, _decimals: int = 18) -> None:
@@ -123,18 +123,6 @@ class OToken(IconScoreBase, TokenStandard):
                         _toBalanceIncrease: int, _fromIndex: int, _toIndex: int):
         pass
 
-    def onlyOwner(func):
-        if not isfunction(func):
-            revert("NotAFunctionError")
-
-        @wraps(func)
-        def __wrapper(self: object, *args, **kwargs):
-            if self.msg.sender != self.owner:
-                revert("SenderNotScoreOwnerError")
-            return func(self, *args, **kwargs)
-
-        return __wrapper
-
     @external(readonly=True)
     def name(self) -> str:
         """
@@ -168,7 +156,7 @@ class OToken(IconScoreBase, TokenStandard):
         """
         return self._totalSupply.get()
 
-    @onlyOwner
+    @only_owner
     @external
     def setLendingPoolCore(self, _address: Address):
         self._coreAddress.set(_address)
@@ -177,7 +165,7 @@ class OToken(IconScoreBase, TokenStandard):
     def getLendingPoolCore(self) -> Address:
         return self._coreAddress.get()
 
-    @onlyOwner
+    @only_owner
     @external
     def setLiquidation(self, _address: Address):
         self._liquidation.set(_address)
@@ -186,7 +174,7 @@ class OToken(IconScoreBase, TokenStandard):
     def getLiquidation(self) -> Address:
         return self._liquidation.get()
 
-    @onlyOwner
+    @only_owner
     @external
     def setReserve(self, _address: Address):
         self._reserveAddress.set(_address)
@@ -195,7 +183,7 @@ class OToken(IconScoreBase, TokenStandard):
     def getReserve(self) -> Address:
         return self._reserveAddress.get()
 
-    @onlyOwner
+    @only_owner
     @external
     def setLendingPoolDataProvider(self, _address: Address):
         self._dataProviderAddress.set(_address)
@@ -204,7 +192,7 @@ class OToken(IconScoreBase, TokenStandard):
     def getLendingPoolDataProvider(self) -> Address:
         return self._dataProviderAddress.get()
 
-    @onlyOwner
+    @only_owner
     @external
     def setLendingPool(self, _address: Address):
         self._lendingPoolAddress.set(_address)
@@ -217,21 +205,20 @@ class OToken(IconScoreBase, TokenStandard):
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         return self._userIndexes[_user]
 
-    
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
         if self._userIndexes[_user] == 0:
             return _balance
         else:
-            balance = exaDiv(exaMul(convertToExa(_balance,self._decimals.get()), core.getNormalizedIncome(self.getReserve())),
-                             self._userIndexes[_user])
-            return convertExaToOther(balance,self._decimals.get())
+            balance = exaDiv(
+                exaMul(convertToExa(_balance, self._decimals.get()), core.getNormalizedIncome(self.getReserve())),
+                self._userIndexes[_user])
+            return convertExaToOther(balance, self._decimals.get())
 
-    
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
         previousPrincipalBalance = self.principalBalanceOf(_user)
         balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
-        if balanceIncrease > 0 :
+        if balanceIncrease > 0:
             self._mint(_user, balanceIncrease)
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
         self._userIndexes[_user] = core.getNormalizedIncome(self.getReserve())
@@ -264,8 +251,6 @@ class OToken(IconScoreBase, TokenStandard):
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
         return dataProvider.balanceDecreaseAllowed(self.getReserve(), _user, _amount)
 
-
-
     @external
     def redeem(self, _amount: int, _waitForUnstaking: bool = False) -> None:
         """
@@ -293,18 +278,18 @@ class OToken(IconScoreBase, TokenStandard):
         self._burn(self.msg.sender, amountToRedeem)
         userIndexReset = False
         if currentBalance - amountToRedeem == 0:
-            userIndexReset = self._resetDataOnZeroBalanceInternal(self.msg.sender)
+            self._resetDataOnZeroBalanceInternal(self.msg.sender)
 
         pool = self.create_interface_score(self.getLendingPool(), LendingPoolInterface)
-        pool.redeemUnderlying(self.getReserve(), self.msg.sender, amountToRedeem,currentBalance - amountToRedeem, _waitForUnstaking)
+        pool.redeemUnderlying(self.getReserve(), self.msg.sender, amountToRedeem, currentBalance - amountToRedeem,
+                              _waitForUnstaking)
         if userIndexReset:
             index = 0
         self.Redeem(self.msg.sender, amountToRedeem, balanceIncrease, index)
         # revert('success')
 
-    def _resetDataOnZeroBalanceInternal(self, _user: Address):
+    def _resetDataOnZeroBalanceInternal(self, _user: Address) -> None:
         self._userIndexes[_user] = 0
-        return True
 
     @only_lending_pool
     @external
@@ -326,12 +311,11 @@ class OToken(IconScoreBase, TokenStandard):
         self._burn(_user, _value)
         userIndexReset = False
         if currentBalance - _value == 0:
-            userIndexReset = self._resetDataOnZeroBalanceInternal(_user)
+            self._resetDataOnZeroBalanceInternal(_user)
         if userIndexReset:
             index = 0
         self.BurnOnLiquidation(_user, _value, balanceIncrease, index)
 
-    
     def _executeTransfer(self, _from: Address, _to: Address, _value: int):
         fromCumulated = self._cumulateBalanceInternal(_from)
         toCumulated = self._cumulateBalanceInternal(_to)
@@ -341,16 +325,15 @@ class OToken(IconScoreBase, TokenStandard):
         toBalanceIncrease = toCumulated['balanceIncrease']
         toIndex = toCumulated['index']
 
-        fromIndexReset = False
         if fromBalance - _value == 0:
-            fromIndexReset = self._resetDataOnZeroBalanceInternal(_from)
-        
+            self._resetDataOnZeroBalanceInternal(_from)
+
         self.BalanceTransfer(_from, _to, _value, fromBalanceIncrease, toBalanceIncrease, fromIndex, toIndex)
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         """
-        Transfers certain amount of tokens from sender to the reciever.
+        Transfers certain amount of tokens from sender to the receiver.
 
         :param _to: The account to which the token is to be transferred.
         :param _value: The no. of tokens to be transferred.
@@ -362,7 +345,7 @@ class OToken(IconScoreBase, TokenStandard):
 
     def _transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         """
-        Transfers certain amount of tokens from sender to the recepient.
+        Transfers certain amount of tokens from sender to the recipient.
         This is an internal function.
         :param _from: The account from which the token is to be transferred.
         :param _to: The account to which the token is to be transferred.
@@ -378,7 +361,7 @@ class OToken(IconScoreBase, TokenStandard):
         if not self.isTransferAllowed(self.msg.sender, _value):
             revert("Transfer error:Transfer cannot be allowed")
 
-        self._executeTransfer(_from,_to,_value)
+        self._executeTransfer(_from, _to, _value)
         self._balances[_from] -= _value
         self._balances[_to] += _value
 
@@ -393,7 +376,7 @@ class OToken(IconScoreBase, TokenStandard):
         # Emits an event log `Transfer`
         self.Transfer(_from, _to, _value, _data)
 
-    def _mint(self, account: Address, amount: int) -> bool:
+    def _mint(self, account: Address, amount: int) -> None:
         """
         Creates amount number of tokens, and assigns to account
         Increases the balance of that account and total supply.
@@ -410,7 +393,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._balances[account] += amount
 
         # Emits an event log Mint
-        self.Transfer(ZERO_SCORE_ADDRESS,account,amount,None)
+        self.Transfer(ZERO_SCORE_ADDRESS, account, amount, b'mint')
         self.Mint(account, amount)
 
     def _burn(self, account: Address, amount: int) -> None:
@@ -430,5 +413,5 @@ class OToken(IconScoreBase, TokenStandard):
         self._balances[account] -= amount
 
         # Emits an event log Burn
-        self.Transfer(account,ZERO_SCORE_ADDRESS,amount,None)
+        self.Transfer(account, ZERO_SCORE_ADDRESS, amount, b'burn')
         self.Burn(account, amount)
