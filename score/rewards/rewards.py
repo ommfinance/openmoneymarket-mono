@@ -115,7 +115,7 @@ class Rewards(IconScoreBase):
         
         
 
-    @eventlog(indexed = 3)
+    @eventlog(indexed = 2)
     def Distribution(self,_recipient: str, _user: Address, _value: int):
         pass
 
