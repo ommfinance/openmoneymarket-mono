@@ -134,7 +134,7 @@ class FeeProviderInterface(InterfaceScore):
 # An interface to fee provider
 class LiquidationManagerInterface(InterfaceScore):
     @interface
-    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> str:
+    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
         pass
 
 
