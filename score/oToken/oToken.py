@@ -210,14 +210,15 @@ class OToken(IconScoreBase, TokenStandard):
         if self._userIndexes[_user] == 0:
             return _balance
         else:
-            balance = exaDiv(exaMul(convertToExa(_balance,self._decimals.get()), core.getNormalizedIncome(self.getReserve())),
-                             self._userIndexes[_user])
-            return convertExaToOther(balance,self._decimals.get())
+            balance = exaDiv(
+                exaMul(convertToExa(_balance, self._decimals.get()), core.getNormalizedIncome(self.getReserve())),
+                self._userIndexes[_user])
+            return convertExaToOther(balance, self._decimals.get())
 
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
         previousPrincipalBalance = self.principalBalanceOf(_user)
         balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
-        if balanceIncrease > 0 :
+        if balanceIncrease > 0:
             self._mint(_user, balanceIncrease)
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
         self._userIndexes[_user] = core.getNormalizedIncome(self.getReserve())
@@ -277,18 +278,18 @@ class OToken(IconScoreBase, TokenStandard):
         self._burn(self.msg.sender, amountToRedeem)
         userIndexReset = False
         if currentBalance - amountToRedeem == 0:
-            userIndexReset = self._resetDataOnZeroBalanceInternal(self.msg.sender)
+            self._resetDataOnZeroBalanceInternal(self.msg.sender)
 
         pool = self.create_interface_score(self.getLendingPool(), LendingPoolInterface)
-        pool.redeemUnderlying(self.getReserve(), self.msg.sender, amountToRedeem,currentBalance - amountToRedeem, _waitForUnstaking)
+        pool.redeemUnderlying(self.getReserve(), self.msg.sender, amountToRedeem, currentBalance - amountToRedeem,
+                              _waitForUnstaking)
         if userIndexReset:
             index = 0
         self.Redeem(self.msg.sender, amountToRedeem, balanceIncrease, index)
         # revert('success')
 
-    def _resetDataOnZeroBalanceInternal(self, _user: Address):
+    def _resetDataOnZeroBalanceInternal(self, _user: Address) -> None:
         self._userIndexes[_user] = 0
-        return True
 
     @only_lending_pool
     @external
@@ -310,7 +311,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._burn(_user, _value)
         userIndexReset = False
         if currentBalance - _value == 0:
-            userIndexReset = self._resetDataOnZeroBalanceInternal(_user)
+            self._resetDataOnZeroBalanceInternal(_user)
         if userIndexReset:
             index = 0
         self.BurnOnLiquidation(_user, _value, balanceIncrease, index)
@@ -324,11 +325,9 @@ class OToken(IconScoreBase, TokenStandard):
         toBalanceIncrease = toCumulated['balanceIncrease']
         toIndex = toCumulated['index']
 
-        # FIXME: Local variable 'fromIndexReset' value is not used
-        fromIndexReset = False
         if fromBalance - _value == 0:
-            fromIndexReset = self._resetDataOnZeroBalanceInternal(_from)
-        
+            self._resetDataOnZeroBalanceInternal(_from)
+
         self.BalanceTransfer(_from, _to, _value, fromBalanceIncrease, toBalanceIncrease, fromIndex, toIndex)
 
     @external
@@ -362,7 +361,7 @@ class OToken(IconScoreBase, TokenStandard):
         if not self.isTransferAllowed(self.msg.sender, _value):
             revert("Transfer error:Transfer cannot be allowed")
 
-        self._executeTransfer(_from,_to,_value)
+        self._executeTransfer(_from, _to, _value)
         self._balances[_from] -= _value
         self._balances[_to] += _value
 
