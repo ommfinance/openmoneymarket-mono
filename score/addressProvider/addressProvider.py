@@ -14,10 +14,9 @@ class AddressProvider(IconScoreBase):
     LENDING_POOL = 'lendingPool'
     LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
     STAKING = 'staking'
-    DELEGATION ='delegation'
+    DELEGATION = 'delegation'
     OMM_TOKEN = 'ommToken'
     REWARDS = 'rewards'
-
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -29,11 +28,10 @@ class AddressProvider(IconScoreBase):
         self._lendingPoolDataProvider = VarDB(self.LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
         self._staking = VarDB(self.STAKING, db, value_type=Address)
         self._IUSDC = VarDB(self.IUSDC, db, value_type=Address)
-        self._oIUSDC = VarDB (self.oIUSDC, db, value_type=Address)
-        self._ommToken = VarDB(self.OMM_TOKEN,db,value_type=Address)
-        self._delegation = VarDB(self.DELEGATION,db,value_type=Address)
-        self._rewards = VarDB(self.REWARDS,db,value_type=Address)
-
+        self._oIUSDC = VarDB(self.oIUSDC, db, value_type=Address)
+        self._ommToken = VarDB(self.OMM_TOKEN, db, value_type=Address)
+        self._delegation = VarDB(self.DELEGATION, db, value_type=Address)
+        self._rewards = VarDB(self.REWARDS, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -42,7 +40,7 @@ class AddressProvider(IconScoreBase):
         super().on_update()
 
     @external(readonly=True)
-    def name(self) -> str :
+    def name(self) -> str:
         return "OmmAddressProvider" 
 
     @only_owner
@@ -127,11 +125,12 @@ class AddressProvider(IconScoreBase):
 
     @external(readonly=True)
     def getAllAddresses(self) -> dict:
-        response = {"collateral": {
-            "USDb": self._USDb.get(),
-            "sICX": self._sICX.get(),
-            "IUSDC": self._IUSDC.get()
-        },
+        response = {
+            "collateral": {
+                "USDb": self._USDb.get(),
+                "sICX": self._sICX.get(),
+                "IUSDC": self._IUSDC.get()
+            },
             "oTokens": {
                 "oUSDb": self._oUSDb.get(),
                 "oICX": self._oICX.get(),
