@@ -1,7 +1,4 @@
 from iconservice import *
-from .utils.checks import *
-
-TAG = 'AddressProvider'
 
 
 class AddressProvider(IconScoreBase):
@@ -20,18 +17,7 @@ class AddressProvider(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._USDb = VarDB(self.USDb, db, value_type=Address)
-        self._sICX = VarDB(self.sICX, db, value_type=Address)
-        self._oUSDb = VarDB(self.oUSDb, db, value_type=Address)
-        self._oICX = VarDB(self.oICX, db, value_type=Address)
-        self._lendingPool = VarDB(self.LENDING_POOL, db, value_type=Address)
-        self._lendingPoolDataProvider = VarDB(self.LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
-        self._staking = VarDB(self.STAKING, db, value_type=Address)
-        self._IUSDC = VarDB(self.IUSDC, db, value_type=Address)
-        self._oIUSDC = VarDB(self.oIUSDC, db, value_type=Address)
-        self._ommToken = VarDB(self.OMM_TOKEN, db, value_type=Address)
-        self._delegation = VarDB(self.DELEGATION, db, value_type=Address)
-        self._rewards = VarDB(self.REWARDS, db, value_type=Address)
+        self._addresses = DictDB("address", db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -41,109 +27,83 @@ class AddressProvider(IconScoreBase):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmAddressProvider" 
+        return "OmmAddressProvider"
 
-    @only_owner
+    def _get_address(self, name: str) -> Address:
+        return self._addresses[name]
+
+    def _set_address(self, name: str, address: Address):
+        if self.msg.sender != self.owner:
+            revert(f"Only owner can set the address")
+        self._addresses[name] = address
+
     @external
     def setLendingPool(self, _address: Address) -> None:
-        self._lendingPool.set(_address)
+        self._set_address(self.LENDING_POOL, _address)
 
-    @only_owner
     @external
     def setLendingPoolDataProvider(self, _address: Address) -> None:
-        self._lendingPoolDataProvider.set(_address)
+        self._set_address(self.LENDING_POOL_DATA_PROVIDER, _address)
 
-    @only_owner
     @external
     def setUSDb(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._USDb.set(_address)
+        self._set_address(self.USDb, _address)
 
-    @only_owner
     @external
     def setsICX(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._sICX.set(_address)
+        self._set_address(self.sICX, _address)
 
-    @only_owner
     @external
     def setoUSDb(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._oUSDb.set(_address)
+        self._set_address(self.oUSDb, _address)
 
-    @only_owner
     @external
     def setoICX(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._oICX.set(_address)
+        self._set_address(self.oICX, _address)
 
-    @only_owner
     @external
     def setStaking(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._staking.set(_address)
+        self._set_address(self.STAKING, _address)
 
-    @only_owner
     @external
     def setIUSDC(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._IUSDC.set(_address)
+        self._set_address(self.IUSDC, _address)
 
-    @only_owner
     @external
     def setoIUSDC(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._oIUSDC.set(_address)
+        self._set_address(self.oIUSDC, _address)
 
-    @only_owner
     @external
     def setOmmToken(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._ommToken.set(_address)
-    
-    @only_owner
+        self._set_address(self.OMM_TOKEN, _address)
+
     @external
     def setDelegation(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._delegation.set(_address)
+        self._set_address(self.DELEGATION, _address)
 
-    @only_owner
     @external
     def setRewards(self, _address: Address) -> None:
-        if self.msg.sender != self.owner:
-            revert(f'Only owner can set the address')
-        self._rewards.set(_address)
+        self._set_address(self.REWARDS, _address)
 
     @external(readonly=True)
     def getAllAddresses(self) -> dict:
-        response = {
+        return {
             "collateral": {
-                "USDb": self._USDb.get(),
-                "sICX": self._sICX.get(),
-                "IUSDC": self._IUSDC.get()
+                "USDb": self._get_address(self.USDb),
+                "sICX": self._get_address(self.sICX),
+                "IUSDC": self._get_address(self.IUSDC),
             },
             "oTokens": {
-                "oUSDb": self._oUSDb.get(),
-                "oICX": self._oICX.get(),
-                "oIUSDC": self._oIUSDC.get()
+                "oUSDb": self._get_address(self.oUSDb),
+                "oICX": self._get_address(self.oICX),
+                "oIUSDC": self._get_address(self.oIUSDC),
             },
             "systemContract": {
-                "LendingPool": self._lendingPool.get(),
-                "LendingPoolDataProvider": self._lendingPoolDataProvider.get(),
-                "Staking": self._staking.get(),
-                "Delegation": self._delegation.get(),
-                "OmmToken": self._ommToken.get(),
-                "Rewards": self._rewards.get()
+                "LendingPool": self._get_address(self.LENDING_POOL),
+                "LendingPoolDataProvider": self._get_address(self.LENDING_POOL_DATA_PROVIDER),
+                "Staking": self._get_address(self.STAKING),
+                "Delegation": self._get_address(self.DELEGATION),
+                "OmmToken": self._get_address(self.OMM_TOKEN),
+                "Rewards": self._get_address(self.REWARDS),
             }
         }
-
-        return response
