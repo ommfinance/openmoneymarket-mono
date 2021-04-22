@@ -276,15 +276,14 @@ class OToken(IconScoreBase, TokenStandard):
         if not self.isTransferAllowed(self.msg.sender, amountToRedeem):
             revert("Redeem error:Transfer cannot be allowed")
         self._burn(self.msg.sender, amountToRedeem)
-        userIndexReset = False
+
         if currentBalance - amountToRedeem == 0:
             self._resetDataOnZeroBalanceInternal(self.msg.sender)
+            index = 0
 
         pool = self.create_interface_score(self.getLendingPool(), LendingPoolInterface)
         pool.redeemUnderlying(self.getReserve(), self.msg.sender, amountToRedeem, currentBalance - amountToRedeem,
                               _waitForUnstaking)
-        if userIndexReset:
-            index = 0
         self.Redeem(self.msg.sender, amountToRedeem, balanceIncrease, index)
         # revert('success')
 
@@ -309,10 +308,8 @@ class OToken(IconScoreBase, TokenStandard):
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
         self._burn(_user, _value)
-        userIndexReset = False
         if currentBalance - _value == 0:
             self._resetDataOnZeroBalanceInternal(_user)
-        if userIndexReset:
             index = 0
         self.BurnOnLiquidation(_user, _value, balanceIncrease, index)
 
