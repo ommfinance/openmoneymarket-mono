@@ -42,8 +42,6 @@ class Delegation(IconScoreBase):
         self._prepVotes = DictDB(self._PREP_VOTES, db, value_type=int)
         self._userVotes = DictDB(self._USER_VOTES, db, value_type=int)
         self._totalVotes = VarDB(self._TOTAL_VOTES, db, value_type=int)
-        self._voted = DictDB(self._VOTED, db, value_type=bool)
-        self._equalDistribution = VarDB(self._EQUAL_DISTRIBUTION, db, value_type=bool)
         self._ommToken = VarDB(self._OMM_TOKEN, db, value_type=Address)
         self._lendingPoolCore = VarDB(self._LENDING_POOL_CORE, db, value_type=Address)
 
