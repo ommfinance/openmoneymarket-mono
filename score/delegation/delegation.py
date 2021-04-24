@@ -160,7 +160,7 @@ class Delegation(IconScoreBase):
         # revert(f'this is userStaked {userStakedToken} delegation{delegations}')
 
     @external(readonly=True)
-    def prepVotes(self, _prep: Address):
+    def prepVotes(self, _prep: Address) -> int:
         return self._prepVotes[_prep]
 
     @external(readonly=True)
