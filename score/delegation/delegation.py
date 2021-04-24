@@ -166,14 +166,14 @@ class Delegation(IconScoreBase):
     @external(readonly=True)
     def getUserDelegationDetails(self, _user: Address) -> List[PrepDelegations]:
         user_details = []
+
         for index in range(5):
-            user_preference: PrepDelegations = {}
-            # userDetails[index] = self._userPreps[_user][index]
-            if self._userPreps[_user][index] != ZERO_SCORE_ADDRESS and self._userPreps[_user][index] is not None:
-                # userDetails[str(self._userPreps[_user][index])] = self._percentageDelegations[_user][index]
-                user_preference['_address'] = self._userPreps[_user][index]
-                user_preference['_votes_in_per'] = self._percentageDelegations[_user][index]
-                user_details.append(user_preference)
+            prep: Address = self._userPreps[_user][index]
+            if prep != ZERO_SCORE_ADDRESS and prep is not None:
+                user_details.append({
+                    '_address': prep,
+                    '_votes_in_per': self._percentageDelegations[_user][index]
+                })
 
         return user_details
 
