@@ -97,7 +97,6 @@ class Delegation(IconScoreBase):
 
                 # adjusting total votes
                 self._totalVotes.set(self._totalVotes.get() - prep_vote)
-                # self._totalVotes -=prep_vote
             self._userVotes[_user] = 0
 
     @external(readonly=True)
@@ -147,7 +146,6 @@ class Delegation(IconScoreBase):
 
                 # adjusting total votes
                 self._totalVotes.set(self._totalVotes.get() + prep_vote)
-                # self._totalVotes += prepVote
                 total_percentage += delegation['_votes_in_per']
                 index += 1
             self._require(total_percentage == EXA,
@@ -177,7 +175,6 @@ class Delegation(IconScoreBase):
                 user_preference['_votes_in_per'] = self._percentageDelegations[_user][index]
                 user_details.append(user_preference)
 
-                # userDetails
         return user_details
 
     @external(readonly=True)
