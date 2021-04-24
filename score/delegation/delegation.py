@@ -53,8 +53,9 @@ class Delegation(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
-    def _require(self, _condtion: bool, _message: str):
-        if not _condtion:
+    @staticmethod
+    def _require(_condition: bool, _message: str):
+        if not _condition:
             revert(_message)
 
     @external(readonly=True)
@@ -85,26 +86,23 @@ class Delegation(IconScoreBase):
             for index in range(5):
 
                 # removing votes
-                prepVote = exaMul(self._percentageDelegations[_user][index], self._userVotes[_user])
-                # print(user,self._userPreps[user][index],prepVote)
-                if prepVote > 0:
-                    self._prepVotes[self._userPreps[_user][index]] -= prepVote
+                prep_vote = exaMul(self._percentageDelegations[_user][index], self._userVotes[_user])
+                # print(user,self._userPreps[user][index],prep_vote)
+                if prep_vote > 0:
+                    self._prepVotes[self._userPreps[_user][index]] -= prep_vote
 
                 # resetting the preferences
                 self._userPreps[_user][index] = ZERO_SCORE_ADDRESS
                 self._percentageDelegations[_user][index] = 0
 
                 # adjusting total votes
-                self._totalVotes.set(self._totalVotes.get() - prepVote)
-                # self._totalVotes -=prepVote
+                self._totalVotes.set(self._totalVotes.get() - prep_vote)
+                # self._totalVotes -=prep_vote
             self._userVotes[_user] = 0
 
     @external(readonly=True)
     def getPrepList(self) -> list:
-        prepList = []
-        for prep in self._preps:
-            prepList.append(prep)
-        return prepList
+        return [prep for prep in self._preps]
 
     @external
     def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
@@ -114,30 +112,30 @@ class Delegation(IconScoreBase):
         else:
             user = self.msg.sender
 
-        totalPercentage = 0
+        total_percentage = 0
         if _delegations is None:
-            userDelegationDetails = self.getUserDelegationDetails(user)
-            if userDelegationDetails:
-                for items in userDelegationDetails:
-                    delegationDetails = {"_address": items['_address'], "_votes_in_per": items['_votes_in_per']}
-                    delegations.append(delegationDetails)
+            user_delegation_details = self.getUserDelegationDetails(user)
+            if user_delegation_details:
+                for items in user_delegation_details:
+                    delegation_details = {"_address": items['_address'], "_votes_in_per": items['_votes_in_per']}
+                    delegations.append(delegation_details)
         else:
             self._require(len(_delegations) <= 5,
                           "Delegation SCORE : Add error-Cant take more than 5 preps for a user ")
             delegations = _delegations
 
         # revert(f'this is {delegations}')
-        ommToken = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
-        userStakedToken = ommToken.details_balanceOf(user)['stakedBalance']
+        omm_token = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
+        user_staked_token = omm_token.details_balanceOf(user)['stakedBalance']
         if len(delegations) > 0:
-            # resetting previous delegation prefereneces
+            # resetting previous delegation preferences
             self.clearPrevious(user)
             index = 0
             for delegation in delegations:
 
                 # adding delegation to new preps
-                prepVote = exaMul(delegation['_votes_in_per'], userStakedToken)
-                self._prepVotes[delegation['_address']] += prepVote
+                prep_vote = exaMul(delegation['_votes_in_per'], user_staked_token)
+                self._prepVotes[delegation['_address']] += prep_vote
 
                 # updating prep list
                 if delegation['_address'] not in self._preps:
@@ -148,19 +146,19 @@ class Delegation(IconScoreBase):
                 self._percentageDelegations[user][index] = delegation['_votes_in_per']
 
                 # adjusting total votes
-                self._totalVotes.set(self._totalVotes.get() + prepVote)
+                self._totalVotes.set(self._totalVotes.get() + prep_vote)
                 # self._totalVotes += prepVote
-                totalPercentage += delegation['_votes_in_per']
+                total_percentage += delegation['_votes_in_per']
                 index += 1
-            self._require(totalPercentage == EXA,
+            self._require(total_percentage == EXA,
                           "Delegation SCORE :Update error- sum of percentages not equal to 100 ")
-            self._userVotes[user] = userStakedToken
+            self._userVotes[user] = user_staked_token
 
             # get updated prep percentages and updating the preference
-            updatedDelegation = self.computeDelegationPercentages()
+            updated_delegation = self.computeDelegationPercentages()
             # revert(f"updated delegation{updatedDelegation} type is {type(updatedDelegation[0])}{type(updatedDelegation)}")
             core = self.create_interface_score(self._lendingPoolCore.get(), LendingPoolCoreInterface)
-            core.updatePrepDelegations(updatedDelegation)
+            core.updatePrepDelegations(updated_delegation)
         # revert(f'this is userStaked {userStakedToken} delegation{delegations}')
 
     @external(readonly=True)
@@ -169,32 +167,32 @@ class Delegation(IconScoreBase):
 
     @external(readonly=True)
     def getUserDelegationDetails(self, _user: Address) -> List[PrepDelegations]:
-        userDetails = []
+        user_details = []
         for index in range(5):
-            userPreference: PrepDelegations = {}
+            user_preference: PrepDelegations = {}
             # userDetails[index] = self._userPreps[_user][index]
             if self._userPreps[_user][index] != ZERO_SCORE_ADDRESS and self._userPreps[_user][index] is not None:
                 # userDetails[str(self._userPreps[_user][index])] = self._percentageDelegations[_user][index]
-                userPreference['_address'] = self._userPreps[_user][index]
-                userPreference['_votes_in_per'] = self._percentageDelegations[_user][index]
-                userDetails.append(userPreference)
+                user_preference['_address'] = self._userPreps[_user][index]
+                user_preference['_votes_in_per'] = self._percentageDelegations[_user][index]
+                user_details.append(user_preference)
 
                 # userDetails
-        return userDetails
+        return user_details
 
     @external(readonly=True)
     def computeDelegationPercentages(self) -> List[PrepDelegations]:
-        prepDelegations = []
-        prepList = self.getPrepList()
-        totalPercentage = 0
-        for index, prep in enumerate(prepList):
-            votesPercentage: PrepDelegations = {'_address': prep, '_votes_in_per': 0}
-            if index == len(prepList) - 1:
-                votesPercentage['_votes_in_per'] = 100 * EXA - totalPercentage
+        prep_delegations = []
+        prep_list = self.getPrepList()
+        total_percentage = 0
+        for index, prep in enumerate(prep_list):
+            votes_percentage: PrepDelegations = {'_address': prep, '_votes_in_per': 0}
+            if index == len(prep_list) - 1:
+                votes_percentage['_votes_in_per'] = 100 * EXA - total_percentage
             else:
                 votes = exaDiv(self._prepVotes[prep], self._totalVotes.get()) * 100
-                votesPercentage['_votes_in_per'] = votes
-                totalPercentage += votesPercentage['_votes_in_per']
-            if votes > 0 :
-                prepDelegations.append(votesPercentage)
-        return prepDelegations
+                votes_percentage['_votes_in_per'] = votes
+                total_percentage += votes_percentage['_votes_in_per']
+            if votes > 0:
+                prep_delegations.append(votes_percentage)
+        return prep_delegations
