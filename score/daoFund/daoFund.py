@@ -19,11 +19,11 @@ class DaoFund(IconScoreBase):
     @eventlog(indexed=3)
     def FundReceived(self, _amount: int, _reserve: Address, _time: int):
         pass
-    
+
     @external(readonly=True)
-    def name(self) -> str :
-        return "OmmDaoFundManager" 
+    def name(self) -> str:
+        return "OmmDaoFundManager"
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes = None) -> None:
-        self.FundReceived(_value,self.msg.sender,self.now())
+        self.FundReceived(_value, self.msg.sender, self.now())

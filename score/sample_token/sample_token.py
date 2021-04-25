@@ -57,7 +57,7 @@ class SampleToken(IconScoreBase, TokenStandard):
         self._name = VarDB(self._DECIMALS, db, value_type=str)
         self._symbol = VarDB(self._DECIMALS, db, value_type=str)
 
-    def on_install(self, _name: str,_symbol:str, _decimals: int) -> None:
+    def on_install(self, _name: str, _symbol: str, _decimals: int) -> None:
         super().on_install()
         intialSupply = 50000000
         
@@ -121,4 +121,3 @@ class SampleToken(IconScoreBase, TokenStandard):
         # Emits an event log `Transfer`
         self.Transfer(_from, _to, _value, _data)
         Logger.debug(f'Transfer({_from}, {_to}, {_value}, {_data})', TAG)
-    
