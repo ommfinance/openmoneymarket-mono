@@ -7,11 +7,10 @@ class UserReserveData(object):
         self.reserveAddress = VarDB('id', db, Address)
         self.userAddress = VarDB('oToken', db, Address)
         self.principalBorrowBalance = VarDB('principalBorrowBalance', db, int)
-        self.userBorrowCumulativeIndex=VarDB('userBorrowCumulativeIndex',db,int)
+        self.userBorrowCumulativeIndex = VarDB('userBorrowCumulativeIndex', db, int)
         self.lastUpdateTimestamp = VarDB('lastUpdateTimestamp', db, int)
         self.originationFee = VarDB('originationFee', db, int)
         self.useAsCollateral = VarDB('usageAsCollateralEnabled', db, bool)
-        
 
 
 class UserReserveDataDB:
@@ -45,7 +44,7 @@ def getDataFromUserReserve(prefix: bytes, userReserve: 'UserReserveDataDB') -> d
     reserveAddress = userReserve[prefix].reserveAddress.get()
     userAddress = userReserve[prefix].userAddress.get()
     principalBorrowBalance = userReserve[prefix].principalBorrowBalance.get()
-    userBorrowCumulativeIndex=userReserve[prefix].userBorrowCumulativeIndex.get()
+    userBorrowCumulativeIndex = userReserve[prefix].userBorrowCumulativeIndex.get()
     lastUpdateTimestamp = userReserve[prefix].lastUpdateTimestamp.get()
     originationFee = userReserve[prefix].originationFee.get()
     useAsCollateral = userReserve[prefix].useAsCollateral.get()
@@ -54,7 +53,7 @@ def getDataFromUserReserve(prefix: bytes, userReserve: 'UserReserveDataDB') -> d
         'reserveAddress': reserveAddress,
         'userAddress': userAddress,
         'principalBorrowBalance': principalBorrowBalance,
-        'userBorrowCumulativeIndex':userBorrowCumulativeIndex,
+        'userBorrowCumulativeIndex': userBorrowCumulativeIndex,
         'lastUpdateTimestamp': lastUpdateTimestamp,
         'originationFee': originationFee,
         'useAsCollateral': useAsCollateral
@@ -62,14 +61,15 @@ def getDataFromUserReserve(prefix: bytes, userReserve: 'UserReserveDataDB') -> d
 
 
 def createUserReserveDataObject(reserveData: dict) -> 'UserReserveDataObject':
-    return UserReserveDataObject(reserveAddress=reserveData['reserveAddress'],
-                             userAddress=reserveData['userAddress'],
-                             principalBorrowBalance=reserveData['principalBorrowBalance'],
-                             userBorrowCumulativeIndex=reserveData['userBorrowCumulativeIndex'],
-                             lastUpdateTimestamp=reserveData['lastUpdateTimestamp'],
-                             originationFee=reserveData['originationFee'],
-                             useAsCollateral=reserveData['useAsCollateral']
-                             )
+    return UserReserveDataObject(
+        reserveAddress=reserveData['reserveAddress'],
+        userAddress=reserveData['userAddress'],
+        principalBorrowBalance=reserveData['principalBorrowBalance'],
+        userBorrowCumulativeIndex=reserveData['userBorrowCumulativeIndex'],
+        lastUpdateTimestamp=reserveData['lastUpdateTimestamp'],
+        originationFee=reserveData['originationFee'],
+        useAsCollateral=reserveData['useAsCollateral']
+    )
 
 
 class UserReserveDataObject(object):
@@ -78,7 +78,7 @@ class UserReserveDataObject(object):
         self.reserveAddress = kwargs.get('reserveAddress')
         self.userAddress = kwargs.get('userAddress')
         self.principalBorrowBalance = kwargs.get('principalBorrowBalance')
-        self.userBorrowCumulativeIndex=kwargs.get('userBorrowCumulativeIndex')
+        self.userBorrowCumulativeIndex = kwargs.get('userBorrowCumulativeIndex')
         self.lastUpdateTimestamp = kwargs.get('lastUpdateTimestamp')
         self.originationFee = kwargs.get('originationFee')
         self.useAsCollateral = kwargs.get('useAsCollateral')
