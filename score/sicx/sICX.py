@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'SampleToken'
+TAG = 'sICX'
 
 
 # An interface of ICON Token Standard, IRC-2
@@ -83,11 +83,11 @@ class Sicx(IconScoreBase, TokenStandard):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "StakedIcx"
+        return "StakedICX"
 
     @external(readonly=True)
     def symbol(self) -> str:
-        return "Sicx"
+        return "sICX"
 
     @external(readonly=True)
     def decimals(self) -> int:
@@ -112,7 +112,7 @@ class Sicx(IconScoreBase, TokenStandard):
         if _value < 0:
             revert("Transferring value cannot be less than zero")
         if self._balances[_from] < _value:
-            revert("SICX error :Out of balance")
+            revert("sICX error :Out of balance")
 
         self._balances[_from] = self._balances[_from] - _value
         self._balances[_to] = self._balances[_to] + _value
@@ -126,15 +126,14 @@ class Sicx(IconScoreBase, TokenStandard):
         # Emits an event log `Transfer`
         self.Transfer(_from, _to, _value, _data)
         Logger.debug(f'Transfer({_from}, {_to}, {_value}, {_data})', TAG)
-        
 
     @external
     @payable
-    def add_collateral(self, _to: Address,_data: bytes = None) -> int:
+    def add_collateral(self, _to: Address, _data: bytes = None) -> int:
         self._mint(_to, self.msg.value)
         return self.msg.value
 
-    def _mint(self, account: Address, amount: int) -> bool:
+    def _mint(self, account: Address, amount: int) -> None:
         """
         Creates amount number of tokens, and assigns to account
         Increases the balance of that account and total supply.
@@ -153,7 +152,8 @@ class Sicx(IconScoreBase, TokenStandard):
         # Emits an event log Mint
         self.Mint(account, amount)
 
-    def _burn(self, account: Address, amount: int) -> bool:
+    # TODO check not used
+    def _burn(self, account: Address, amount: int) -> None:
         """
         Creates amount number of tokens, and assigns to account
         Increases the balance of that account and total supply.
@@ -166,7 +166,7 @@ class Sicx(IconScoreBase, TokenStandard):
         if amount < 0:
             revert(f"Invalid Value")
 
-        self._totalSupply.set(self._totalSupply.get() - amount)
+        self._total_supply.set(self._total_supply.get() - amount)
         self._balances[account] -= amount
 
         # Emits an event log Mint
