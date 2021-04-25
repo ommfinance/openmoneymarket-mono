@@ -18,7 +18,7 @@ class ReserveSnapshotData(TypedDict):
     liquidityCumulativeIndex: int
     borrowCumulativeIndex: int
     lastUpdateTimestamp: int
-    price:int
+    price: int
 
 
 # An interface to oToken
@@ -69,7 +69,7 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
-    def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int):
+    def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int) -> dict:
         pass
 
     @interface
@@ -89,7 +89,7 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
-    def getUserBorrowBalances(self, _reserve: Address, _user: Address):
+    def getUserBorrowBalances(self, _reserve: Address, _user: Address) -> dict:
         pass
 
     @interface
@@ -295,7 +295,7 @@ class LendingPool(IconScoreBase):
     @external(readonly=True)
     def getBorrowWallets(self, _index: int) -> list:
         return self._get_array_items(self._borrowWallets, _index)
-        
+
     @external(readonly=True)
     def getDepositWallets(self, _index: int) -> list:
         return self._get_array_items(self._depositWallets, _index)
@@ -372,7 +372,7 @@ class LendingPool(IconScoreBase):
         if _waitForUnstaking:
             self._require(self.msg.sender == self._oIcxAddress.get(),
                           "Redeem with wait for unstaking failed: Invalid token")
-            transferData = {"method":"unstake","user":str(_user)}          
+            transferData = {"method": "unstake", "user": str(_user)}
             transferDataBytes = json_dumps(transferData).encode("utf-8")
             core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferDataBytes)
             self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
@@ -431,12 +431,12 @@ class LendingPool(IconScoreBase):
         self._require(amountOfCollateralNeededUSD <= userCollateralBalanceUSD,
                       "Borrow error:Insufficient collateral to cover new borrow")
 
-        borrowData = core.updateStateOnBorrow(_reserve, self.msg.sender, _amount, borrowFee)
+        borrowData: dict = core.updateStateOnBorrow(_reserve, self.msg.sender, _amount, borrowFee)
 
         core.transferToUser(_reserve, self.msg.sender, _amount)
         self._updateSnapshot(_reserve, self.msg.sender)
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
-                    borrowData['balanceIncrease'], self.block.timestamp)
+                    borrowData['balanceIncrease'], self.now())
 
     def _repay(self, _reserve: Address, _amount: int, _sender: Address):
         """
@@ -447,18 +447,18 @@ class LendingPool(IconScoreBase):
         """
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
-        borrowData = core.getUserBorrowBalances(_reserve, _sender)
-        userBasicReserveData = core.getUserBasicReserveData(_reserve, _sender)
+        borrowData: dict = core.getUserBorrowBalances(_reserve, _sender)
+        userBasicReserveData: dict = core.getUserBasicReserveData(_reserve, _sender)
 
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
-        returnAmount = 0 
-        if  _amount < paybackAmount:
+        returnAmount = 0
+        if _amount < paybackAmount:
             paybackAmount = _amount
-        else :
+        else:
             returnAmount = _amount - paybackAmount
 
         if paybackAmount <= userBasicReserveData['originationFee']:
@@ -468,7 +468,7 @@ class LendingPool(IconScoreBase):
             reserve.transfer(self._feeProviderAddress.get(), paybackAmount)
 
             self.Repay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
-                       self.block.timestamp)
+                       self.now())
             return
 
         paybackAmountMinusFees = paybackAmount - userBasicReserveData['originationFee']
@@ -483,14 +483,15 @@ class LendingPool(IconScoreBase):
         reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
         self._updateSnapshot(_reserve, _sender)
         # transfer excess amount back to the user
-        if returnAmount > 0 :
-            reserve.transfer(_sender,returnAmount)
+        if returnAmount > 0:
+            reserve.transfer(_sender, returnAmount)
         self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
                    borrowData['borrowBalanceIncrease'], self.block.timestamp)
 
     @payable
     @external
-    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int, _sender: Address):
+    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int,
+                        _sender: Address):
         """
         liquidates an undercollateralized loan
         :param _collateral:the address of the collateral to be liquidated
@@ -534,19 +535,18 @@ class LendingPool(IconScoreBase):
             'borrowCumulativeIndex': reserve['borrowCumulativeIndex'],
             'lastUpdateTimestamp': reserve['lastUpdateTimestamp'],
             'price': reserve['exchangePrice']
-
         }
 
         snapshot.updateReserveSnapshot(_reserve, reserveData)
 
-
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
+        d = None
         try:
             d = json_loads(_data.decode("utf-8"))
         except BaseException as e:
             revert(f'Invalid data: {_data}. Exception: {e}')
-        if set(d.keys()) != set(["method", "params"]):
+        if set(d.keys()) != {"method", "params"}:
             revert('Invalid parameters.')
         if d["method"] == "deposit":
             self._deposit(self.msg.sender, d["params"].get("amount", -1), _from)
@@ -559,7 +559,6 @@ class LendingPool(IconScoreBase):
                                  d["params"].get("_purchaseAmount"), _from)
         else:
             revert(f'No valid method called, data: {_data}')
-
 
     def _get_array_items(self, arraydb, index: int = 0) -> list:
         items = []
