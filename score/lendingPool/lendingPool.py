@@ -161,6 +161,8 @@ class LendingPool(IconScoreBase):
     LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
     BORROW_WALLETS = 'borrowWallets'
     DEPOSIT_WALLETS = 'depositWallets'
+    BORROW_INDEX = 'borrowIndex'
+    DEPOSIT_INDEX = 'depositIndex'
     FEE_PROVIDER = 'feeProvider'
     sICX_ADDRESS = 'sICXAddress'
     oICX_ADDRESS = 'oicxAddress'
@@ -175,6 +177,8 @@ class LendingPool(IconScoreBase):
         self._dataProvider = VarDB(self.LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
         self._borrowWallets = ArrayDB(self.BORROW_WALLETS, db, value_type=Address)
         self._depositWallets = ArrayDB(self.DEPOSIT_WALLETS, db, value_type=Address)
+        self._borrowIndex = DictDB(self.BORROW_INDEX, db, value_type = int)
+        self._depositIndex = DictDB(self.DEPOSIT_INDEX, db, value_type = int)
         self._feeProviderAddress = VarDB(self.FEE_PROVIDER, db, value_type=Address)
         self._sIcxAddress = VarDB(self.sICX_ADDRESS, db, value_type=Address)
         self._oIcxAddress = VarDB(self.oICX_ADDRESS, db, value_type=Address)
@@ -322,8 +326,11 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to be deposited
         :return:
         """
-        if _sender not in self._depositWallets:
+        if not self._depositIndex[_sender]:
+            self._depositIndex[_sender] = len(self._depositWallets)
             self._depositWallets.put(_sender)
+            
+
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
@@ -395,8 +402,11 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to be borrowed
         :return:
         """
-        if self.msg.sender not in self._borrowWallets:
+        if not self._borrowIndex[self.msg.sender]:
+            self._borrowIndex[self.msg.sender] = len(self._borrowWallets)
             self._borrowWallets.put(self.msg.sender)
+            
+
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         dataProvider = self.create_interface_score(self._dataProvider.get(), DataProviderInterface)
         feeProvider = self.create_interface_score(self._feeProviderAddress.get(), FeeProviderInterface)
