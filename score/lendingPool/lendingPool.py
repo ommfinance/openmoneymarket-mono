@@ -327,8 +327,9 @@ class LendingPool(IconScoreBase):
         :return:
         """
         if not self._depositIndex[_sender]:
-            self._depositIndex[_sender] = len(self._depositWallets)
+            # add new entry
             self._depositWallets.put(_sender)
+            self._depositIndex[_sender] = len(self._depositWallets)
             
 
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
@@ -403,8 +404,10 @@ class LendingPool(IconScoreBase):
         :return:
         """
         if not self._borrowIndex[self.msg.sender]:
-            self._borrowIndex[self.msg.sender] = len(self._borrowWallets)
+            # add new entry
             self._borrowWallets.put(self.msg.sender)
+            self._borrowIndex[self.msg.sender] = len(self._borrowWallets)
+            
             
 
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
