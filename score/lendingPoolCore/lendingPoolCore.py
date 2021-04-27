@@ -556,8 +556,6 @@ class LendingPoolCore(IconScoreBase):
 
     @only_lending_pool
     @external
-    # TODO why this method has return value? that means update right?
-    # TODO that is not readonly? weird..
     def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int) -> dict:
         borrowData = self.getUserBorrowBalances(_reserve, _user)
         principalBorrowBalance = borrowData['principalBorrowBalance']
