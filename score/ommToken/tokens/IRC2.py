@@ -4,20 +4,8 @@ from ..utils.checks import *
 from ..utils.consts import *
 
 TAG = 'IRC_2'
-DAY_TO_MICROSECOND = 864 * 10 ** 8
+DAY_TO_MICROSECOND = 86400 * 10 ** 6
 MICROSECONDS = 10 ** 6
-
-
-class InsufficientBalanceError(Exception):
-    pass
-
-
-class ZeroValueError(Exception):
-    pass
-
-
-class InvalidNameError(Exception):
-    pass
 
 
 class PrepDelegationDetails(TypedDict):
@@ -46,8 +34,8 @@ class Status:
 
 class IRC2(TokenStandard, IconScoreBase):
     """
-	Implementation of IRC2
-	"""
+    Implementation of IRC2
+    """
     _NAME = 'name'
     _SYMBOL = 'symbol'
     _DECIMALS = 'decimals'
@@ -65,8 +53,8 @@ class IRC2(TokenStandard, IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
-		Variable Definition
-		"""
+        Variable Definition
+        """
         super().__init__(db)
         self._name = VarDB(self._NAME, db, value_type=str)
         self._symbol = VarDB(self._SYMBOL, db, value_type=str)
@@ -84,40 +72,38 @@ class IRC2(TokenStandard, IconScoreBase):
         self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
         self._rewards = VarDB(self._REWARDS, db, value_type=Address)
 
-    def on_install(self, _tokenName: str,
-                   _symbolName: str,
-                   _initialSupply: int = DEFAULT_INITIAL_SUPPLY,
-                   _decimals: int = DEFAULT_DECIMAL_VALUE) -> None:
+    def on_install(
+            self,
+            _tokenName: str,
+            _symbolName: str,
+            _initialSupply: int = DEFAULT_INITIAL_SUPPLY,
+            _decimals: int = DEFAULT_DECIMAL_VALUE) -> None:
         """
-		Variable Initialization.
+        Variable Initialization.
 
-		:param _tokenName: The name of the token.
-		:param _symbolName: The symbol of the token.
-		:param _initialSupply: The total number of tokens to initialize with.
-					It is set to total supply in the beginning, 0 by default.
-		:param _decimals: The number of decimals. Set to 18 by default.
+        :param _tokenName: The name of the token.
+        :param _symbolName: The symbol of the token.
+        :param _initialSupply: The total number of tokens to initialize with.
+        It is set to total supply in the beginning, 0 by default.
+        :param _decimals: The number of decimals. Set to 18 by default.
 
-		total_supply is set to `_initialSupply`* 10 ^ decimals.
+        total_supply is set to `_initialSupply`* 10 ^ decimals.
 
-		Raise
-		InvalidNameError
-			If the length of strings `_symbolName` and `_tokenName` is 0 or less.
-		ZeroValueError
-			If `_initialSupply` is 0 or less.
-			If `_decimals` value is 0 or less.
-		"""
+        Raise
+        InvalidNameError
+            If the length of strings `_symbolName` and `_tokenName` is 0 or less.
+        ZeroValueError
+            If `_initialSupply` is 0 or less.
+            If `_decimals` value is 0 or less.
+        """
         if len(_symbolName) <= 0:
-            raise InvalidNameError("Invalid Symbol name")
-            pass
+            revert("Invalid Symbol name")
         if len(_tokenName) <= 0:
-            raise InvalidNameError("Invalid Token Name")
-            pass
+            revert("Invalid Token Name")
         if _initialSupply < 0:
-            raise ZeroValueError("Initial Supply cannot be less than zero")
-            pass
+            revert("Initial Supply cannot be less than zero")
         if _decimals < 0:
-            raise ZeroValueError("Decimals cannot be less than zero")
-            pass
+            revert("Decimals cannot be less than zero")
 
         super().on_install()
 
@@ -137,39 +123,38 @@ class IRC2(TokenStandard, IconScoreBase):
     @external(readonly=True)
     def name(self) -> str:
         """
-		Returns the name of the token.
-		"""
+        Returns the name of the token.
+        """
         return self._name.get()
 
     @external(readonly=True)
     def symbol(self) -> str:
         """
-		Returns the symbol of the token.
-		"""
+        Returns the symbol of the token.
+        """
         return self._symbol.get()
 
     @external(readonly=True)
     def decimals(self) -> int:
         """
-		Returns the number of decimals.
-		"""
+        Returns the number of decimals.
+        """
         return self._decimals.get()
 
     @external(readonly=True)
     def totalSupply(self) -> int:
         """
-		Returns the total number of tokens in existence.
-		"""
+        Returns the total number of tokens in existence.
+        """
         return self._total_supply.get()
 
     @external(readonly=True)
     def balanceOf(self, _owner: Address) -> int:
         """
-		Returns the amount of tokens owned by the account.
-
-		:param _owner: The account whose balance is to be checked.
-		:return Amount of tokens owned by the `account` with the given address.
-		"""
+        Returns the amount of tokens owned by the account.
+        :param _owner: The account whose balance is to be checked.
+        :return Amount of tokens owned by the `account` with the given address.
+        """
         return self._balances[_owner]
 
     @external
@@ -220,7 +205,7 @@ class IRC2(TokenStandard, IconScoreBase):
         self._unstaking_period.set(total_time)
 
     @external(readonly=True)
-    def getUnstakingPeriod(self)->int:
+    def getUnstakingPeriod(self) -> int:
         return self._unstaking_period.get()
 
     @external(readonly=True)
@@ -253,17 +238,17 @@ class IRC2(TokenStandard, IconScoreBase):
     @external
     def setAdmin(self, _admin: Address) -> None:
         """
-		Sets the authorized address.
+        Sets the authorized address.
 
-		:param _admin: The authorized admin address.
-		"""
+        :param _admin: The authorized admin address.
+        """
         return self._admin.set(_admin)
 
     @external(readonly=True)
     def getAdmin(self) -> Address:
         """
-		Returns the authorized admin address.
-		"""
+        Returns the authorized admin address.
+        """
         return self._admin.get()
 
     @only_owner
@@ -295,7 +280,7 @@ class IRC2(TokenStandard, IconScoreBase):
             self._makeAvailable(_user)
             self._staked_balances[_user][Status.STAKED] = 0
             self._staked_balances[_user][Status.UNSTAKING] += staked_balance
-            self._staked_balances[_user][Status.UNSTAKING_PERIOD] = (self.now() + self._unstaking_period.get())
+            self._staked_balances[_user][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
             self._total_staked_balance.set(self._total_staked_balance.get() - staked_balance)
             # stake_address_changes = self._stake_changes[self._stake_address_update_db.get()]
             # stake_address_changes.put(_user)
@@ -318,11 +303,11 @@ class IRC2(TokenStandard, IconScoreBase):
         return lockList
 
     @eventlog(indexed=3)
-    def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes = None):
+    def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         pass
 
     @eventlog(indexed=1)
-    def Mint(self, amount: int, _data: bytes = None):
+    def Mint(self, amount: int, _data: bytes):
         pass
 
     @eventlog(indexed=1)
@@ -338,27 +323,26 @@ class IRC2(TokenStandard, IconScoreBase):
 
     def _transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         """
-		Transfers certain amount of tokens from sender to the recepient.
-		This is an internal function.
+        Transfers certain amount of tokens from sender to the recipient.
+        This is an internal function.
 
-		:param _from: The account from which the token is to be transferred.
-		:param _to: The account to which the token is to be transferred.
-		:param _value: The no. of tokens to be transferred.
-		:param _data: Any information or message
+        :param _from: The account from which the token is to be transferred.
+        :param _to: The account to which the token is to be transferred.
+        :param _value: The no. of tokens to be transferred.
+        :param _data: Any information or message
 
-		Raises
-		ZeroValueError
-			if the value to be transferred is less than 0
-		InsufficientBalanceError
-			if the sender has less balance than the value to be transferred
-		"""
+        Raises
+        ZeroValueError
+            if the value to be transferred is less than 0
+        InsufficientBalanceError
+            if the sender has less balance than the value to be transferred
+        """
+
         if _value < 0:
-            raise ZeroValueError("Transferring value cannot be less than 0.")
-            return
+            revert("Transferring value cannot be less than 0.")
 
         if self._balances[_from] < _value:
-            raise InsufficientBalanceError("Insufficient balance.")
-            return
+            revert(f"Insufficient balance")
 
         self._check_first_time(_from)
         self._check_first_time(_to)
@@ -370,14 +354,14 @@ class IRC2(TokenStandard, IconScoreBase):
         self._balances[_from] -= _value
         self._balances[_to] += _value
 
-        self._staked_balances[_from][Status.AVAILABLE] = (self._staked_balances[_from][Status.AVAILABLE] - _value)
-        self._staked_balances[_to][Status.AVAILABLE] = (self._staked_balances[_to][Status.AVAILABLE] + _value)
+        self._staked_balances[_from][Status.AVAILABLE] = self._staked_balances[_from][Status.AVAILABLE] - _value
+        self._staked_balances[_to][Status.AVAILABLE] = self._staked_balances[_to][Status.AVAILABLE] + _value
 
         if _to.is_contract:
             """
-			If the recipient is SCORE,
-			then calls `tokenFallback` to hand over control.
-			"""
+            If the recipient is SCORE,
+            then calls `tokenFallback` to hand over control.
+            """
             recipient_score = self.create_interface_score(_to, TokenFallbackInterface)
             recipient_score.tokenFallback(_from, _value, _data)
 
@@ -410,13 +394,15 @@ class IRC2(TokenStandard, IconScoreBase):
         self._require(_value > self._minimum_stake.get(), "Stake error:Stake amount must be greater than minimum stake")
         self._check_first_time(_from)
         self._makeAvailable(_from)
-        self._require((self._balances[_from] - self._staked_balances[_from][Status.UNSTAKING]) >= _value, "Stake error: ")
+        self._require((self._balances[_from] - self._staked_balances[_from][Status.UNSTAKING]) >= _value,
+                      "Stake error: ")
         self._require(_from not in self._lock_list, "Stake error: The address is locked ")
-        old_stake = self._staked_balances[_from][Status.STAKED] 
+        old_stake = self._staked_balances[_from][Status.STAKED]
         new_stake = _value
         stake_increment = new_stake - old_stake
         self._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
-        self._staked_balances[_from][Status.AVAILABLE] = self._staked_balances[_from][Status.AVAILABLE] - stake_increment
+        self._staked_balances[_from][Status.AVAILABLE] = self._staked_balances[_from][
+                                                             Status.AVAILABLE] - stake_increment
         self._staked_balances[_from][Status.STAKED] = _value
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
@@ -451,22 +437,20 @@ class IRC2(TokenStandard, IconScoreBase):
     @only_admin
     def _mint(self, _amount: int, _data: bytes = None) -> None:
         """
-		Creates amount number of tokens, and assigns to account
-		Increases the balance of that account and total supply.
-		This is an internal function
+        Creates amount number of tokens, and assigns to account
+        Increases the balance of that account and total supply.
+        This is an internal function
 
-		:param account: The account at whhich token is to be created.
-		:param amount: Number of tokens to be created at the `account`.
-		:param _data: Any information or message
+        :param _amount: Number of tokens to be created at the `account`.
+        :param _data: Any information or message
 
-		Raises
-		ZeroValueError
-			if the `amount` is less than or equal to zero.
-		"""
+        Raises
+        ZeroValueError
+        if the `amount` is less than or equal to zero.
+        """
 
         if _amount <= 0:
-            raise ZeroValueError("Invalid Value")
-            pass
+            revert(f"ZeroValueError: _amount: {_amount}")
 
         self._total_supply.set(self._total_supply.get() + _amount)
         self._balances[self.address] += _amount
