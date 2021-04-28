@@ -369,7 +369,7 @@ class LendingPool(IconScoreBase):
         reserveData = core.getReserveData(_reserve)
         if self.msg.sender != reserveData['oTokenAddress']:
             revert(f'{TAG}'
-                   f'{self.msg.sender} is unauthorized to call,only otoken can invoke the method')
+                   f'{self.msg.sender} is unauthorized to call, only otoken can invoke the method')
         if core.getReserveAvailableLiquidity(_reserve) < _amount:
             revert(f'There is not enough liquidity available to redeem')
 
@@ -411,7 +411,7 @@ class LendingPool(IconScoreBase):
         dataProvider = self.create_interface_score(self._dataProvider.get(), DataProviderInterface)
         feeProvider = self.create_interface_score(self._feeProviderAddress.get(), FeeProviderInterface)
 
-        self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in  the reserve")
+        self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in the reserve")
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         reward.distribute()
@@ -454,7 +454,8 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to repay,should be -1 if the user wants to repay everything
         :return:
         """
-        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
+        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         borrowData: dict = core.getUserBorrowBalances(_reserve, _sender)
         userBasicReserveData: dict = core.getUserBasicReserveData(_reserve, _sender)
@@ -489,7 +490,7 @@ class LendingPool(IconScoreBase):
             # core.transferToFeeCollectionAddress
             reserve.transfer(self._feeProviderAddress.get(), userBasicReserveData['originationFee'])
 
-        reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
+        reserve.transfer(lendingPoolCoreAddress, paybackAmountMinusFees)
         self._updateSnapshot(_reserve, _sender)
         # transfer excess amount back to the user
         if returnAmount > 0:
