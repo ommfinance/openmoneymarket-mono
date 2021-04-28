@@ -575,17 +575,12 @@ class LendingPool(IconScoreBase):
 
     @staticmethod
     def _get_array_items(arraydb, index: int = 0) -> list:
-        items = []
         length = len(arraydb)
         start = index * BATCH_SIZE
 
         if start >= length:
-            return items
+            return []
 
         end = start + BATCH_SIZE
         end = length if end > length else end
-
-        for idx in range(start, end):
-            items.append(arraydb[idx])
-
-        return items
+        return [arraydb[i] for i in range(start, end)]
