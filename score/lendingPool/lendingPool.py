@@ -177,8 +177,8 @@ class LendingPool(IconScoreBase):
         self._dataProvider = VarDB(self.LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
         self._borrowWallets = ArrayDB(self.BORROW_WALLETS, db, value_type=Address)
         self._depositWallets = ArrayDB(self.DEPOSIT_WALLETS, db, value_type=Address)
-        self._borrowIndex = DictDB(self.BORROW_INDEX, db, value_type = int)
-        self._depositIndex = DictDB(self.DEPOSIT_INDEX, db, value_type = int)
+        self._borrowIndex = DictDB(self.BORROW_INDEX, db, value_type=int)
+        self._depositIndex = DictDB(self.DEPOSIT_INDEX, db, value_type=int)
         self._feeProviderAddress = VarDB(self.FEE_PROVIDER, db, value_type=Address)
         self._sIcxAddress = VarDB(self.sICX_ADDRESS, db, value_type=Address)
         self._oIcxAddress = VarDB(self.oICX_ADDRESS, db, value_type=Address)
@@ -330,7 +330,6 @@ class LendingPool(IconScoreBase):
             # add new entry
             self._depositWallets.put(_sender)
             self._depositIndex[_sender] = len(self._depositWallets)
-            
 
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
@@ -362,6 +361,7 @@ class LendingPool(IconScoreBase):
         :param _user:the address of the user requesting the redeem
         :param _amount:the amount to be deposited, should be -1 if the user wants to redeem everything
         :param _oTokenbalanceAfterRedeem:the remaining balance of _user after the redeem is successful
+        :param _waitForUnstaking:
         :return:
         """
 
@@ -391,7 +391,8 @@ class LendingPool(IconScoreBase):
         self._updateSnapshot(_reserve, _user)
         self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
 
-    def _require(self, _condition: bool, _message: str):
+    @staticmethod
+    def _require(_condition: bool, _message: str):
         if not _condition:
             revert(_message)
 
@@ -407,8 +408,6 @@ class LendingPool(IconScoreBase):
             # add new entry
             self._borrowWallets.put(self.msg.sender)
             self._borrowIndex[self.msg.sender] = len(self._borrowWallets)
-            
-            
 
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         dataProvider = self.create_interface_score(self._dataProvider.get(), DataProviderInterface)
@@ -511,6 +510,7 @@ class LendingPool(IconScoreBase):
         :param _reserve:the address of the reserve
         :param _user:the address of the borrower
         :param _purchaseAmount:the amount to liquidate
+        :param _sender:
         :return:
         """
         liquidationManager = self.create_interface_score(self.getLiquidationManager(),
@@ -573,7 +573,8 @@ class LendingPool(IconScoreBase):
         else:
             revert(f'No valid method called, data: {_data}')
 
-    def _get_array_items(self, arraydb, index: int = 0) -> list:
+    @staticmethod
+    def _get_array_items(arraydb, index: int = 0) -> list:
         items = []
         length = len(arraydb)
         start = index * BATCH_SIZE
