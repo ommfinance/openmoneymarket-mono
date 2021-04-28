@@ -2,7 +2,6 @@ from iconservice import *
 
 
 class ReserveData(object):
-    
 
     def __init__(self, db: IconScoreDatabase) -> None:
         self.reserveAddress = VarDB('id', db, Address)
@@ -12,7 +11,7 @@ class ReserveData(object):
         self.liquidityRate = VarDB('liquidityRate', db, int)
         self.borrowRate = VarDB('borrowRate', db, int)
         self.liquidityCumulativeIndex = VarDB('liquidityCumulativeIndex', db, int)
-        self.borrowCumulativeIndex= VarDB('borrowCumulativeIndex',db,int)
+        self.borrowCumulativeIndex = VarDB('borrowCumulativeIndex', db, int)
         self.baseLTVasCollateral = VarDB('baseLTLasCollateral', db, int)
         self.liquidationThreshold = VarDB('liquidationThreshold', db, int)
         self.liquidationBonus = VarDB('liquidationBonus', db, int)
@@ -21,7 +20,7 @@ class ReserveData(object):
         self.usageAsCollateralEnabled = VarDB('usageAsCollateralEnabled', db, bool)
         self.isFreezed = VarDB('isFreezed', db, bool)
         self.isActive = VarDB('Active', db, bool)
-        
+
 
 class ReserveDataDB:
 
@@ -87,7 +86,7 @@ def getDataFromReserve(prefix: bytes, _reserve: 'ReserveDataDB') -> dict:
     liquidityRate = _reserve[prefix].liquidityRate.get()
     borrowRate = _reserve[prefix].borrowRate.get()
     liquidityCumulativeIndex = _reserve[prefix].liquidityCumulativeIndex.get()
-    borrowCumulativeIndex=_reserve[prefix].borrowCumulativeIndex.get()
+    borrowCumulativeIndex = _reserve[prefix].borrowCumulativeIndex.get()
     baseLTVasCollateral = _reserve[prefix].baseLTVasCollateral.get()
     liquidationThreshold = _reserve[prefix].liquidationThreshold.get()
     liquidationBonus = _reserve[prefix].liquidationBonus.get()
@@ -104,7 +103,7 @@ def getDataFromReserve(prefix: bytes, _reserve: 'ReserveDataDB') -> dict:
         'liquidityRate': liquidityRate,
         'borrowRate': borrowRate,
         'liquidityCumulativeIndex': liquidityCumulativeIndex,
-        'borrowCumulativeIndex':borrowCumulativeIndex,
+        'borrowCumulativeIndex': borrowCumulativeIndex,
         'baseLTVasCollateral': baseLTVasCollateral,
         'liquidationThreshold': liquidationThreshold,
         'liquidationBonus': liquidationBonus,
@@ -117,23 +116,24 @@ def getDataFromReserve(prefix: bytes, _reserve: 'ReserveDataDB') -> dict:
 
 
 def createReserveDataObject(reserveData: dict) -> 'ReserveDataObject':
-    return ReserveDataObject(reserveAddress=reserveData['reserveAddress'],
-                             oTokenAddress=reserveData['oTokenAddress'],
-                             totalBorrows=reserveData['totalBorrows'],
-                             lastUpdateTimestamp=reserveData['lastUpdateTimestamp'],
-                             liquidityRate=reserveData['liquidityRate'],
-                             borrowRate=reserveData['borrowRate'],
-                             liquidityCumulativeIndex=reserveData['liquidityCumulativeIndex'],
-                             borrowCumulativeIndex=reserveData['borrowCumulativeIndex'],
-                             baseLTVasCollateral=reserveData['baseLTVasCollateral'],
-                             liquidationThreshold=reserveData['liquidationThreshold'],
-                             liquidationBonus=reserveData['liquidationBonus'],
-                             decimals=reserveData['decimals'],
-                             borrowingEnabled=reserveData['borrowingEnabled'],
-                             usageAsCollateralEnabled=reserveData['usageAsCollateralEnabled'],
-                             isFreezed=reserveData['isFreezed'],
-                             isActive=reserveData['isActive']
-                             )
+    return ReserveDataObject(
+        reserveAddress=reserveData['reserveAddress'],
+        oTokenAddress=reserveData['oTokenAddress'],
+        totalBorrows=reserveData['totalBorrows'],
+        lastUpdateTimestamp=reserveData['lastUpdateTimestamp'],
+        liquidityRate=reserveData['liquidityRate'],
+        borrowRate=reserveData['borrowRate'],
+        liquidityCumulativeIndex=reserveData['liquidityCumulativeIndex'],
+        borrowCumulativeIndex=reserveData['borrowCumulativeIndex'],
+        baseLTVasCollateral=reserveData['baseLTVasCollateral'],
+        liquidationThreshold=reserveData['liquidationThreshold'],
+        liquidationBonus=reserveData['liquidationBonus'],
+        decimals=reserveData['decimals'],
+        borrowingEnabled=reserveData['borrowingEnabled'],
+        usageAsCollateralEnabled=reserveData['usageAsCollateralEnabled'],
+        isFreezed=reserveData['isFreezed'],
+        isActive=reserveData['isActive']
+    )
 
 
 class ReserveDataObject(object):
@@ -146,7 +146,7 @@ class ReserveDataObject(object):
         self.liquidityRate = kwargs.get('liquidityRate')
         self.borrowRate = kwargs.get('borrowRate')
         self.liquidityCumulativeIndex = kwargs.get('liquidityCumulativeIndex')
-        self.borrowCumulativeIndex=kwargs.get('borrowCumulativeIndex')
+        self.borrowCumulativeIndex = kwargs.get('borrowCumulativeIndex')
         self.baseLTVasCollateral = kwargs.get('baseLTVasCollateral')
         self.liquidationThreshold = kwargs.get('liquidationThreshold')
         self.liquidationBonus = kwargs.get('liquidationBonus')
