@@ -511,13 +511,14 @@ class LendingPool(IconScoreBase):
         :param _sender:
         :return:
         """
+        lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
         liquidationManager = self.create_interface_score(self.getLiquidationManager(),
                                                          LiquidationManagerInterface)
-        core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
+        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         liquidation = liquidationManager.liquidationCall(_collateral, _reserve, _user, _purchaseAmount)
         principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
         core.transferToUser(_collateral, _sender, liquidation['maxCollateralToLiquidate'])
-        principalCurrency.transfer(self.getLendingPoolCore(), liquidation['actualAmountToLiquidate'])
+        principalCurrency.transfer(lendingPoolCoreAddress, liquidation['actualAmountToLiquidate'])
         if _purchaseAmount > liquidation['actualAmountToLiquidate']:
             principalCurrency.transfer(_sender, _purchaseAmount - liquidation['actualAmountToLiquidate'])
 
