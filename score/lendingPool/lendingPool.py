@@ -350,7 +350,7 @@ class LendingPool(IconScoreBase):
 
         self._updateSnapshot(_reserve, _sender)
 
-        self.Deposit(_reserve, _sender, _amount, self.block.timestamp)
+        self.Deposit(_reserve, _sender, _amount, self.now())
 
     @external
     def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int,
@@ -383,13 +383,13 @@ class LendingPool(IconScoreBase):
             transferData = {"method": "unstake", "user": str(_user)}
             transferDataBytes = json_dumps(transferData).encode("utf-8")
             core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferDataBytes)
-            self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
+            self.RedeemUnderlying(_reserve, _user, _amount, self.now())
             return
 
         core.transferToUser(_reserve, _user, _amount)
 
         self._updateSnapshot(_reserve, _user)
-        self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
+        self.RedeemUnderlying(_reserve, _user, _amount, self.now())
 
     @staticmethod
     def _require(_condition: bool, _message: str):
@@ -498,7 +498,7 @@ class LendingPool(IconScoreBase):
         if returnAmount > 0:
             reserve.transfer(_sender, returnAmount)
         self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
-                   borrowData['borrowBalanceIncrease'], self.block.timestamp)
+                   borrowData['borrowBalanceIncrease'], self.now())
 
     @payable
     @external
