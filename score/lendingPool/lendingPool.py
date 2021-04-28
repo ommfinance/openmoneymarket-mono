@@ -425,7 +425,7 @@ class LendingPool(IconScoreBase):
         currentLTV = userData['currentLtv']
         healthFactorBelowThreshold = userData['healthFactorBelowThreshold']
 
-        self._require(userCollateralBalanceUSD > 0, "Borrow error:The user dont have any collateral")
+        self._require(userCollateralBalanceUSD > 0, "Borrow error:The user does not have any collateral")
         self._require(not healthFactorBelowThreshold, "Borrow error:Health factor is below threshold")
 
         borrowFee = feeProvider.calculateOriginationFee(_amount)
