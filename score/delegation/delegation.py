@@ -60,6 +60,10 @@ class Delegation(IconScoreBase):
     def name(self) -> str:
         return "OmmDelegation"
 
+    @eventlog(indexed=2)
+    def DelegationUpdated(self, _before: str, _after: str):
+        pass
+
     @only_owner
     @external
     def setOmmToken(self, _address: Address):
@@ -107,7 +111,9 @@ class Delegation(IconScoreBase):
         else:
             user = self.msg.sender
 
-        total_percentage = 0
+        totalPercentage = 0
+        initialDelegation = self.computeDelegationPercentages()
+        delegationBefore = f'{initialDelegation}'
         if _delegations is None:
             delegations = self.getUserDelegationDetails(user)
         else:
@@ -149,6 +155,7 @@ class Delegation(IconScoreBase):
             updated_delegation = self.computeDelegationPercentages()
             core = self.create_interface_score(self._lendingPoolCore.get(), LendingPoolCoreInterface)
             core.updatePrepDelegations(updated_delegation)
+            self.DelegationUpdated(delegationBefore, f'{updatedDelegation}')
 
     @external(readonly=True)
     def prepVotes(self, _prep: Address) -> int:
@@ -173,14 +180,32 @@ class Delegation(IconScoreBase):
         prep_delegations = []
         prep_list = self.getPrepList()
         total_percentage = 0
+        dust_votes = 0
+        max_votes_prep_index = 0
+        max_votes = 0
+        below_threshold_prep_indexes = []
         for index, prep in enumerate(prep_list):
+            votes: int = 0
             votes_percentage: PrepDelegations = {'_address': prep, '_votes_in_per': 0}
             if index == len(prep_list) - 1:
-                votes_percentage['_votes_in_per'] = 100 * EXA - total_percentage
+                votes = 100 * EXA - total_percentage
+                votes_percentage['_votes_in_per'] = votes
+                if votes > max_votes:
+                    max_votes = votes
+                    max_votes_prep_index = index
             else:
                 votes = exaDiv(self._prepVotes[prep], self._totalVotes.get()) * 100
                 votes_percentage['_votes_in_per'] = votes
                 total_percentage += votes_percentage['_votes_in_per']
-            if votes > 0:
-                prep_delegations.append(votes_percentage)
+                if votes > max_votes:
+                    max_votes = votes
+                    max_votes_prep_index = index
+
+            if votes < 1 * 10 ** 15:
+                dust_votes += votes
+                below_threshold_prep_indexes.append(index)
+            prep_delegations.append(votes_percentage)
+        prep_delegations[max_votes_prep_index]['_votes_in_per'] += dust_votes
+        for items in below_threshold_prep_indexes:
+            prep_delegations.pop(items)
         return prep_delegations
