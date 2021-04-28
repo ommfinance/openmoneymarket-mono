@@ -331,7 +331,8 @@ class LendingPool(IconScoreBase):
             self._depositWallets.put(_sender)
             self._depositIndex[_sender] = len(self._depositWallets)
 
-        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
+        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         reward.distribute()
@@ -339,14 +340,11 @@ class LendingPool(IconScoreBase):
         oTokenAddress = reserveData['oTokenAddress']
 
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
-        isFirstDeposit = False
-        if oToken.balanceOf(_sender) == 0:
-            isFirstDeposit = True
-        core.updateStateOnDeposit(_reserve, _sender, _amount, isFirstDeposit)
+        core.updateStateOnDeposit(_reserve, _sender, _amount, oToken.balanceOf(_sender) == 0)
 
         oToken.mintOnDeposit(_sender, _amount)
         if _reserve != self._sIcxAddress.get():
-            reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
+            reserve.transfer(lendingPoolCoreAddress, _amount)
 
         self._updateSnapshot(_reserve, _sender)
 
