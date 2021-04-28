@@ -1,13 +1,15 @@
 from iconservice import *
-from .utils.checks import * 
+from .utils.checks import *
 
 TAG = 'Governance'
+
 
 # An interface to Rewards
 class RewardInterface(InterfaceScore):
     @interface
     def setStartTimestamp(self, _timestamp: int):
         pass
+
 
 # An interface to Snapshot
 class SnapshotInterface(InterfaceScore):
@@ -17,15 +19,13 @@ class SnapshotInterface(InterfaceScore):
 
 
 class Governance(IconScoreBase):
-
     REWARDS = 'rewards'
     SNAPSHOT = 'snapshot'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._rewards = VarDB(self.REWARDS, db, value_type = Address)
-        self._snapshot = VarDB(self.SNAPSHOT, db, value_type = Address)
-
+        self._rewards = VarDB(self.REWARDS, db, value_type=Address)
+        self._snapshot = VarDB(self.SNAPSHOT, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -34,9 +34,9 @@ class Governance(IconScoreBase):
         super().on_update()
 
     @external(readonly=True)
-    def name(self) -> str :
-        return "OmmGovernanceManager" 
-        
+    def name(self) -> str:
+        return "OmmGovernanceManager"
+
     @only_owner
     @external
     def setSnapshot(self, _address: Address):
@@ -62,5 +62,3 @@ class Governance(IconScoreBase):
         rewards = self.create_interface_score(self._rewards.get(), RewardInterface)
         snapshot.setStartTimestamp(_timestamp)
         rewards.setStartTimestamp(_timestamp)
-
-

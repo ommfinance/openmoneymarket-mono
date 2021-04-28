@@ -70,6 +70,7 @@ class LiquidationInterface(InterfaceScore):
                          _ltv: int) -> int:
         pass
 
+
 class StakingInterface(InterfaceScore):
     @interface
     def getTodayRate(self) -> int:
@@ -118,8 +119,6 @@ class LendingPoolDataProvider(IconScoreBase):
     @only_owner
     @external
     def setSymbol(self, _reserve: Address, _sym: str):
-        if self.msg.sender != self.owner:
-            revert(f'Method can only be invoked by the owner')
         self._symbol[_reserve] = _sym
 
     @external(readonly=True)
@@ -217,7 +216,6 @@ class LendingPoolDataProvider(IconScoreBase):
             'availableLiquidityBalanceUSD': availableLiquidityBalanceUSD,
             'totalBorrowsBalanceUSD': totalBorrowBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
-
         }
 
         return response
