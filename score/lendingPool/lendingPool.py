@@ -427,7 +427,6 @@ class LendingPool(IconScoreBase):
         userBorrowBalanceUSD = userData['totalBorrowBalanceUSD']
         userTotalFeesUSD = userData['totalFeesUSD']
         currentLTV = userData['currentLtv']
-        currentLiquidationThreshold = userData['currentLiquidationThreshold']
         healthFactorBelowThreshold = userData['healthFactorBelowThreshold']
 
         self._require(userCollateralBalanceUSD > 0, "Borrow error:The user dont have any collateral")
