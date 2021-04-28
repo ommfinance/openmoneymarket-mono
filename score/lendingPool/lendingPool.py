@@ -383,12 +383,10 @@ class LendingPool(IconScoreBase):
             transferData = {"method": "unstake", "user": str(_user)}
             transferDataBytes = json_dumps(transferData).encode("utf-8")
             core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferDataBytes)
-            self.RedeemUnderlying(_reserve, _user, _amount, self.now())
-            return
+        else:
+            core.transferToUser(_reserve, _user, _amount)
+            self._updateSnapshot(_reserve, _user)
 
-        core.transferToUser(_reserve, _user, _amount)
-
-        self._updateSnapshot(_reserve, _user)
         self.RedeemUnderlying(_reserve, _user, _amount, self.now())
 
     @staticmethod
