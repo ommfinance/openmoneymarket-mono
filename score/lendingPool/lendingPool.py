@@ -177,8 +177,8 @@ class LendingPool(IconScoreBase):
         self._dataProvider = VarDB(self.LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
         self._borrowWallets = ArrayDB(self.BORROW_WALLETS, db, value_type=Address)
         self._depositWallets = ArrayDB(self.DEPOSIT_WALLETS, db, value_type=Address)
-        self._borrowIndex = DictDB(self.BORROW_INDEX, db, value_type = int)
-        self._depositIndex = DictDB(self.DEPOSIT_INDEX, db, value_type = int)
+        self._borrowIndex = DictDB(self.BORROW_INDEX, db, value_type=int)
+        self._depositIndex = DictDB(self.DEPOSIT_INDEX, db, value_type=int)
         self._feeProviderAddress = VarDB(self.FEE_PROVIDER, db, value_type=Address)
         self._sIcxAddress = VarDB(self.sICX_ADDRESS, db, value_type=Address)
         self._oIcxAddress = VarDB(self.oICX_ADDRESS, db, value_type=Address)
@@ -330,9 +330,9 @@ class LendingPool(IconScoreBase):
             # add new entry
             self._depositWallets.put(_sender)
             self._depositIndex[_sender] = len(self._depositWallets)
-            
 
-        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
+        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         reward.distribute()
@@ -340,18 +340,15 @@ class LendingPool(IconScoreBase):
         oTokenAddress = reserveData['oTokenAddress']
 
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
-        isFirstDeposit = False
-        if oToken.balanceOf(_sender) == 0:
-            isFirstDeposit = True
-        core.updateStateOnDeposit(_reserve, _sender, _amount, isFirstDeposit)
+        core.updateStateOnDeposit(_reserve, _sender, _amount, oToken.balanceOf(_sender) == 0)
 
         oToken.mintOnDeposit(_sender, _amount)
         if _reserve != self._sIcxAddress.get():
-            reserve.transfer(self._lendingPoolCoreAddress.get(), _amount)
+            reserve.transfer(lendingPoolCoreAddress, _amount)
 
         self._updateSnapshot(_reserve, _sender)
 
-        self.Deposit(_reserve, _sender, _amount, self.block.timestamp)
+        self.Deposit(_reserve, _sender, _amount, self.now())
 
     @external
     def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int,
@@ -362,6 +359,7 @@ class LendingPool(IconScoreBase):
         :param _user:the address of the user requesting the redeem
         :param _amount:the amount to be deposited, should be -1 if the user wants to redeem everything
         :param _oTokenbalanceAfterRedeem:the remaining balance of _user after the redeem is successful
+        :param _waitForUnstaking:
         :return:
         """
 
@@ -369,7 +367,7 @@ class LendingPool(IconScoreBase):
         reserveData = core.getReserveData(_reserve)
         if self.msg.sender != reserveData['oTokenAddress']:
             revert(f'{TAG}'
-                   f'{self.msg.sender} is unauthorized to call,only otoken can invoke the method')
+                   f'{self.msg.sender} is unauthorized to call, only otoken can invoke the method')
         if core.getReserveAvailableLiquidity(_reserve) < _amount:
             revert(f'There is not enough liquidity available to redeem')
 
@@ -383,15 +381,14 @@ class LendingPool(IconScoreBase):
             transferData = {"method": "unstake", "user": str(_user)}
             transferDataBytes = json_dumps(transferData).encode("utf-8")
             core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferDataBytes)
-            self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
-            return
+        else:
+            core.transferToUser(_reserve, _user, _amount)
+            self._updateSnapshot(_reserve, _user)
 
-        core.transferToUser(_reserve, _user, _amount)
+        self.RedeemUnderlying(_reserve, _user, _amount, self.now())
 
-        self._updateSnapshot(_reserve, _user)
-        self.RedeemUnderlying(_reserve, _user, _amount, self.block.timestamp)
-
-    def _require(self, _condition: bool, _message: str):
+    @staticmethod
+    def _require(_condition: bool, _message: str):
         if not _condition:
             revert(_message)
 
@@ -407,14 +404,12 @@ class LendingPool(IconScoreBase):
             # add new entry
             self._borrowWallets.put(self.msg.sender)
             self._borrowIndex[self.msg.sender] = len(self._borrowWallets)
-            
-            
 
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         dataProvider = self.create_interface_score(self._dataProvider.get(), DataProviderInterface)
         feeProvider = self.create_interface_score(self._feeProviderAddress.get(), FeeProviderInterface)
 
-        self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in  the reserve")
+        self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in the reserve")
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         reward.distribute()
@@ -428,10 +423,9 @@ class LendingPool(IconScoreBase):
         userBorrowBalanceUSD = userData['totalBorrowBalanceUSD']
         userTotalFeesUSD = userData['totalFeesUSD']
         currentLTV = userData['currentLtv']
-        currentLiquidationThreshold = userData['currentLiquidationThreshold']
         healthFactorBelowThreshold = userData['healthFactorBelowThreshold']
 
-        self._require(userCollateralBalanceUSD > 0, "Borrow error:The user dont have any collateral")
+        self._require(userCollateralBalanceUSD > 0, "Borrow error:The user does not have any collateral")
         self._require(not healthFactorBelowThreshold, "Borrow error:Health factor is below threshold")
 
         borrowFee = feeProvider.calculateOriginationFee(_amount)
@@ -458,7 +452,8 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to repay,should be -1 if the user wants to repay everything
         :return:
         """
-        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
+        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         borrowData: dict = core.getUserBorrowBalances(_reserve, _sender)
         userBasicReserveData: dict = core.getUserBasicReserveData(_reserve, _sender)
@@ -493,13 +488,13 @@ class LendingPool(IconScoreBase):
             # core.transferToFeeCollectionAddress
             reserve.transfer(self._feeProviderAddress.get(), userBasicReserveData['originationFee'])
 
-        reserve.transfer(self._lendingPoolCoreAddress.get(), paybackAmountMinusFees)
+        reserve.transfer(lendingPoolCoreAddress, paybackAmountMinusFees)
         self._updateSnapshot(_reserve, _sender)
         # transfer excess amount back to the user
         if returnAmount > 0:
             reserve.transfer(_sender, returnAmount)
         self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
-                   borrowData['borrowBalanceIncrease'], self.block.timestamp)
+                   borrowData['borrowBalanceIncrease'], self.now())
 
     @payable
     @external
@@ -511,15 +506,17 @@ class LendingPool(IconScoreBase):
         :param _reserve:the address of the reserve
         :param _user:the address of the borrower
         :param _purchaseAmount:the amount to liquidate
+        :param _sender:
         :return:
         """
+        lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
         liquidationManager = self.create_interface_score(self.getLiquidationManager(),
                                                          LiquidationManagerInterface)
-        core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
+        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         liquidation = liquidationManager.liquidationCall(_collateral, _reserve, _user, _purchaseAmount)
         principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
         core.transferToUser(_collateral, _sender, liquidation['maxCollateralToLiquidate'])
-        principalCurrency.transfer(self.getLendingPoolCore(), liquidation['actualAmountToLiquidate'])
+        principalCurrency.transfer(lendingPoolCoreAddress, liquidation['actualAmountToLiquidate'])
         if _purchaseAmount > liquidation['actualAmountToLiquidate']:
             principalCurrency.transfer(_sender, _purchaseAmount - liquidation['actualAmountToLiquidate'])
 
@@ -573,18 +570,14 @@ class LendingPool(IconScoreBase):
         else:
             revert(f'No valid method called, data: {_data}')
 
-    def _get_array_items(self, arraydb, index: int = 0) -> list:
-        items = []
+    @staticmethod
+    def _get_array_items(arraydb, index: int = 0) -> list:
         length = len(arraydb)
         start = index * BATCH_SIZE
 
         if start >= length:
-            return items
+            return []
 
         end = start + BATCH_SIZE
         end = length if end > length else end
-
-        for idx in range(start, end):
-            items.append(arraydb[idx])
-
-        return items
+        return [arraydb[i] for i in range(start, end)]
