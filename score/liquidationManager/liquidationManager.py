@@ -194,7 +194,7 @@ class LiquidationManager(IconScoreBase):
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             sicxRate = staking.getTodayRate()
             collateralPrice = exaMul(collateralPrice, sicxRate)
-        if principalPrice == 'ICX':
+        if principalBase == 'ICX':
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             sicxRate = staking.getTodayRate()
             principalPrice = exaMul(principalPrice, sicxRate)
