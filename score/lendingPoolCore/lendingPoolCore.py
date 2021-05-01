@@ -100,6 +100,7 @@ class ReserveInterface(InterfaceScore):
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
 
+
 class StakingInterface(InterfaceScore):
     @interface
     def getTodayRate(self) -> int:
@@ -341,7 +342,7 @@ class LendingPoolCore(IconScoreBase):
 
     @external(readonly=True)
     def getReserveData(self, _reserve: Address) -> dict:
-        response = { }
+        response = {}
         if self._check_reserve(_reserve):
             prefix = self.reservePrefix(_reserve)
             response = getDataFromReserve(prefix, self.reserve)
