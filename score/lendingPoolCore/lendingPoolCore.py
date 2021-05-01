@@ -412,14 +412,14 @@ class LendingPoolCore(IconScoreBase):
         totalBorrows = reserveData['totalBorrows']
 
         if totalBorrows > 0:
-            cummulatedLiquidityInterest = self.calculateLinearInterest(reserveData['liquidityRate'],
-                                                                       reserveData['lastUpdateTimestamp'])
-            self.updateLiquidityCumulativeIndex(_reserve, exaMul(cummulatedLiquidityInterest,
+            cumulatedLiquidityInterest = self.calculateLinearInterest(reserveData['liquidityRate'],
+                                                                      reserveData['lastUpdateTimestamp'])
+            self.updateLiquidityCumulativeIndex(_reserve, exaMul(cumulatedLiquidityInterest,
                                                                  reserveData['liquidityCumulativeIndex']))
-            cummulatedBorrowInterest = self.calculateCompoundedInterest(reserveData['borrowRate'],
-                                                                        reserveData['lastUpdateTimestamp'])
+            cumulatedBorrowInterest = self.calculateCompoundedInterest(reserveData['borrowRate'],
+                                                                       reserveData['lastUpdateTimestamp'])
             self.updateBorrowCumulativeIndex(_reserve,
-                                             exaMul(cummulatedBorrowInterest, reserveData['borrowCumulativeIndex']))
+                                             exaMul(cumulatedBorrowInterest, reserveData['borrowCumulativeIndex']))
 
     def _increaseTotalBorrows(self, _reserve: Address, _amount: int) -> None:
         reserveData = self.getReserveData(_reserve)
