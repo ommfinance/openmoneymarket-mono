@@ -445,7 +445,7 @@ class LendingPoolCore(IconScoreBase):
         compoundedBalance = exaMul(userReserveData['principalBorrowBalance'], cumulatedInterest)
 
         if compoundedBalance == userReserveData['principalBorrowBalance']:
-            if userReserveData['lastUpdateTimestamp'] != self.block.timestamp:
+            if userReserveData['lastUpdateTimestamp'] != self.now():
                 return userReserveData['principalBorrowBalance'] + 1
 
         return compoundedBalance
@@ -497,7 +497,7 @@ class LendingPoolCore(IconScoreBase):
             _reserve) + _liquidityAdded - _liquidityTaken, reserveData['totalBorrows'])
         self.updateLiquidityRate(_reserve, rate['liquidityRate'])
         self.updateBorrowRate(_reserve, rate['borrowRate'])
-        self.updateLastUpdateTimestamp(_reserve, self.block.timestamp)
+        self.updateLastUpdateTimestamp(_reserve, self.now())
 
         self.ReserveUpdated(_reserve, rate['liquidityRate'], rate['borrowRate'],
                             reserveData['liquidityCumulativeIndex'], reserveData['borrowCumulativeIndex'])
@@ -622,7 +622,7 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserPrincipalBorrowBalance(_reserve, _user,
                                               principalBorrowBalance + _amountBorrowed + _balanceIncrease)
         self.updateUserOriginationFee(_reserve, _user, userPreviousOriginationFee + _borrowFee)
-        self.updateUserLastUpdateTimestamp(_reserve, _user, self.block.timestamp)
+        self.updateUserLastUpdateTimestamp(_reserve, _user, self.now())
 
     def updateUserStateOnRepayInternal(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
                                        _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
@@ -635,7 +635,7 @@ class LendingPoolCore(IconScoreBase):
             self.updateUserBorrowCumulativeIndex(_reserve, _user, 0)
 
         self.updateUserOriginationFee(_reserve, _user, userReserveData['originationFee'] - _originationFeeRepaid)
-        self.updateUserLastUpdateTimestamp(_reserve, _user, self.block.timestamp)
+        self.updateUserLastUpdateTimestamp(_reserve, _user, self.now())
 
     @external(readonly=True)
     def getReserveOTokenAddress(self, _reserve: Address) -> Address:
@@ -677,7 +677,7 @@ class LendingPoolCore(IconScoreBase):
         if _feeLiquidated > 0:
             self.updateUserOriginationFee(_reserve, _user, userData['originationFee'] - _feeLiquidated)
 
-        self.updateUserLastUpdateTimestamp(_reserve, _user, self.block.timestamp)
+        self.updateUserLastUpdateTimestamp(_reserve, _user, self.now())
 
     def setUserUseReserveAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: bool) -> None:
         self.updateUserReserveUseAsCollateral(_reserve, _user, _useAsCollateral)
