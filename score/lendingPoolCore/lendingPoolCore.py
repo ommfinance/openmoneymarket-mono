@@ -559,7 +559,6 @@ class LendingPoolCore(IconScoreBase):
     @external
     def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int) -> dict:
         borrowData = self.getUserBorrowBalances(_reserve, _user)
-        principalBorrowBalance = borrowData['principalBorrowBalance']
         balanceIncrease = borrowData['borrowBalanceIncrease']
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         if balanceIncrease > 0:
