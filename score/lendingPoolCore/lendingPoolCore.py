@@ -336,12 +336,13 @@ class LendingPoolCore(IconScoreBase):
 
     @external(readonly=True)
     def getReserveData(self, _reserve: Address) -> dict:
-        response = {}
         if self._check_reserve(_reserve):
             prefix = self.reservePrefix(_reserve)
             response = getDataFromReserve(prefix, self.reserve)
             response['totalLiquidity'] = self.getReserveTotalLiquidity(_reserve)
             response['availableLiquidity'] = self.getReserveAvailableLiquidity(_reserve)
+        else:
+            response = {}
         return response
 
     # @external
