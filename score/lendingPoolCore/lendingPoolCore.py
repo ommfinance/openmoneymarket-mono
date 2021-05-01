@@ -360,7 +360,9 @@ class LendingPoolCore(IconScoreBase):
         if self._check_reserve(_reserve):
             prefix = self.userReservePrefix(_reserve, _user)
             response = getDataFromUserReserve(prefix, self.userReserve)
-            return response
+        else:
+            response = {}
+        return response
 
     # @external
     # def enableAsCollateral(self, _reserve: Address, _baseLTVasCollateral: int, _liquidationThreshold: int,
