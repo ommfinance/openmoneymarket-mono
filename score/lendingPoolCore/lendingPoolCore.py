@@ -503,22 +503,22 @@ class LendingPoolCore(IconScoreBase):
     @external
     def setReserveConstants(self, _constants: List[Constant]) -> None:
         for constants in _constants:
-            self._constants[(constants['reserve'])]['optimalUtilizationRate'] = constants['optimalUtilizationRate']
-            self._constants[(constants['reserve'])]['baseBorrowRate'] = constants['baseBorrowRate']
-            self._constants[(constants['reserve'])]['slopeRate1'] = constants['slopeRate1']
-            self._constants[(constants['reserve'])]['slopeRate2'] = constants['slopeRate2']
+            dictDB = self._constants[(constants['reserve'])]
+            dictDB['optimalUtilizationRate'] = constants['optimalUtilizationRate']
+            dictDB['baseBorrowRate'] = constants['baseBorrowRate']
+            dictDB['slopeRate1'] = constants['slopeRate1']
+            dictDB['slopeRate2'] = constants['slopeRate2']
 
     @external(readonly=True)
     def getReserveConstants(self, _reserve: Address) -> dict:
-        data = {
+        dictDB = self._constants[_reserve]
+        return {
             'reserve': _reserve,
-            'optimalUtilizationRate': self._constants[_reserve]['optimalUtilizationRate'],
-            'baseBorrowRate': self._constants[_reserve]['baseBorrowRate'],
-            'slopeRate1': self._constants[_reserve]['slopeRate1'],
-            'slopeRate2': self._constants[_reserve]['slopeRate2']
+            'optimalUtilizationRate': dictDB['optimalUtilizationRate'],
+            'baseBorrowRate': dictDB['baseBorrowRate'],
+            'slopeRate1': dictDB['slopeRate1'],
+            'slopeRate2': dictDB['slopeRate2']
         }
-
-        return data
 
     @only_lending_pool
     @external
