@@ -312,17 +312,11 @@ class LendingPoolCore(IconScoreBase):
         self.userReserve[prefix].useAsCollateral.set(_useAsCollateral)
 
     def _check_reserve(self, _reserve: Address):
-        if _reserve not in self.getReserves():
-            return False
-        else:
-            return True
+        return _reserve in self._reserveList
 
     @external(readonly=True)
     def getReserves(self) -> list:
-        reserves = []
-        for item in self._reserveList:
-            reserves.append(item)
-        return reserves
+        return [reserve for reserve in self._reserveList]
 
     def _addNewReserve(self, _res: Address):
         self._reserveList.put(_res)
