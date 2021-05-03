@@ -38,7 +38,7 @@ class SuperAddressProvider(IconScoreBase):
         self._env[new_id]['name'] = _env['envName']
         self._env[new_id]['pkl'] = _env['pklName']
 
-    @external
+    @external(readonly=True)
     def getIdList(self) -> list:
         return [item for item in self._id]
 
