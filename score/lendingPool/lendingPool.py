@@ -383,7 +383,8 @@ class LendingPool(IconScoreBase):
             core.transferToUser(_reserve, self._stakingAddress.get(), _amount, transferDataBytes)
         else:
             core.transferToUser(_reserve, _user, _amount)
-            self._updateSnapshot(_reserve, _user)
+
+        self._updateSnapshot(_reserve, _user)
 
         self.RedeemUnderlying(_reserve, _user, _amount, self.now())
 
@@ -477,6 +478,8 @@ class LendingPool(IconScoreBase):
 
             self.Repay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                        self.now())
+
+            self._updateSnapshot(_reserve, _sender)
             return
 
         paybackAmountMinusFees = paybackAmount - userBasicReserveData['originationFee']
