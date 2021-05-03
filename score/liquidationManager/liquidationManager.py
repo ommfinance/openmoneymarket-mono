@@ -77,11 +77,18 @@ class OracleInterface(InterfaceScore):
         pass
 
 
+class StakingInterface(InterfaceScore):
+    @interface
+    def getTodayRate(self) -> int:
+        pass
+
+
 class LiquidationManager(IconScoreBase):
     _LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
-    _LENDINGPOOLCORE =  'lendingPoolCore'
+    _LENDINGPOOLCORE = 'lendingPoolCore'
     _PRICE_ORACLE = 'priceOracle'
     _FEE_PROVIDER = 'feeProvider'
+    _STAKING = 'staking'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -89,6 +96,7 @@ class LiquidationManager(IconScoreBase):
         self._lendingPoolCore = VarDB(self._LENDINGPOOLCORE, db, value_type=Address)
         self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
         self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
+        self._staking = VarDB(self._STAKING, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -108,7 +116,7 @@ class LiquidationManager(IconScoreBase):
         pass
 
     @external(readonly=True)
-    def name(self)->str:
+    def name(self) -> str:
         return "OmmLiquidationManager"
 
     @only_owner
@@ -135,7 +143,7 @@ class LiquidationManager(IconScoreBase):
         self._lendingPoolCore.set(_address)
 
     @external(readonly=True)
-    def getLendingPoolCore(self):
+    def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCore.get()
 
     @only_owner
@@ -144,8 +152,17 @@ class LiquidationManager(IconScoreBase):
         self._priceOracle.set(_address)
 
     @external(readonly=True)
-    def getPriceOracle(self):
+    def getPriceOracle(self) -> Address:
         return self._priceOracle.get()
+
+    @only_owner
+    @external
+    def setStaking(self, _address: Address):
+        self._staking.set(_address)
+
+    @external(readonly=True)
+    def getStaking(self) -> Address:
+        return self._staking.get()
 
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
@@ -173,19 +190,28 @@ class LiquidationManager(IconScoreBase):
 
         collateralPrice = priceOracle.get_reference_data(collateralBase, 'USD')
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
-
+        if collateralBase == 'ICX':
+            staking = self.create_interface_score(self._staking.get(), StakingInterface)
+            sicxRate = staking.getTodayRate()
+            collateralPrice = exaMul(collateralPrice, sicxRate)
+        if principalBase == 'ICX':
+            staking = self.create_interface_score(self._staking.get(), StakingInterface)
+            sicxRate = staking.getTodayRate()
+            principalPrice = exaMul(principalPrice, sicxRate)
         reserveConfiguration = core.getReserveConfiguration(_reserve)
         reserveDecimals = reserveConfiguration['decimals']
         reserveConfiguration = core.getReserveConfiguration(_collateral)
         collateralDecimals = reserveConfiguration['decimals']
 
-        userCollateralUSD = exaMul(convertToExa(_userCollateralBalance,collateralDecimals), collateralPrice)
-        purchaseAmountUSD = exaMul(convertToExa(_purchaseAmount,reserveDecimals), principalPrice)
+        userCollateralUSD = exaMul(convertToExa(_userCollateralBalance, collateralDecimals), collateralPrice)
+        purchaseAmountUSD = exaMul(convertToExa(_purchaseAmount, reserveDecimals), principalPrice)
 
-        maxCollateralToLiquidate = convertExaToOther(exaDiv(exaMul(purchaseAmountUSD, EXA + liquidationBonus), collateralPrice), collateralDecimals)
+        maxCollateralToLiquidate = convertExaToOther(
+            exaDiv(exaMul(purchaseAmountUSD, EXA + liquidationBonus), collateralPrice), collateralDecimals)
         if maxCollateralToLiquidate > _userCollateralBalance:
             collateralAmount = _userCollateralBalance
-            principalAmountNeeded = convertExaToOther(exaDiv(exaDiv(userCollateralUSD, EXA + liquidationBonus), principalPrice), reserveDecimals)
+            principalAmountNeeded = convertExaToOther(
+                exaDiv(exaDiv(userCollateralUSD, EXA + liquidationBonus), principalPrice), reserveDecimals)
         else:
             collateralAmount = maxCollateralToLiquidate
             principalAmountNeeded = _purchaseAmount
@@ -229,7 +255,8 @@ class LiquidationManager(IconScoreBase):
 
         userCollateralBalance = core.getUserUnderlyingAssetBalance(_collateral, _user)
         if userCollateralBalance == 0:
-            revert('Liquidation manager SCORE : Unsuccessful liquidation call-user dont have any collateral to liquidate')
+            revert(
+                'Liquidation manager SCORE : Unsuccessful liquidation call-user dont have any collateral to liquidate')
 
         userBorrowBalances = core.getUserBorrowBalances(_reserve, _user)
         if userBorrowBalances['compoundedBorrowBalance'] == 0:
@@ -243,9 +270,9 @@ class LiquidationManager(IconScoreBase):
         reserveDecimals = reserveConfiguration['decimals']
 
         # converting the user balances into 18 decimals
-        if  reserveDecimals != 18:
+        if reserveDecimals != 18:
             maxPrincipalAmountToLiquidate = convertExaToOther(maxPrincipalAmountToLiquidate, reserveDecimals)
-       
+
         if _purchaseAmount > maxPrincipalAmountToLiquidate:
             actualAmountToLiquidate = maxPrincipalAmountToLiquidate
         else:
