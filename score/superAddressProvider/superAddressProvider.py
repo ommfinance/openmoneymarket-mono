@@ -34,9 +34,10 @@ class SuperAddressProvider(IconScoreBase):
     def addEnv(self, _env: Environments) -> None:
         new_id = str(len(self._id) + 1)
         self._id.put(new_id)
-        self._env[new_id]['addProv'] = str(_env['addressProvider'])
-        self._env[new_id]['name'] = _env['envName']
-        self._env[new_id]['pkl'] = _env['pklName']
+        env_new_id = self._env[new_id]
+        env_new_id['addProv'] = str(_env['addressProvider'])
+        env_new_id['name'] = _env['envName']
+        env_new_id['pkl'] = _env['pklName']
 
     @external(readonly=True)
     def getIdList(self) -> list:
@@ -45,12 +46,11 @@ class SuperAddressProvider(IconScoreBase):
     @external(readonly=True)
     def getEnv(self) -> dict:
         response = {}
-        _id_list = self.getIdList()
-        for item in _id_list:
-            _id = str(item)
+        for _id in self._id:
+            env_id = self._env[_id]
             response[_id] = {
-                'addressProvider': self._env[_id]['addProv'],
-                'environmentName': self._env[_id]['name'],
-                'pklFileName': self._env[_id]['pkl']
+                'addressProvider': env_id['addProv'],
+                'environmentName': env_id['name'],
+                'pklFileName': env_id['pkl']
             }
         return response
