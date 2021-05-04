@@ -1,5 +1,6 @@
 from iconservice import *
 from .utils.checks import *
+from .utils.Math import *
 
 TAG = 'LendingPool'
 BATCH_SIZE = 100
@@ -124,14 +125,7 @@ class DataProviderInterface(InterfaceScore):
         pass
 
 
-# An interface to fee provider
-class FeeProviderInterface(InterfaceScore):
-    @interface
-    def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
-        pass
-
-
-# An interface to fee provider
+# An interface to liquidation manager
 class LiquidationManagerInterface(InterfaceScore):
     @interface
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
@@ -163,13 +157,14 @@ class LendingPool(IconScoreBase):
     DEPOSIT_WALLETS = 'depositWallets'
     BORROW_INDEX = 'borrowIndex'
     DEPOSIT_INDEX = 'depositIndex'
-    FEE_PROVIDER = 'feeProvider'
     sICX_ADDRESS = 'sICXAddress'
     oICX_ADDRESS = 'oicxAddress'
     STAKING_ADDRESS = 'stakingAddress'
     REWARD_ADDRESS = 'rewardAddress'
     LIQUIDATION_MANAGER_ADDRESS = 'liquidationManagerAddress'
     SNAPSHOT = 'snapshot'
+    DAO_FUND = 'daoFund'
+    ORIGINATION_FEE_PERCENT = 'originationFeePercentage'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -179,13 +174,14 @@ class LendingPool(IconScoreBase):
         self._depositWallets = ArrayDB(self.DEPOSIT_WALLETS, db, value_type=Address)
         self._borrowIndex = DictDB(self.BORROW_INDEX, db, value_type=int)
         self._depositIndex = DictDB(self.DEPOSIT_INDEX, db, value_type=int)
-        self._feeProviderAddress = VarDB(self.FEE_PROVIDER, db, value_type=Address)
+        self._daoFund = VarDB(self.DAO_FUND, db, value_type=Address)
         self._sIcxAddress = VarDB(self.sICX_ADDRESS, db, value_type=Address)
         self._oIcxAddress = VarDB(self.oICX_ADDRESS, db, value_type=Address)
         self._stakingAddress = VarDB(self.STAKING_ADDRESS, db, value_type=Address)
         self._rewardAddress = VarDB(self.REWARD_ADDRESS, db, value_type=Address)
         self._snapshot = VarDB(self.SNAPSHOT, db, value_type=Address)
         self._liquidationManagerAddress = VarDB(self.LIQUIDATION_MANAGER_ADDRESS, db, value_type=Address)
+        self._originationFeePercent = VarDB(self.ORIGINATION_FEE_PERCENT, db, value_type=int)
 
     def on_install(self) -> None:
         super().on_install()
@@ -210,6 +206,19 @@ class LendingPool(IconScoreBase):
     def Repay(self, _reserve: Address, _user: Address, _paybackAmount: int, _originationFee: int,
               _borrowBalanceIncrease: int, _timestamp: int):
         pass
+
+    @only_owner
+    @external
+    def setLoanOriginationFeePercentage(self, _percentage: int) -> None:
+        self._originationFeePercent.set(_percentage)
+
+    @external(readonly=True)
+    def calculateOriginationFee(self, _amount: int) -> int:
+        return exaMul(_amount, self.getLoanOriginationFeePercentage())
+
+    @external(readonly=True)
+    def getLoanOriginationFeePercentage(self) -> int:
+        return self._originationFeePercent.get()
 
     @only_owner
     @external
@@ -280,12 +289,12 @@ class LendingPool(IconScoreBase):
 
     @only_owner
     @external
-    def setFeeProvider(self, _address: Address) -> None:
-        self._feeProviderAddress.set(_address)
+    def setDaoFund(self, _address: Address) -> None:
+        self._daoFund.set(_address)
 
     @external(readonly=True)
-    def getFeeProvider(self) -> Address:
-        return self._feeProviderAddress.get()
+    def getDaoFund(self) -> Address:
+        return self._daoFund.get()
 
     @only_owner
     @external
@@ -408,7 +417,6 @@ class LendingPool(IconScoreBase):
 
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         dataProvider = self.create_interface_score(self._dataProvider.get(), DataProviderInterface)
-        feeProvider = self.create_interface_score(self._feeProviderAddress.get(), FeeProviderInterface)
 
         self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in the reserve")
 
@@ -429,7 +437,7 @@ class LendingPool(IconScoreBase):
         self._require(userCollateralBalanceUSD > 0, "Borrow error:The user does not have any collateral")
         self._require(not healthFactorBelowThreshold, "Borrow error:Health factor is below threshold")
 
-        borrowFee = feeProvider.calculateOriginationFee(_amount)
+        borrowFee = self.calculateOriginationFee(_amount)
 
         self._require(borrowFee > 0, "Borrow error:borrow amount is very small")
         amountOfCollateralNeededUSD = dataProvider.calculateCollateralNeededUSD(_reserve, _amount, borrowFee,
@@ -473,8 +481,8 @@ class LendingPool(IconScoreBase):
         if paybackAmount <= userBasicReserveData['originationFee']:
             core.updateStateOnRepay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                                     False)
-            # core.transferToFeeCollectionAddress
-            reserve.transfer(self._feeProviderAddress.get(), paybackAmount)
+            # transfer to daoFund
+            reserve.transfer(self._daoFund.get(), paybackAmount)
 
             self.Repay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                        self.now())
@@ -488,8 +496,8 @@ class LendingPool(IconScoreBase):
                                 borrowData['compoundedBorrowBalance'] == paybackAmountMinusFees)
 
         if userBasicReserveData['originationFee'] > 0:
-            # core.transferToFeeCollectionAddress
-            reserve.transfer(self._feeProviderAddress.get(), userBasicReserveData['originationFee'])
+            # transfer to daoFund
+            reserve.transfer(self._daoFund.get(), userBasicReserveData['originationFee'])
 
         reserve.transfer(lendingPoolCoreAddress, paybackAmountMinusFees)
         self._updateSnapshot(_reserve, _sender)
