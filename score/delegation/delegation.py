@@ -111,7 +111,7 @@ class Delegation(IconScoreBase):
         else:
             user = self.msg.sender
 
-        totalPercentage = 0
+        total_percentage = 0
         initialDelegation = self.computeDelegationPercentages()
         delegationBefore = f'{initialDelegation}'
         if _delegations is None:
@@ -155,7 +155,7 @@ class Delegation(IconScoreBase):
             updated_delegation = self.computeDelegationPercentages()
             core = self.create_interface_score(self._lendingPoolCore.get(), LendingPoolCoreInterface)
             core.updatePrepDelegations(updated_delegation)
-            self.DelegationUpdated(delegationBefore, f'{updatedDelegation}')
+            self.DelegationUpdated(delegationBefore, f'{updated_delegation}')
 
     @external(readonly=True)
     def prepVotes(self, _prep: Address) -> int:
