@@ -191,10 +191,11 @@ class LendingPoolDataProvider(IconScoreBase):
         reserves = core.getReserves()
 
         for _reserve in reserves:
+            symbol = self._symbol[_reserve]
             reserveData = core.getReserveData(_reserve)
             reserveDecimals = reserveData['decimals']
-            reservePrice = oracle.get_reference_data(self._symbol[_reserve], 'USD')
-            if self._symbol[_reserve] == 'ICX':
+            reservePrice = oracle.get_reference_data(symbol, 'USD')
+            if symbol == 'ICX':
                 reservePrice = exaMul(reservePrice, todayRate)
             reserveTotalLiquidity = reserveData['totalLiquidity']
             reserveAvailableLiquidity = reserveData['availableLiquidity']
@@ -210,14 +211,13 @@ class LendingPoolDataProvider(IconScoreBase):
             totalBorrowBalanceUSD += exaMul(reserveTotalBorrows, reservePrice)
             if reserveData['usageAsCollateralEnabled']:
                 totalCollateralBalanceUSD += exaMul(reserveTotalLiquidity, reservePrice)
-        response = {
+
+        return {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'availableLiquidityBalanceUSD': availableLiquidityBalanceUSD,
             'totalBorrowsBalanceUSD': totalBorrowBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
         }
-
-        return response
 
     @external(readonly=True)
     def getUserAccountData(self, _user: Address) -> dict:
