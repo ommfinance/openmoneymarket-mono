@@ -384,8 +384,9 @@ class LendingPoolDataProvider(IconScoreBase):
             return True
 
         oracle = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = oracle.get_reference_data(self._symbol[_reserve], 'USD')
-        if self._symbol[_reserve] == "ICX":
+        symbol = self._symbol[_reserve]
+        price = oracle.get_reference_data(symbol, 'USD')
+        if symbol == "ICX":
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
