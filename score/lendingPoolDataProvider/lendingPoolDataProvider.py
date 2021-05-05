@@ -496,13 +496,11 @@ class LendingPoolDataProvider(IconScoreBase):
     def liquidationList(self, _index: int) -> dict:
         pool = self.create_interface_score(self._lendingPool.get(), LendingPoolInterface)
         wallets = pool.getBorrowWallets(_index)
-        response = {}
-        for wallet in wallets:
-            userAccountData = self.getUserAccountData(wallet)
-            if userAccountData['healthFactor'] < 10 ** 18:
-                response[wallet] = self.getUserLiquidationData(wallet)
-
-        return response
+        return {
+            wallet: self.getUserLiquidationData(wallet)
+            for wallet in wallets
+            if self.getUserAccountData(wallet)['healthFactor'] < 10 ** 18
+        }
 
     @staticmethod
     def calculateHealthFactorFromBalancesInternal(_collateralBalanceUSD: int, _borrowBalanceUSD: int,
