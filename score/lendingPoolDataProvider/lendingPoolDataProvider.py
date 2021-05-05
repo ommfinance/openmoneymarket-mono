@@ -523,9 +523,10 @@ class LendingPoolDataProvider(IconScoreBase):
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         oracle = self.create_interface_score(self._priceOracle.get(), OracleInterface)
         reserveData = core.getReserveData(_reserve)
-        price = oracle.get_reference_data(self._symbol[_reserve], "USD")
+        symbol = self._symbol[_reserve]
+        price = oracle.get_reference_data(symbol, "USD")
         reserveData["exchangePrice"] = price
-        if self._symbol[_reserve] == "ICX":
+        if symbol == "ICX":
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             reserveData['sICXRate'] = staking.getTodayRate()
             price = exaMul(staking.getTodayRate(), price)
