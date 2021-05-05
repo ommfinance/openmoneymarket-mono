@@ -410,13 +410,14 @@ class LendingPoolDataProvider(IconScoreBase):
                                      _userCurrentBorrowBalanceUSD: int,
                                      _userCurrentFeesUSD: int, _userCurrentLtv: int) -> int:
 
+        symbol = self._symbol[_reserve]
         price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
+        price = price_provider.get_reference_data(symbol, "USD")
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserveConfiguration = core.getReserveConfiguration(_reserve)
         if reserveConfiguration['decimals'] != 18:
             _amount = _amount * EXA // (10 ** reserveConfiguration["decimals"])
-        if self._symbol[_reserve] == "ICX":
+        if symbol == "ICX":
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
