@@ -231,7 +231,6 @@ class LendingPoolDataProvider(IconScoreBase):
         currentLiquidationThreshold = 0
         totalBorrowBalanceUSD = 0
         totalFeesUSD = 0
-        healthFactorBelowThreshold = False
 
         reserves = core.getReserves()
         for _reserve in reserves:
@@ -251,8 +250,9 @@ class LendingPoolDataProvider(IconScoreBase):
                 userBasicReserveData['originationFee'] = convertToExa(userBasicReserveData['originationFee'],
                                                                       reserveDecimals)
 
-            reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(self._symbol[_reserve], 'USD')
-            if self._symbol[_reserve] == 'ICX':
+            symbol = self._symbol[_reserve]
+            reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(symbol, 'USD')
+            if symbol == 'ICX':
                 reserveConfiguration['reserveUnitPrice'] = exaMul(reserveConfiguration['reserveUnitPrice'],
                                                                   todaySicxRate)
 
@@ -282,8 +282,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
         healthFactor = self.calculateHealthFactorFromBalancesInternal(totalCollateralBalanceUSD, totalBorrowBalanceUSD,
                                                                       totalFeesUSD, currentLiquidationThreshold)
-        if healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD and healthFactor != - 1:
-            healthFactorBelowThreshold = True
+        healthFactorBelowThreshold = healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD and healthFactor != - 1
 
         borrowingPower = self.calculateBorrowingPowerFromBalancesInternal(totalCollateralBalanceUSD,
                                                                           totalBorrowBalanceUSD,
@@ -292,7 +291,8 @@ class LendingPoolDataProvider(IconScoreBase):
         availableBorrowsUSD = borrowsAllowedUSD - totalBorrowBalanceUSD
         if availableBorrowsUSD < 0:
             availableBorrowsUSD = 0
-        response = {
+
+        return {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
             'totalBorrowBalanceUSD': totalBorrowBalanceUSD,
@@ -304,8 +304,6 @@ class LendingPoolDataProvider(IconScoreBase):
             'borrowingPower': borrowingPower,
             'healthFactorBelowThreshold': healthFactorBelowThreshold
         }
-
-        return response
 
     @external(readonly=True)
     def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
