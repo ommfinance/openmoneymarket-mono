@@ -446,7 +446,9 @@ class LendingPoolDataProvider(IconScoreBase):
                                                       userAccountData['totalFeesUSD'],
                                                       userAccountData['totalCollateralBalanceUSD'],
                                                       userAccountData['currentLtv'])
-        response = {'badDebt': badDebt, 'borrows': {}, 'collaterals': {}}
+
+        borrows = {}
+        collaterals = {}
         for _reserve in reserves:
             userReserveData = core.getUserBasicReserveData(_reserve, _user)
             reserveConfiguration = core.getReserveConfiguration(_reserve)
@@ -457,8 +459,9 @@ class LendingPoolDataProvider(IconScoreBase):
             userReserveUnderlyingBalance = convertToExa(userReserveData['underlyingBalance'],
                                                         reserveDecimals)
 
-            price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
-            if self._symbol[_reserve] == "ICX":
+            symbol = self._symbol[_reserve]
+            price = price_provider.get_reference_data(symbol, "USD")
+            if symbol == "ICX":
                 staking = self.create_interface_score(self._staking.get(), StakingInterface)
                 todaySicxRate = staking.getTodayRate()
                 price = exaMul(price, todaySicxRate)
@@ -471,19 +474,23 @@ class LendingPoolDataProvider(IconScoreBase):
                     maxAmountToLiquidateUSD = badDebt
                     maxAmountToLiquidate = convertExaToOther(exaDiv(badDebt, price), reserveDecimals)
 
-                response['borrows'][self._symbol[_reserve]] = {
+                borrows[symbol] = {
                     'compoundedBorrowBalance': userReserveData['compoundedBorrowBalance'],
-                    'compoundedBorrowBalanceUSD': exaMul(price,
-                                                         userBorrowBalance),
+                    'compoundedBorrowBalanceUSD': exaMul(price, userBorrowBalance),
                     'maxAmountToLiquidate': maxAmountToLiquidate,
-                    'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD}
+                    'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD
+                }
             if userReserveUnderlyingBalance > 0:
-                response['collaterals'][self._symbol[_reserve]] = {
+                collaterals[symbol] = {
                     'underlyingBalance': userReserveData['underlyingBalance'],
-                    'underlyingBalanceUSD': exaMul(price,
-                                                   userReserveUnderlyingBalance)}
+                    'underlyingBalanceUSD': exaMul(price, userReserveUnderlyingBalance)
+                }
 
-        return response
+        return {
+            'badDebt': badDebt,
+            'borrows': borrows,
+            'collaterals': collaterals
+        }
 
     @external(readonly=True)
     def liquidationList(self, _index: int) -> dict:
