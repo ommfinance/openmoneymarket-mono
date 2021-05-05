@@ -564,11 +564,10 @@ class LendingPoolDataProvider(IconScoreBase):
     def getAllReserveConfigurationData(self) -> dict:
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserves = core.getReserves()
-        response = {}
-        for reserve in reserves:
-            response[self._symbol[reserve]] = core.getReserveConfiguration(reserve)
-
-        return response
+        return {
+            self._symbol[reserve]: core.getReserveConfiguration(reserve)
+            for reserve in reserves
+        }
 
     @external(readonly=True)
     def getUserUnstakeInfo(self, _address: Address) -> list:
