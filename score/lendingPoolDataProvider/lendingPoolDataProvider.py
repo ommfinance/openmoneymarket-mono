@@ -1,4 +1,3 @@
-from iconservice import *
 from .Math import *
 from .utils.checks import *
 
@@ -488,14 +487,16 @@ class LendingPoolDataProvider(IconScoreBase):
 
         return response
 
-    def calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
+    @staticmethod
+    def calculateHealthFactorFromBalancesInternal(_collateralBalanceUSD: int, _borrowBalanceUSD: int,
                                                   _totalFeesUSD: int, _liquidationThreshold: int) -> int:
         if _borrowBalanceUSD == 0:
             return -1
         healthFactor = exaDiv(exaMul(_collateralBalanceUSD - _totalFeesUSD, _liquidationThreshold), _borrowBalanceUSD)
         return healthFactor
 
-    def calculateBorrowingPowerFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
+    @staticmethod
+    def calculateBorrowingPowerFromBalancesInternal(_collateralBalanceUSD: int, _borrowBalanceUSD: int,
                                                     _totalFeesUSD: int, _ltv: int) -> int:
         if _collateralBalanceUSD == 0:
             return 0
@@ -569,3 +570,8 @@ class LendingPoolDataProvider(IconScoreBase):
     def getLoanOriginationFeePercentage(self) -> int:
         lendingPool = self.create_interface_score(self._lendingPool.get(), LendingPoolInterface)
         return lendingPool.getLoanOriginationFeePercentage()
+
+    @external(readonly=True)
+    def getRealTimeDebt(self, _reserve: Address, _user: Address) -> int:
+        userReserveData = self.getUserReserveData(_reserve, _user)
+        return userReserveData['currentBorrowBalance'] + userReserveData['originationFee']
