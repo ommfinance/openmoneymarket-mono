@@ -1,4 +1,3 @@
-from iconservice import *
 from .Math import *
 from .utils.checks import *
 
@@ -59,7 +58,7 @@ class oTokenInterface(InterfaceScore):
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
     @interface
-    def getBorrowWallets(self, _index: int) -> list: 
+    def getBorrowWallets(self, _index: int) -> list:
         pass
 
 
@@ -455,18 +454,18 @@ class LendingPoolDataProvider(IconScoreBase):
             userReserveData = core.getUserBasicReserveData(_reserve, _user)
             reserveConfiguration = core.getReserveConfiguration(_reserve)
             reserveDecimals = reserveConfiguration['decimals']
-          
+
             userBorrowBalance = convertToExa(userReserveData['compoundedBorrowBalance'],
-                                                                    reserveDecimals)
+                                             reserveDecimals)
             userReserveUnderlyingBalance = convertToExa(userReserveData['underlyingBalance'],
-                                                                    reserveDecimals)
-        
+                                                        reserveDecimals)
+
             price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
             if self._symbol[_reserve] == "ICX":
                 staking = self.create_interface_score(self._staking.get(), StakingInterface)
                 todaySicxRate = staking.getTodayRate()
                 price = exaMul(price, todaySicxRate)
-        
+
             if userBorrowBalance > 0:
                 if badDebt > exaMul(price, userBorrowBalance):
                     maxAmountToLiquidateUSD = exaMul(price, userBorrowBalance)
@@ -475,15 +474,17 @@ class LendingPoolDataProvider(IconScoreBase):
                     maxAmountToLiquidateUSD = badDebt
                     maxAmountToLiquidate = convertExaToOther(exaDiv(badDebt, price), reserveDecimals)
 
-                response['borrows'][self._symbol[_reserve]] = {'compoundedBorrowBalance':  userReserveData['compoundedBorrowBalance'],
-                                                               'compoundedBorrowBalanceUSD': exaMul(price,
-                                                                                                    userBorrowBalance),
-                                                               'maxAmountToLiquidate': maxAmountToLiquidate,
-                                                               'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD}
+                response['borrows'][self._symbol[_reserve]] = {
+                    'compoundedBorrowBalance': userReserveData['compoundedBorrowBalance'],
+                    'compoundedBorrowBalanceUSD': exaMul(price,
+                                                         userBorrowBalance),
+                    'maxAmountToLiquidate': maxAmountToLiquidate,
+                    'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD}
             if userReserveUnderlyingBalance > 0:
-                response['collaterals'][self._symbol[_reserve]] = {'underlyingBalance': userReserveData['underlyingBalance'],
-                                                                   'underlyingBalanceUSD': exaMul(price,
-                                                                                                  userReserveUnderlyingBalance)}
+                response['collaterals'][self._symbol[_reserve]] = {
+                    'underlyingBalance': userReserveData['underlyingBalance'],
+                    'underlyingBalanceUSD': exaMul(price,
+                                                   userReserveUnderlyingBalance)}
 
         return response
 
@@ -499,14 +500,16 @@ class LendingPoolDataProvider(IconScoreBase):
 
         return response
 
-    def calculateHealthFactorFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
+    @staticmethod
+    def calculateHealthFactorFromBalancesInternal(_collateralBalanceUSD: int, _borrowBalanceUSD: int,
                                                   _totalFeesUSD: int, _liquidationThreshold: int) -> int:
         if _borrowBalanceUSD == 0:
             return -1
         healthFactor = exaDiv(exaMul(_collateralBalanceUSD - _totalFeesUSD, _liquidationThreshold), _borrowBalanceUSD)
         return healthFactor
 
-    def calculateBorrowingPowerFromBalancesInternal(self, _collateralBalanceUSD: int, _borrowBalanceUSD: int,
+    @staticmethod
+    def calculateBorrowingPowerFromBalancesInternal(_collateralBalanceUSD: int, _borrowBalanceUSD: int,
                                                     _totalFeesUSD: int, _ltv: int) -> int:
         if _collateralBalanceUSD == 0:
             return 0
@@ -580,3 +583,8 @@ class LendingPoolDataProvider(IconScoreBase):
     def getLoanOriginationFeePercentage(self) -> int:
         feeProvider = self.create_interface_score(self._feeProvider.get(), FeeProviderInterface)
         return feeProvider.getLoanOriginationFeePercentage()
+
+    @external(readonly=True)
+    def getRealTimeDebt(self, _reserve: Address, _user: Address) -> int:
+        userReserveData = self.getUserReserveData(_reserve, _user)
+        return userReserveData['currentBorrowBalance'] + userReserveData['originationFee']
