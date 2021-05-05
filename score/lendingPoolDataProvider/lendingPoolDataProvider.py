@@ -307,7 +307,6 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @external(readonly=True)
     def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
-        response = {}
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserveData = core.getReserveData(_reserve)
         userReserveData = core.getUserReserveData(_reserve, _user)
@@ -325,11 +324,11 @@ class LendingPoolDataProvider(IconScoreBase):
         lastUpdateTimestamp = userReserveData['lastUpdateTimestamp']
         useAsCollateral = userReserveData['useAsCollateral']
         price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
-        if self._symbol[_reserve] == "ICX":
+        symbol = self._symbol[_reserve]
+        price = price_provider.get_reference_data(symbol, "USD")
+        if symbol == "ICX":
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
-            response['sICXRate'] = todaySicxRate
             price = exaMul(price, todaySicxRate)
             # currentOTokenBalance = exaMul(currentOTokenBalance, todaySicxRate)
             # principalOTokenBalance = exaMul(principalOTokenBalance, todaySicxRate)
@@ -340,7 +339,8 @@ class LendingPoolDataProvider(IconScoreBase):
         principalOTokenBalanceUSD = exaMul(convertToExa(principalOTokenBalance, reserveDecimals), price)
         currentBorrowBalanceUSD = exaMul(convertToExa(currentBorrowBalance, reserveDecimals), price)
         principalBorrowBalanceUSD = exaMul(convertToExa(principalBorrowBalance, reserveDecimals), price)
-        response = {
+
+        return {
             'currentOTokenBalance': currentOTokenBalance,
             'currentOTokenBalanceUSD': currentOTokenBalanceUSD,
             'principalOTokenBalance': principalOTokenBalance,
@@ -359,8 +359,6 @@ class LendingPoolDataProvider(IconScoreBase):
             'exchangeRate': price,
             'decimals': reserveDecimals
         }
-
-        return response
 
     @external(readonly=True)
     def balanceDecreaseAllowed(self, _reserve: Address, _user: Address, _amount: int) -> bool:
