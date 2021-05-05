@@ -430,11 +430,10 @@ class LendingPoolDataProvider(IconScoreBase):
     def getUserAllReserveData(self, _user: Address) -> dict:
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserves = core.getReserves()
-        userData = {}
-        for reserve in reserves:
-            userData[self._symbol[reserve]] = self.getUserReserveData(reserve, _user)
-
-        return userData
+        return {
+            self._symbol[reserve]: self.getUserReserveData(reserve, _user)
+            for reserve in reserves
+        }
 
     @external(readonly=True)
     def getUserLiquidationData(self, _user: Address) -> dict:
