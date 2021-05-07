@@ -167,7 +167,6 @@ class LiquidationManager(IconScoreBase):
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
                          _ltv: int) -> int:
-        priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
         badDebtUSD = _totalBorrowBalanceUSD - exaMul(_totalCollateralBalanceUSD - _totalFeesUSD, _ltv)
 
         if badDebtUSD < 0:
@@ -228,7 +227,6 @@ class LiquidationManager(IconScoreBase):
 
     @external
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
-        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
         core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
         priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
@@ -237,7 +235,6 @@ class LiquidationManager(IconScoreBase):
         userAccountData = dataProvider.getUserAccountData(_user)
         reserveData = dataProvider.getReserveData(_reserve)
 
-        actualAmountToLiquidate = 0
         liquidatedCollateralForFee = 0
         feeLiquidated = 0
 
@@ -300,7 +297,7 @@ class LiquidationManager(IconScoreBase):
         collateralOtoken = self.create_interface_score(collateralOtokenAddress, OtokenInterface)
         collateralOtoken.burnOnLiquidation(_user, maxCollateralToLiquidate)
         # core.transferToUser(_collateral, self.msg.sender, maxCollateralToLiquidate)
-        # # have a deeper look at this part (transfering principal currency to the pool)
+        # # have a deeper look at this part (transferring principal currency to the pool)
         #
         # principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
         # principalCurrency.transfer(self.getLendingPoolCore(), actualAmountToLiquidate)
