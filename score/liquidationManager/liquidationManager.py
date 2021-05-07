@@ -214,16 +214,18 @@ class LiquidationManager(IconScoreBase):
         else:
             collateralAmount = maxCollateralToLiquidate
             principalAmountNeeded = _purchaseAmount
-        response = {"collateralAmount": collateralAmount,
-                    "principalAmountNeeded": principalAmountNeeded}
-        return response
 
-    def calculateCurrentLiquidationThreshold(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int,
+        return {
+            "collateralAmount": collateralAmount,
+            "principalAmountNeeded": principalAmountNeeded
+        }
+
+    @staticmethod
+    def calculateCurrentLiquidationThreshold(_totalBorrowBalanceUSD: int, _totalFeesUSD: int,
                                              _totalCollateralBalanceUSD: int) -> int:
         if _totalCollateralBalanceUSD == 0:
             return 0
-        liquidationThreshold = exaDiv(_totalBorrowBalanceUSD, _totalCollateralBalanceUSD - _totalFeesUSD)
-        return liquidationThreshold
+        return exaDiv(_totalBorrowBalanceUSD, _totalCollateralBalanceUSD - _totalFeesUSD)
 
     @external
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
@@ -253,11 +255,11 @@ class LiquidationManager(IconScoreBase):
         userCollateralBalance = core.getUserUnderlyingAssetBalance(_collateral, _user)
         if userCollateralBalance == 0:
             revert(
-                'Liquidation manager SCORE : Unsuccessful liquidation call-user dont have any collateral to liquidate')
+                "Liquidation manager SCORE : Unsuccessful liquidation call-user don't have any collateral to liquidate")
 
         userBorrowBalances = core.getUserBorrowBalances(_reserve, _user)
         if userBorrowBalances['compoundedBorrowBalance'] == 0:
-            revert('Liquidation manager SCORE : Unsuccessful liquidation call-user dont have any borrow')
+            revert("Liquidation manager SCORE : Unsuccessful liquidation call-user don't have any borrow")
         maxPrincipalAmountToLiquidateUSD = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
                                                                  userAccountData['totalFeesUSD'],
                                                                  userAccountData['totalCollateralBalanceUSD'],
@@ -310,6 +312,7 @@ class LiquidationManager(IconScoreBase):
                                           self.now())
         self.LiquidationCall(_collateral, _reserve, _user, actualAmountToLiquidate, maxCollateralToLiquidate,
                              userBorrowBalances['borrowBalanceIncrease'], self.tx.origin, self.now())
-        response = {'maxCollateralToLiquidate': maxCollateralToLiquidate,
-                    'actualAmountToLiquidate': actualAmountToLiquidate}
-        return response
+        return {
+            'maxCollateralToLiquidate': maxCollateralToLiquidate,
+            'actualAmountToLiquidate': actualAmountToLiquidate
+        }
