@@ -180,10 +180,11 @@ class LiquidationManager(IconScoreBase):
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
         core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
 
-        collateralConfigs = dataProvider.getReserveConfigurationData(_collateral)
-        liquidationBonus = collateralConfigs['liquidationBonus']
         if _fee:
             liquidationBonus = 0
+        else:
+            collateralConfigs = dataProvider.getReserveConfigurationData(_collateral)
+            liquidationBonus = collateralConfigs['liquidationBonus']
         collateralBase = dataProvider.getSymbol(_collateral)
         principalBase = dataProvider.getSymbol(_reserve)
 
