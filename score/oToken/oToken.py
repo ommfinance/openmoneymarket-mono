@@ -224,16 +224,15 @@ class OToken(IconScoreBase, TokenStandard):
         if balanceIncrease > 0:
             self._mint(_user, balanceIncrease)
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
-        self._userIndexes[_user] = core.getNormalizedIncome(self.getReserve())
+        userIndex = core.getNormalizedIncome(self.getReserve())
+        self._userIndexes[_user] = userIndex
         # self._userIndexes[_user] = 1000000234 * 10 ** 10
-        return (
-            {
-                'previousPrincipalBalance': previousPrincipalBalance,
-                'principalBalance': previousPrincipalBalance + balanceIncrease,
-                'balanceIncrease': balanceIncrease,
-                'index': self._userIndexes[_user]
-            }
-        )
+        return {
+            'previousPrincipalBalance': previousPrincipalBalance,
+            'principalBalance': previousPrincipalBalance + balanceIncrease,
+            'balanceIncrease': balanceIncrease,
+            'index': userIndex
+        }
 
     # This will always include accrued interest as a computed value
     @external(readonly=True)
