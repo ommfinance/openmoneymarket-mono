@@ -207,13 +207,16 @@ class OToken(IconScoreBase, TokenStandard):
 
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
-        if self._userIndexes[_user] == 0:
+        userIndex = self._userIndexes[_user]
+
+        if userIndex == 0:
             return _balance
         else:
+            decimals = self._decimals.get()
             balance = exaDiv(
-                exaMul(convertToExa(_balance, self._decimals.get()), core.getNormalizedIncome(self.getReserve())),
-                self._userIndexes[_user])
-            return convertExaToOther(balance, self._decimals.get())
+                exaMul(convertToExa(_balance, decimals), core.getNormalizedIncome(self.getReserve())),
+                userIndex)
+            return convertExaToOther(balance, decimals)
 
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
         previousPrincipalBalance = self.principalBalanceOf(_user)
