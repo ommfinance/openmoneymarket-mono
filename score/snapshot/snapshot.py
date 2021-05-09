@@ -115,38 +115,39 @@ class Snapshot(IconScoreBase):
     def reserveDataAt(self, _reserve: Address, _day: int) -> dict:
         if _day < 0:
             revert(f'IRC2Snapshot: day must be equal to or greater then Zero')
+        reserveData = self._reserveData[_reserve]
         low = 0
-        high = self._reserveData[_reserve]['length'][0]
+        high = reserveData['length'][0]
 
         while low < high:
             mid = (low + high) // 2
-            if self._reserveData[_reserve]['ids'][mid] > _day:
+            if reserveData['ids'][mid] > _day:
                 high = mid
             else:
                 low = mid + 1
 
-        keys = [
+        keys = (
             "liquidityRate",
             "borrowRate",
             "liquidityCumulativeIndex",
             "borrowCumulativeIndex",
             "lastUpdateTimestamp",
             "price"
-        ]
+        )
 
-        if self._reserveData[_reserve]['ids'][0] == _day:
-            response = {key: self._reserveData[_reserve][key][0] for key in keys}
+        if reserveData['ids'][0] == _day:
+            response = {key: reserveData[key][0] for key in keys}
         elif low == 0:
             response = {
                 keys[0]: 0,
                 keys[1]: 0,
                 keys[2]: 10 ** 18,
                 keys[3]: 10 ** 18,
-                keys[4]: self._reserveData[_reserve][keys[4]][0],
-                keys[5]: self._reserveData[_reserve][keys[5]][0]
+                keys[4]: reserveData[keys[4]][0],
+                keys[5]: reserveData[keys[5]][0]
             }
         else:
-            response = {key: self._reserveData[_reserve][key][low - 1] for key in keys}
+            response = {key: reserveData[key][low - 1] for key in keys}
 
         return response
 
