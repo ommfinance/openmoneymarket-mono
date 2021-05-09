@@ -155,31 +155,32 @@ class Snapshot(IconScoreBase):
     @external
     def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserSnapshotData) -> None:
         currentDay = self._getDay()
-        length = self._userData[_user][_reserve]['length'][0]
+        userReserve = self._userData[_user][_reserve]
+        length = userReserve['length'][0]
 
-        keys = [
+        keys = (
             "principalOTokenBalance",
             "principalBorrowBalance",
             "userLiquidityCumulativeIndex",
             "userBorrowCumulativeIndex"
-        ]
+        )
 
         if length == 0:
             for key in keys:
-                self._userData[_user][_reserve][key][length] = _userData[key]
-            self._userData[_user][_reserve]['length'][0] += 1 
+                userReserve[key][length] = _userData[key]
+            userReserve['length'][0] += 1
             return
         else:
-            lastDay = self._userData[_user][_reserve]['ids'][length - 1]
+            lastDay = userReserve['ids'][length - 1]
 
         if lastDay < currentDay:
-            self._userData[_user][_reserve]['ids'][length] = currentDay
+            userReserve['ids'][length] = currentDay
             for key in keys:
-                self._userData[_user][_reserve][key][length] = _userData[key]
-            self._userData[_user][_reserve]['length'][0] += 1
+                userReserve[key][length] = _userData[key]
+            userReserve['length'][0] += 1
         else:
             for key in keys:
-                self._userData[_user][_reserve][key][length - 1] = _userData[key]
+                userReserve[key][length - 1] = _userData[key]
 
     @only_admin
     @external
