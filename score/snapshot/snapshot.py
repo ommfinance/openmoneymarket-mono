@@ -186,37 +186,37 @@ class Snapshot(IconScoreBase):
     @external
     def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveSnapshotData) -> None:
         currentDay = self._getDay()
-        length = self._reserveData[_reserve]['length'][0]
+        reserveData = self._reserveData[_reserve]
+        length = reserveData['length'][0]
 
-        keys = [
+        keys = (
             "liquidityRate",
             "borrowRate",
             "liquidityCumulativeIndex",
             "borrowCumulativeIndex",
             "lastUpdateTimestamp",
-
-        ]
+        )
 
         if length == 0:
             for key in keys:
-                self._reserveData[_reserve][key][length] = _reserveData[key]
-            self._reserveData[_reserve]['price'][length] = _reserveData['price']
-            self._reserveData[_reserve]['length'][0] += 1 
+                reserveData[key][length] = _reserveData[key]
+            reserveData['price'][length] = _reserveData['price']
+            reserveData['length'][0] += 1
             return
         else:
-            lastDay = self._reserveData[_reserve]['ids'][length - 1]
+            lastDay = reserveData['ids'][length - 1]
 
         if lastDay < currentDay:
-            self._reserveData[_reserve]['ids'][length] = currentDay
+            reserveData['ids'][length] = currentDay
             for key in keys:
-                self._reserveData[_reserve][key][length] = _reserveData[key]
-            self._reserveData[_reserve]['price'][length] = _reserveData['price']
-            self._reserveData[_reserve]['length'][0] += 1
+                reserveData[key][length] = _reserveData[key]
+            reserveData['price'][length] = _reserveData['price']
+            reserveData['length'][0] += 1
         else:
             for key in keys:
-                self._reserveData[_reserve][key][length - 1] = _reserveData[key]
+                reserveData[key][length - 1] = _reserveData[key]
             # TODO check why length is not "length - 1"
-            self._reserveData[_reserve]['price'][length] = _reserveData['price']
+            reserveData['price'][length] = _reserveData['price']
 
     @external(readonly=True)
     def _getDay(self) -> int:
