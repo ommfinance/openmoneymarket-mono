@@ -518,20 +518,18 @@ class Rewards(IconScoreBase):
         self._day.set(day + 1)
 
     def _depositBalance(self, _reserve: Address, _user: Address) -> int:
+        day: int = self._day.get()
         snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
-        userData = snapshot.userDataAt(_user, _reserve, self._day.get())
+        userData = snapshot.userDataAt(_user, _reserve, day)
         balance = userData['principalOTokenBalance']
-        if userData['userLiquidityCumulativeIndex'] == 0:
 
-            return balance
-        else:
-            reserveData = snapshot.reserveDataAt(_reserve, self._day.get())
+        if userData['userLiquidityCumulativeIndex'] != 0:
+            reserveData = snapshot.reserveDataAt(_reserve, day)
             interest = self._calculateLinearInterest(reserveData['liquidityRate'], reserveData['lastUpdateTimestamp'])
             cumulated = exaMul(interest, reserveData['liquidityCumulativeIndex'])
-            balance = exaDiv(exaMul(balance, cumulated),
-                             userData['userLiquidityCumulativeIndex'])
+            balance = exaDiv(exaMul(balance, cumulated), userData['userLiquidityCumulativeIndex'])
 
-            return balance
+        return balance
 
     def _borrowBalance(self, _reserve: Address, _user: Address) -> int:
         snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
