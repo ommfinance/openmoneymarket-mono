@@ -153,7 +153,7 @@ class Sicx(IconScoreBase, TokenStandard):
         # Emits an event log Mint
         self.Mint(account, amount)
 
-    def _burn(self, account: Address, amount: int) -> bool:
+    def _burn(self, account: Address, amount: int):
         """
         Creates amount number of tokens, and assigns to account
         Increases the balance of that account and total supply.
@@ -166,7 +166,7 @@ class Sicx(IconScoreBase, TokenStandard):
         if amount < 0:
             revert(f"Invalid Value")
 
-        self._totalSupply.set(self._totalSupply.get() - amount)
+        self._total_supply.set(self._total_supply.get() - amount)
         self._balances[account] -= amount
 
         # Emits an event log Mint
