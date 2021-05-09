@@ -79,34 +79,35 @@ class Snapshot(IconScoreBase):
     def userDataAt(self, _user: Address, _reserve: Address, _day: int) -> dict:
         if _day < 0:
             revert(f'IRC2Snapshot: day must be equal to or greater then Zero')
+        userReserve = self._userData[_user][_reserve]
         low = 0
-        high = self._userData[_user][_reserve]['length'][0]
+        high = userReserve['length'][0]
 
         while low < high:
             mid = (low + high) // 2
-            if self._userData[_user][_reserve]['ids'][mid] > _day:
+            if userReserve['ids'][mid] > _day:
                 high = mid
             else:
                 low = mid + 1
 
-        keys = [
+        keys = (
             "principalOTokenBalance",
             "principalBorrowBalance",
             "userLiquidityCumulativeIndex",
             "userBorrowCumulativeIndex"
-        ]
+        )
 
-        if self._userData[_user][_reserve]['ids'][0] == _day:
-            response = {key: self._userData[_user][_reserve][key][0] for key in keys}
+        if userReserve['ids'][0] == _day:
+            response = {key: userReserve[key][0] for key in keys}
         elif low == 0:
             response = {
                 keys[0]: 0,
                 keys[1]: 0,
-                keys[2]: 10**18,
-                keys[3]: 10**18
+                keys[2]: 10 ** 18,
+                keys[3]: 10 ** 18
             }
         else:
-            response = {key: self._userData[_user][_reserve][key][low - 1] for key in keys}
+            response = {key: userReserve[key][low - 1] for key in keys}
 
         return response
 
@@ -139,8 +140,8 @@ class Snapshot(IconScoreBase):
             response = {
                 keys[0]: 0,
                 keys[1]: 0,
-                keys[2]: 10**18,
-                keys[3]: 10**18,
+                keys[2]: 10 ** 18,
+                keys[3]: 10 ** 18,
                 keys[4]: self._reserveData[_reserve][keys[4]][0],
                 keys[5]: self._reserveData[_reserve][keys[5]][0]
             }
