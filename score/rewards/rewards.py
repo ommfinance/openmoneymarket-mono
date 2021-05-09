@@ -479,10 +479,11 @@ class Rewards(IconScoreBase):
         ommRewards = 0
         liquidityRewards = 0
         total = 0
-        for receipient in self._recipients:
-            tokenAmount = self._tokenValue[_user][receipient]
-            response[receipient] = tokenAmount
-            if receipient in ["deposit", "borrow", "daoFund", "worker"]:
+        recipientSet = {"deposit", "borrow", "daoFund", "worker"}
+        for recipient in self._recipients:
+            tokenAmount = self._tokenValue[_user][recipient]
+            response[recipient] = tokenAmount
+            if recipient in recipientSet:
                 ommRewards += tokenAmount
             else:
                 liquidityRewards += tokenAmount
