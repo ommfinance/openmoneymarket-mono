@@ -3,7 +3,7 @@ from .utils.checks import *
 
 TAG = 'Snapshot'
 
-DAY_IN_MICROSECONDS = 86400 * 10**6
+DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
 
 class UserSnapshotData(TypedDict):
@@ -20,7 +20,7 @@ class ReserveSnapshotData(TypedDict):
     borrowCumulativeIndex: int
     lastUpdateTimestamp: int
     price: int
-    
+
 
 class Snapshot(IconScoreBase):
 
@@ -46,7 +46,7 @@ class Snapshot(IconScoreBase):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmSnapshotManager"  
+        return "OmmSnapshotManager"
 
     @only_governance
     @external
