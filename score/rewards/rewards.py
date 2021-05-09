@@ -153,11 +153,10 @@ class Rewards(IconScoreBase):
 
     @external(readonly=True)
     def getDistPercentage(self) -> dict:
-        response = {}
-        for receipient in self._recipients:
-            response[receipient] = self._distPercentage[receipient]
-
-        return response
+        return {
+            recipient: self._distPercentage[recipient]
+            for recipient in self._recipients
+        }
 
     @only_admin
     @external
