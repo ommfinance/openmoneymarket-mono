@@ -334,13 +334,15 @@ class LendingPoolDataProvider(IconScoreBase):
             # principalOTokenBalance = exaMul(principalOTokenBalance, todaySicxRate)
             # currentBorrowBalance = exaMul(currentBorrowBalance, todaySicxRate)
             # principalBorrowBalance = exaMul(principalBorrowBalance, todaySicxRate)
+        else:
+            todaySicxRate = None
 
         currentOTokenBalanceUSD = exaMul(convertToExa(currentOTokenBalance, reserveDecimals), price)
         principalOTokenBalanceUSD = exaMul(convertToExa(principalOTokenBalance, reserveDecimals), price)
         currentBorrowBalanceUSD = exaMul(convertToExa(currentBorrowBalance, reserveDecimals), price)
         principalBorrowBalanceUSD = exaMul(convertToExa(principalBorrowBalance, reserveDecimals), price)
 
-        return {
+        response = {
             'currentOTokenBalance': currentOTokenBalance,
             'currentOTokenBalanceUSD': currentOTokenBalanceUSD,
             'principalOTokenBalance': principalOTokenBalance,
@@ -359,6 +361,11 @@ class LendingPoolDataProvider(IconScoreBase):
             'exchangeRate': price,
             'decimals': reserveDecimals
         }
+
+        if isinstance(todaySicxRate, int):
+            response['sICXRate'] = todaySicxRate
+
+        return response
 
     @external(readonly=True)
     def balanceDecreaseAllowed(self, _reserve: Address, _user: Address, _amount: int) -> bool:
