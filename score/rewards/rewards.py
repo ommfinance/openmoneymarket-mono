@@ -500,21 +500,22 @@ class Rewards(IconScoreBase):
         return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
 
     def _initialize(self) -> None:
+        day: int = self._day.get()
+        tokenDistributionPerDay: int = self.tokenDistributionPerDay(day)
         ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
-        ommToken.mint(self.tokenDistributionPerDay(self._day.get()))
+        ommToken.mint(tokenDistributionPerDay)
 
-        for value in ['deposit', 'borrow', 'ommICX', 'ommUSDb']:
+        for value in ('deposit', 'borrow', 'ommICX', 'ommUSDb'):
             self._precompute[value] = False
             self._totalAmount[value] = 0
             self._distComplete[value] = False
-            self._tokenDistTracker[value] = exaMul(self.tokenDistributionPerDay(self._day.get()),
-                                                   self._distPercentage[value])
+            self._tokenDistTracker[value] = exaMul(tokenDistributionPerDay, self._distPercentage[value])
 
-        for value in ['worker', 'daoFund']:
+        for value in ('worker', 'daoFund'):
             self._distComplete[value] = False
-            self._tokenDistTracker[value] = exaMul(self.tokenDistributionPerDay(self._day.get()),
-                                                   self._distPercentage[value])
-        self._day.set(self._day.get() + 1)
+            self._tokenDistTracker[value] = exaMul(tokenDistributionPerDay, self._distPercentage[value])
+
+        self._day.set(day + 1)
 
     def _depositBalance(self, _reserve: Address, _user: Address) -> int:
         snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
