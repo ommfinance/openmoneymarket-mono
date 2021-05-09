@@ -130,7 +130,7 @@ class Sicx(IconScoreBase, TokenStandard):
 
     @external
     @payable
-    def add_collateral(self, _to: Address,_data: bytes = None) -> int:
+    def add_collateral(self, _to: Address, _data: bytes = None) -> int:
         self._mint(_to, self.msg.value)
         return self.msg.value
 
