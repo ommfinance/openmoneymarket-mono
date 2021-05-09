@@ -134,7 +134,7 @@ class Sicx(IconScoreBase, TokenStandard):
         self._mint(_to, self.msg.value)
         return self.msg.value
 
-    def _mint(self, account: Address, amount: int) -> bool:
+    def _mint(self, account: Address, amount: int):
         """
         Creates amount number of tokens, and assigns to account
         Increases the balance of that account and total supply.
