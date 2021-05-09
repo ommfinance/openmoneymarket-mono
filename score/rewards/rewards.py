@@ -532,9 +532,10 @@ class Rewards(IconScoreBase):
         return balance
 
     def _borrowBalance(self, _reserve: Address, _user: Address) -> int:
+        day: int = self._day.get()
         snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
-        userData = snapshot.userDataAt(_user, _reserve, self._day.get())
-        reserveData = snapshot.reserveDataAt(_reserve, self._day.get())
+        userData = snapshot.userDataAt(_user, _reserve, day)
+        reserveData = snapshot.reserveDataAt(_reserve, day)
         if userData['principalBorrowBalance'] == 0:
             return 0
 
