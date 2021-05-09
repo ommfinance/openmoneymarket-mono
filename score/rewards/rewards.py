@@ -240,9 +240,10 @@ class Rewards(IconScoreBase):
         return self._snapshotAddress.get()
 
     def _check(self, _recipient: str) -> bool:
-        if not self._totalAmount[_recipient] and self._tokenDistTracker[_recipient]:
+        tokenDistTracker = self._tokenDistTracker[_recipient]
+        if not self._totalAmount[_recipient] and tokenDistTracker:
             ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
-            ommToken.transfer(self._daoFundAddress.get(), self._tokenDistTracker[_recipient])
+            ommToken.transfer(self._daoFundAddress.get(), tokenDistTracker)
             self._distComplete[_recipient] = True
             self._tokenDistTracker[_recipient] = 0
             return False
