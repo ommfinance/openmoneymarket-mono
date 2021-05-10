@@ -3,7 +3,7 @@ from .utils.checks import *
 
 TAG = 'Snapshot'
 
-DAY_IN_MICROSECONDS = 86400 * 10**6
+DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
 
 class UserSnapshotData(TypedDict):
@@ -20,7 +20,7 @@ class ReserveSnapshotData(TypedDict):
     borrowCumulativeIndex: int
     lastUpdateTimestamp: int
     price: int
-    
+
 
 class Snapshot(IconScoreBase):
 
@@ -46,7 +46,7 @@ class Snapshot(IconScoreBase):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmSnapshotManager"  
+        return "OmmSnapshotManager"
 
     @only_governance
     @external
@@ -79,34 +79,35 @@ class Snapshot(IconScoreBase):
     def userDataAt(self, _user: Address, _reserve: Address, _day: int) -> dict:
         if _day < 0:
             revert(f'IRC2Snapshot: day must be equal to or greater then Zero')
+        userReserve = self._userData[_user][_reserve]
         low = 0
-        high = self._userData[_user][_reserve]['length'][0]
+        high = userReserve['length'][0]
 
         while low < high:
             mid = (low + high) // 2
-            if self._userData[_user][_reserve]['ids'][mid] > _day:
+            if userReserve['ids'][mid] > _day:
                 high = mid
             else:
                 low = mid + 1
 
-        keys = [
+        keys = (
             "principalOTokenBalance",
             "principalBorrowBalance",
             "userLiquidityCumulativeIndex",
             "userBorrowCumulativeIndex"
-        ]
+        )
 
-        if self._userData[_user][_reserve]['ids'][0] == _day:
-            response = {key: self._userData[_user][_reserve][key][0] for key in keys}
+        if userReserve['ids'][0] == _day:
+            response = {key: userReserve[key][0] for key in keys}
         elif low == 0:
             response = {
                 keys[0]: 0,
                 keys[1]: 0,
-                keys[2]: 10**18,
-                keys[3]: 10**18
+                keys[2]: 10 ** 18,
+                keys[3]: 10 ** 18
             }
         else:
-            response = {key: self._userData[_user][_reserve][key][low - 1] for key in keys}
+            response = {key: userReserve[key][low - 1] for key in keys}
 
         return response
 
@@ -114,38 +115,39 @@ class Snapshot(IconScoreBase):
     def reserveDataAt(self, _reserve: Address, _day: int) -> dict:
         if _day < 0:
             revert(f'IRC2Snapshot: day must be equal to or greater then Zero')
+        reserveData = self._reserveData[_reserve]
         low = 0
-        high = self._reserveData[_reserve]['length'][0]
+        high = reserveData['length'][0]
 
         while low < high:
             mid = (low + high) // 2
-            if self._reserveData[_reserve]['ids'][mid] > _day:
+            if reserveData['ids'][mid] > _day:
                 high = mid
             else:
                 low = mid + 1
 
-        keys = [
+        keys = (
             "liquidityRate",
             "borrowRate",
             "liquidityCumulativeIndex",
             "borrowCumulativeIndex",
             "lastUpdateTimestamp",
             "price"
-        ]
+        )
 
-        if self._reserveData[_reserve]['ids'][0] == _day:
-            response = {key: self._reserveData[_reserve][key][0] for key in keys}
+        if reserveData['ids'][0] == _day:
+            response = {key: reserveData[key][0] for key in keys}
         elif low == 0:
             response = {
                 keys[0]: 0,
                 keys[1]: 0,
-                keys[2]: 10**18,
-                keys[3]: 10**18,
-                keys[4]: self._reserveData[_reserve][keys[4]][0],
-                keys[5]: self._reserveData[_reserve][keys[5]][0]
+                keys[2]: 10 ** 18,
+                keys[3]: 10 ** 18,
+                keys[4]: reserveData[keys[4]][0],
+                keys[5]: reserveData[keys[5]][0]
             }
         else:
-            response = {key: self._reserveData[_reserve][key][low - 1] for key in keys}
+            response = {key: reserveData[key][low - 1] for key in keys}
 
         return response
 
@@ -153,67 +155,68 @@ class Snapshot(IconScoreBase):
     @external
     def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserSnapshotData) -> None:
         currentDay = self._getDay()
-        length = self._userData[_user][_reserve]['length'][0]
+        userReserve = self._userData[_user][_reserve]
+        length = userReserve['length'][0]
 
-        keys = [
+        keys = (
             "principalOTokenBalance",
             "principalBorrowBalance",
             "userLiquidityCumulativeIndex",
             "userBorrowCumulativeIndex"
-        ]
+        )
 
         if length == 0:
             for key in keys:
-                self._userData[_user][_reserve][key][length] = _userData[key]
-            self._userData[_user][_reserve]['length'][0] += 1 
+                userReserve[key][length] = _userData[key]
+            userReserve['length'][0] += 1
             return
         else:
-            lastDay = self._userData[_user][_reserve]['ids'][length - 1]
+            lastDay = userReserve['ids'][length - 1]
 
         if lastDay < currentDay:
-            self._userData[_user][_reserve]['ids'][length] = currentDay
+            userReserve['ids'][length] = currentDay
             for key in keys:
-                self._userData[_user][_reserve][key][length] = _userData[key]
-            self._userData[_user][_reserve]['length'][0] += 1
+                userReserve[key][length] = _userData[key]
+            userReserve['length'][0] += 1
         else:
             for key in keys:
-                self._userData[_user][_reserve][key][length - 1] = _userData[key]
+                userReserve[key][length - 1] = _userData[key]
 
     @only_admin
     @external
     def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveSnapshotData) -> None:
         currentDay = self._getDay()
-        length = self._reserveData[_reserve]['length'][0]
+        reserveData = self._reserveData[_reserve]
+        length = reserveData['length'][0]
 
-        keys = [
+        keys = (
             "liquidityRate",
             "borrowRate",
             "liquidityCumulativeIndex",
             "borrowCumulativeIndex",
             "lastUpdateTimestamp",
-
-        ]
+        )
 
         if length == 0:
             for key in keys:
-                self._reserveData[_reserve][key][length] = _reserveData[key]
-            self._reserveData[_reserve]['price'][length] = _reserveData['price']
-            self._reserveData[_reserve]['length'][0] += 1 
+                reserveData[key][length] = _reserveData[key]
+            reserveData['price'][length] = _reserveData['price']
+            reserveData['length'][0] += 1
             return
         else:
-            lastDay = self._reserveData[_reserve]['ids'][length - 1]
+            lastDay = reserveData['ids'][length - 1]
 
         if lastDay < currentDay:
-            self._reserveData[_reserve]['ids'][length] = currentDay
+            reserveData['ids'][length] = currentDay
             for key in keys:
-                self._reserveData[_reserve][key][length] = _reserveData[key]
-            self._reserveData[_reserve]['price'][length] = _reserveData['price']
-            self._reserveData[_reserve]['length'][0] += 1
+                reserveData[key][length] = _reserveData[key]
+            reserveData['price'][length] = _reserveData['price']
+            reserveData['length'][0] += 1
         else:
             for key in keys:
-                self._reserveData[_reserve][key][length - 1] = _reserveData[key]
+                reserveData[key][length - 1] = _reserveData[key]
             # TODO check why length is not "length - 1"
-            self._reserveData[_reserve]['price'][length] = _reserveData['price']
+            reserveData['price'][length] = _reserveData['price']
 
     @external(readonly=True)
     def _getDay(self) -> int:
