@@ -178,10 +178,11 @@ class LendingPoolDataProvider(IconScoreBase):
         reserves = core.getReserves()
 
         for _reserve in reserves:
+            symbol = self._symbol[_reserve]
             reserveData = core.getReserveData(_reserve)
             reserveDecimals = reserveData['decimals']
-            reservePrice = oracle.get_reference_data(self._symbol[_reserve], 'USD')
-            if self._symbol[_reserve] == 'ICX':
+            reservePrice = oracle.get_reference_data(symbol, 'USD')
+            if symbol == 'ICX':
                 reservePrice = exaMul(reservePrice, todayRate)
             reserveTotalLiquidity = reserveData['totalLiquidity']
             reserveAvailableLiquidity = reserveData['availableLiquidity']
@@ -197,14 +198,13 @@ class LendingPoolDataProvider(IconScoreBase):
             totalBorrowBalanceUSD += exaMul(reserveTotalBorrows, reservePrice)
             if reserveData['usageAsCollateralEnabled']:
                 totalCollateralBalanceUSD += exaMul(reserveTotalLiquidity, reservePrice)
-        response = {
+
+        return {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'availableLiquidityBalanceUSD': availableLiquidityBalanceUSD,
             'totalBorrowsBalanceUSD': totalBorrowBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
         }
-
-        return response
 
     @external(readonly=True)
     def getUserAccountData(self, _user: Address) -> dict:
@@ -218,7 +218,6 @@ class LendingPoolDataProvider(IconScoreBase):
         currentLiquidationThreshold = 0
         totalBorrowBalanceUSD = 0
         totalFeesUSD = 0
-        healthFactorBelowThreshold = False
 
         reserves = core.getReserves()
         for _reserve in reserves:
@@ -238,8 +237,9 @@ class LendingPoolDataProvider(IconScoreBase):
                 userBasicReserveData['originationFee'] = convertToExa(userBasicReserveData['originationFee'],
                                                                       reserveDecimals)
 
-            reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(self._symbol[_reserve], 'USD')
-            if self._symbol[_reserve] == 'ICX':
+            symbol = self._symbol[_reserve]
+            reserveConfiguration['reserveUnitPrice'] = oracle.get_reference_data(symbol, 'USD')
+            if symbol == 'ICX':
                 reserveConfiguration['reserveUnitPrice'] = exaMul(reserveConfiguration['reserveUnitPrice'],
                                                                   todaySicxRate)
 
@@ -269,8 +269,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
         healthFactor = self.calculateHealthFactorFromBalancesInternal(totalCollateralBalanceUSD, totalBorrowBalanceUSD,
                                                                       totalFeesUSD, currentLiquidationThreshold)
-        if healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD and healthFactor != - 1:
-            healthFactorBelowThreshold = True
+        healthFactorBelowThreshold = healthFactor < HEALTH_FACTOR_LIQUIDATION_THRESHOLD and healthFactor != - 1
 
         borrowingPower = self.calculateBorrowingPowerFromBalancesInternal(totalCollateralBalanceUSD,
                                                                           totalBorrowBalanceUSD,
@@ -279,7 +278,8 @@ class LendingPoolDataProvider(IconScoreBase):
         availableBorrowsUSD = borrowsAllowedUSD - totalBorrowBalanceUSD
         if availableBorrowsUSD < 0:
             availableBorrowsUSD = 0
-        response = {
+
+        return {
             'totalLiquidityBalanceUSD': totalLiquidityBalanceUSD,
             'totalCollateralBalanceUSD': totalCollateralBalanceUSD,
             'totalBorrowBalanceUSD': totalBorrowBalanceUSD,
@@ -292,11 +292,8 @@ class LendingPoolDataProvider(IconScoreBase):
             'healthFactorBelowThreshold': healthFactorBelowThreshold
         }
 
-        return response
-
     @external(readonly=True)
     def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
-        response = {}
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserveData = core.getReserveData(_reserve)
         userReserveData = core.getUserReserveData(_reserve, _user)
@@ -314,21 +311,24 @@ class LendingPoolDataProvider(IconScoreBase):
         lastUpdateTimestamp = userReserveData['lastUpdateTimestamp']
         useAsCollateral = userReserveData['useAsCollateral']
         price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
-        if self._symbol[_reserve] == "ICX":
+        symbol = self._symbol[_reserve]
+        price = price_provider.get_reference_data(symbol, "USD")
+        if symbol == "ICX":
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
-            response['sICXRate'] = todaySicxRate
             price = exaMul(price, todaySicxRate)
             # currentOTokenBalance = exaMul(currentOTokenBalance, todaySicxRate)
             # principalOTokenBalance = exaMul(principalOTokenBalance, todaySicxRate)
             # currentBorrowBalance = exaMul(currentBorrowBalance, todaySicxRate)
             # principalBorrowBalance = exaMul(principalBorrowBalance, todaySicxRate)
+        else:
+            todaySicxRate = None
 
         currentOTokenBalanceUSD = exaMul(convertToExa(currentOTokenBalance, reserveDecimals), price)
         principalOTokenBalanceUSD = exaMul(convertToExa(principalOTokenBalance, reserveDecimals), price)
         currentBorrowBalanceUSD = exaMul(convertToExa(currentBorrowBalance, reserveDecimals), price)
         principalBorrowBalanceUSD = exaMul(convertToExa(principalBorrowBalance, reserveDecimals), price)
+
         response = {
             'currentOTokenBalance': currentOTokenBalance,
             'currentOTokenBalanceUSD': currentOTokenBalanceUSD,
@@ -348,6 +348,9 @@ class LendingPoolDataProvider(IconScoreBase):
             'exchangeRate': price,
             'decimals': reserveDecimals
         }
+
+        if isinstance(todaySicxRate, int):
+            response['sICXRate'] = todaySicxRate
 
         return response
 
@@ -375,8 +378,9 @@ class LendingPoolDataProvider(IconScoreBase):
             return True
 
         oracle = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = oracle.get_reference_data(self._symbol[_reserve], 'USD')
-        if self._symbol[_reserve] == "ICX":
+        symbol = self._symbol[_reserve]
+        price = oracle.get_reference_data(symbol, 'USD')
+        if symbol == "ICX":
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
@@ -400,13 +404,14 @@ class LendingPoolDataProvider(IconScoreBase):
                                      _userCurrentBorrowBalanceUSD: int,
                                      _userCurrentFeesUSD: int, _userCurrentLtv: int) -> int:
 
+        symbol = self._symbol[_reserve]
         price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
-        price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
+        price = price_provider.get_reference_data(symbol, "USD")
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserveConfiguration = core.getReserveConfiguration(_reserve)
         if reserveConfiguration['decimals'] != 18:
             _amount = _amount * EXA // (10 ** reserveConfiguration["decimals"])
-        if self._symbol[_reserve] == "ICX":
+        if symbol == "ICX":
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             todaySicxRate = staking.getTodayRate()
             price = exaMul(price, todaySicxRate)
@@ -419,11 +424,10 @@ class LendingPoolDataProvider(IconScoreBase):
     def getUserAllReserveData(self, _user: Address) -> dict:
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserves = core.getReserves()
-        userData = {}
-        for reserve in reserves:
-            userData[self._symbol[reserve]] = self.getUserReserveData(reserve, _user)
-
-        return userData
+        return {
+            self._symbol[reserve]: self.getUserReserveData(reserve, _user)
+            for reserve in reserves
+        }
 
     @external(readonly=True)
     def getUserLiquidationData(self, _user: Address) -> dict:
@@ -436,7 +440,9 @@ class LendingPoolDataProvider(IconScoreBase):
                                                       userAccountData['totalFeesUSD'],
                                                       userAccountData['totalCollateralBalanceUSD'],
                                                       userAccountData['currentLtv'])
-        response = {'badDebt': badDebt, 'borrows': {}, 'collaterals': {}}
+
+        borrows = {}
+        collaterals = {}
         for _reserve in reserves:
             userReserveData = core.getUserBasicReserveData(_reserve, _user)
             reserveConfiguration = core.getReserveConfiguration(_reserve)
@@ -447,8 +453,9 @@ class LendingPoolDataProvider(IconScoreBase):
             userReserveUnderlyingBalance = convertToExa(userReserveData['underlyingBalance'],
                                                         reserveDecimals)
 
-            price = price_provider.get_reference_data(self._symbol[_reserve], "USD")
-            if self._symbol[_reserve] == "ICX":
+            symbol = self._symbol[_reserve]
+            price = price_provider.get_reference_data(symbol, "USD")
+            if symbol == "ICX":
                 staking = self.create_interface_score(self._staking.get(), StakingInterface)
                 todaySicxRate = staking.getTodayRate()
                 price = exaMul(price, todaySicxRate)
@@ -461,31 +468,33 @@ class LendingPoolDataProvider(IconScoreBase):
                     maxAmountToLiquidateUSD = badDebt
                     maxAmountToLiquidate = convertExaToOther(exaDiv(badDebt, price), reserveDecimals)
 
-                response['borrows'][self._symbol[_reserve]] = {
+                borrows[symbol] = {
                     'compoundedBorrowBalance': userReserveData['compoundedBorrowBalance'],
-                    'compoundedBorrowBalanceUSD': exaMul(price,
-                                                         userBorrowBalance),
+                    'compoundedBorrowBalanceUSD': exaMul(price, userBorrowBalance),
                     'maxAmountToLiquidate': maxAmountToLiquidate,
-                    'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD}
+                    'maxAmountToLiquidateUSD': maxAmountToLiquidateUSD
+                }
             if userReserveUnderlyingBalance > 0:
-                response['collaterals'][self._symbol[_reserve]] = {
+                collaterals[symbol] = {
                     'underlyingBalance': userReserveData['underlyingBalance'],
-                    'underlyingBalanceUSD': exaMul(price,
-                                                   userReserveUnderlyingBalance)}
+                    'underlyingBalanceUSD': exaMul(price, userReserveUnderlyingBalance)
+                }
 
-        return response
+        return {
+            'badDebt': badDebt,
+            'borrows': borrows,
+            'collaterals': collaterals
+        }
 
     @external(readonly=True)
     def liquidationList(self, _index: int) -> dict:
         pool = self.create_interface_score(self._lendingPool.get(), LendingPoolInterface)
         wallets = pool.getBorrowWallets(_index)
-        response = {}
-        for wallet in wallets:
-            userAccountData = self.getUserAccountData(wallet)
-            if userAccountData['healthFactor'] < 10 ** 18:
-                response[wallet] = self.getUserLiquidationData(wallet)
-
-        return response
+        return {
+            wallet: self.getUserLiquidationData(wallet)
+            for wallet in wallets
+            if self.getUserAccountData(wallet)['healthFactor'] < 10 ** 18
+        }
 
     @staticmethod
     def calculateHealthFactorFromBalancesInternal(_collateralBalanceUSD: int, _borrowBalanceUSD: int,
@@ -508,9 +517,10 @@ class LendingPoolDataProvider(IconScoreBase):
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         oracle = self.create_interface_score(self._priceOracle.get(), OracleInterface)
         reserveData = core.getReserveData(_reserve)
-        price = oracle.get_reference_data(self._symbol[_reserve], "USD")
+        symbol = self._symbol[_reserve]
+        price = oracle.get_reference_data(symbol, "USD")
         reserveData["exchangePrice"] = price
-        if self._symbol[_reserve] == "ICX":
+        if symbol == "ICX":
             staking = self.create_interface_score(self._staking.get(), StakingInterface)
             reserveData['sICXRate'] = staking.getTodayRate()
             price = exaMul(staking.getTodayRate(), price)
@@ -534,11 +544,10 @@ class LendingPoolDataProvider(IconScoreBase):
     def getAllReserveData(self) -> dict:
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserves = core.getReserves()
-        response = {}
-        for reserve in reserves:
-            response[self._symbol[reserve]] = self.getReserveData(reserve)
-
-        return response
+        return {
+            self._symbol[reserve]: self.getReserveData(reserve)
+            for reserve in reserves
+        }
 
     @external(readonly=True)
     def getReserveConfigurationData(self, _reserve: Address) -> dict:
@@ -549,11 +558,10 @@ class LendingPoolDataProvider(IconScoreBase):
     def getAllReserveConfigurationData(self) -> dict:
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserves = core.getReserves()
-        response = {}
-        for reserve in reserves:
-            response[self._symbol[reserve]] = core.getReserveConfiguration(reserve)
-
-        return response
+        return {
+            self._symbol[reserve]: core.getReserveConfiguration(reserve)
+            for reserve in reserves
+        }
 
     @external(readonly=True)
     def getUserUnstakeInfo(self, _address: Address) -> list:
