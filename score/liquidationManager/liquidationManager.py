@@ -167,7 +167,6 @@ class LiquidationManager(IconScoreBase):
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
                          _ltv: int) -> int:
-        priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
         badDebtUSD = _totalBorrowBalanceUSD - exaMul(_totalCollateralBalanceUSD - _totalFeesUSD, _ltv)
 
         if badDebtUSD < 0:
@@ -181,10 +180,11 @@ class LiquidationManager(IconScoreBase):
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
         core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
 
-        collateralConfigs = dataProvider.getReserveConfigurationData(_collateral)
-        liquidationBonus = collateralConfigs['liquidationBonus']
         if _fee:
             liquidationBonus = 0
+        else:
+            collateralConfigs = dataProvider.getReserveConfigurationData(_collateral)
+            liquidationBonus = collateralConfigs['liquidationBonus']
         collateralBase = dataProvider.getSymbol(_collateral)
         principalBase = dataProvider.getSymbol(_reserve)
 
@@ -215,20 +215,21 @@ class LiquidationManager(IconScoreBase):
         else:
             collateralAmount = maxCollateralToLiquidate
             principalAmountNeeded = _purchaseAmount
-        response = {"collateralAmount": collateralAmount,
-                    "principalAmountNeeded": principalAmountNeeded}
-        return response
 
-    def calculateCurrentLiquidationThreshold(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int,
+        return {
+            "collateralAmount": collateralAmount,
+            "principalAmountNeeded": principalAmountNeeded
+        }
+
+    @staticmethod
+    def calculateCurrentLiquidationThreshold(_totalBorrowBalanceUSD: int, _totalFeesUSD: int,
                                              _totalCollateralBalanceUSD: int) -> int:
         if _totalCollateralBalanceUSD == 0:
             return 0
-        liquidationThreshold = exaDiv(_totalBorrowBalanceUSD, _totalCollateralBalanceUSD - _totalFeesUSD)
-        return liquidationThreshold
+        return exaDiv(_totalBorrowBalanceUSD, _totalCollateralBalanceUSD - _totalFeesUSD)
 
     @external
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
-        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
         core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
         priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
@@ -237,7 +238,6 @@ class LiquidationManager(IconScoreBase):
         userAccountData = dataProvider.getUserAccountData(_user)
         reserveData = dataProvider.getReserveData(_reserve)
 
-        actualAmountToLiquidate = 0
         liquidatedCollateralForFee = 0
         feeLiquidated = 0
 
@@ -256,11 +256,11 @@ class LiquidationManager(IconScoreBase):
         userCollateralBalance = core.getUserUnderlyingAssetBalance(_collateral, _user)
         if userCollateralBalance == 0:
             revert(
-                'Liquidation manager SCORE : Unsuccessful liquidation call-user dont have any collateral to liquidate')
+                "Liquidation manager SCORE : Unsuccessful liquidation call-user don't have any collateral to liquidate")
 
         userBorrowBalances = core.getUserBorrowBalances(_reserve, _user)
         if userBorrowBalances['compoundedBorrowBalance'] == 0:
-            revert('Liquidation manager SCORE : Unsuccessful liquidation call-user dont have any borrow')
+            revert("Liquidation manager SCORE : Unsuccessful liquidation call-user don't have any borrow")
         maxPrincipalAmountToLiquidateUSD = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
                                                                  userAccountData['totalFeesUSD'],
                                                                  userAccountData['totalCollateralBalanceUSD'],
@@ -300,7 +300,7 @@ class LiquidationManager(IconScoreBase):
         collateralOtoken = self.create_interface_score(collateralOtokenAddress, OtokenInterface)
         collateralOtoken.burnOnLiquidation(_user, maxCollateralToLiquidate)
         # core.transferToUser(_collateral, self.msg.sender, maxCollateralToLiquidate)
-        # # have a deeper look at this part (transfering principal currency to the pool)
+        # # have a deeper look at this part (transferring principal currency to the pool)
         #
         # principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
         # principalCurrency.transfer(self.getLendingPoolCore(), actualAmountToLiquidate)
@@ -313,6 +313,7 @@ class LiquidationManager(IconScoreBase):
                                           self.now())
         self.LiquidationCall(_collateral, _reserve, _user, actualAmountToLiquidate, maxCollateralToLiquidate,
                              userBorrowBalances['borrowBalanceIncrease'], self.tx.origin, self.now())
-        response = {'maxCollateralToLiquidate': maxCollateralToLiquidate,
-                    'actualAmountToLiquidate': actualAmountToLiquidate}
-        return response
+        return {
+            'maxCollateralToLiquidate': maxCollateralToLiquidate,
+            'actualAmountToLiquidate': actualAmountToLiquidate
+        }
