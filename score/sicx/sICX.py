@@ -111,11 +111,12 @@ class Sicx(IconScoreBase, TokenStandard):
         # Checks the sending value and balance.
         if _value < 0:
             revert("Transferring value cannot be less than zero")
-        if self._balances[_from] < _value:
+        from_balance: int = self._balances[_from]
+        if from_balance < _value:
             revert("SICX error :Out of balance")
 
-        self._balances[_from] = self._balances[_from] - _value
-        self._balances[_to] = self._balances[_to] + _value
+        self._balances[_from] = from_balance - _value
+        self._balances[_to] += _value
 
         if _to.is_contract:
             # If the recipient is SCORE,
@@ -126,15 +127,14 @@ class Sicx(IconScoreBase, TokenStandard):
         # Emits an event log `Transfer`
         self.Transfer(_from, _to, _value, _data)
         Logger.debug(f'Transfer({_from}, {_to}, {_value}, {_data})', TAG)
-        
 
     @external
     @payable
-    def add_collateral(self, _to: Address,_data: bytes = None) -> int:
+    def add_collateral(self, _to: Address, _data: bytes = None) -> int:
         self._mint(_to, self.msg.value)
         return self.msg.value
 
-    def _mint(self, account: Address, amount: int) -> bool:
+    def _mint(self, account: Address, amount: int):
         """
         Creates amount number of tokens, and assigns to account
         Increases the balance of that account and total supply.
@@ -153,7 +153,7 @@ class Sicx(IconScoreBase, TokenStandard):
         # Emits an event log Mint
         self.Mint(account, amount)
 
-    def _burn(self, account: Address, amount: int) -> bool:
+    def _burn(self, account: Address, amount: int):
         """
         Creates amount number of tokens, and assigns to account
         Increases the balance of that account and total supply.
@@ -166,7 +166,7 @@ class Sicx(IconScoreBase, TokenStandard):
         if amount < 0:
             revert(f"Invalid Value")
 
-        self._totalSupply.set(self._totalSupply.get() - amount)
+        self._total_supply.set(self._total_supply.get() - amount)
         self._balances[account] -= amount
 
         # Emits an event log Mint
