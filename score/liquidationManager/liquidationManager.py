@@ -1,8 +1,5 @@
-from iconservice import *
 from .Math import *
 from .utils.checks import *
-
-TAG = 'LiquidationManager'
 
 
 class DataProviderInterface(InterfaceScore):
@@ -248,19 +245,29 @@ class LiquidationManager(IconScoreBase):
                                                                                  'totalCollateralBalanceUSD'])
 
         if reserveLiquidationThreshold >= userLiquidationThreshold:
-            revert("Liquidation manager SCORE : Unsuccessful liquidation call-user is below liquidation threshold")
-
+            revert(f'{TAG}: '
+                   f'unsuccessful liquidation call,user is below liquidation threshold'
+                   f'liquidation threshold of reserve is {reserveLiquidationThreshold}'
+                   f'user ltv is {userLiquidationThreshold}')
+        userHealthFactor = userAccountData['healthFactor']
         if not userAccountData['healthFactorBelowThreshold']:
-            revert("Liquidation manager SCORE : Unsuccessful liquidation call-health factor is above threshold")
+            revert(f'{TAG}: '
+                   f'unsuccessful liquidation call,health factor of user is above 1'
+                   f'health factor of user {userHealthFactor}')
 
         userCollateralBalance = core.getUserUnderlyingAssetBalance(_collateral, _user)
         if userCollateralBalance == 0:
-            revert(
-                "Liquidation manager SCORE : Unsuccessful liquidation call-user don't have any collateral to liquidate")
+            revert(f'{TAG}: '
+                   f'unsuccessful liquidation call,user have no collateral balance'
+                   f'for collateral {_collateral}'
+                   f'balance of user: {_user} is {userCollateralBalance}')
 
         userBorrowBalances = core.getUserBorrowBalances(_reserve, _user)
         if userBorrowBalances['compoundedBorrowBalance'] == 0:
-            revert("Liquidation manager SCORE : Unsuccessful liquidation call-user don't have any borrow")
+            revert(f'{TAG}: '
+                   f'unsuccessful liquidation call,user have no borrow balance'
+                   f'for reserve {_reserve}'
+                   f'borrow balance of user: {_user} is {userBorrowBalances}')
         maxPrincipalAmountToLiquidateUSD = self.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
                                                                  userAccountData['totalFeesUSD'],
                                                                  userAccountData['totalCollateralBalanceUSD'],
