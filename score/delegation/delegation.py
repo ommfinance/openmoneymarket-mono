@@ -114,7 +114,7 @@ class Delegation(IconScoreBase):
         if _delegations is None:
             delegations = self.getUserDelegationDetails(user)
         else:
-            self._require(len(_delegations) <= 5, f'{TAG}'
+            self._require(len(_delegations) <= 5, f'{TAG}: '
                                                   f'updating delegation unsuccessful,more than 5 preps provided by user'
                                                   f'delegations provided {_delegations}')
             delegations = _delegations
@@ -146,7 +146,7 @@ class Delegation(IconScoreBase):
                 total_percentage += votes
 
             self._require(total_percentage == EXA,
-                          f'{TAG}'
+                          f'{TAG}: '
                           f'updating delegation unsuccessful,sum of percentages not equal to 100'
                           f'sum total of percentages {total_percentage}'
                           f'delegation preferences {delegations}'

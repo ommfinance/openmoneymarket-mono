@@ -11,7 +11,7 @@ def only_owner(func):
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
         if self.msg.sender != self.owner:
-            revert(f'{TAG}'
+            revert(f'{TAG}: '
                    'SenderNotScoreOwnerError')
         return func(self, *args, **kwargs)
 
