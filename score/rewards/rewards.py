@@ -1,8 +1,5 @@
-from iconservice import *
 from .Math import *
 from .utils.checks import *
-
-TAG = 'Rewards'
 
 BATCH_SIZE = 100
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
@@ -133,7 +130,7 @@ class Rewards(IconScoreBase):
     @external
     def setDistPercentage(self, _deposit: int, _borrow: int, _ommICX: int, _ommUSDb: int, _worker: int, _daoFund: int):
         if (_deposit + _borrow + _ommICX + _ommUSDb + _worker + _daoFund) != EXA:
-            revert(f"Sum of distribution percentage doesn't match to 100")
+            revert(f"{TAG}: "f"Sum of distribution percentage doesn't match to 100")
         self._distPercentage['deposit'] = _deposit
         self._distPercentage['borrow'] = _borrow
         self._distPercentage['ommICX'] = _ommICX
@@ -548,13 +545,13 @@ class Rewards(IconScoreBase):
 
     def _calculateLinearInterest(self, _rate: int, _lastUpdateTimestamp: int) -> int:
         timeDifference = (self.getStartTimestamp() + (
-                    self._day.get() + 1) * DAY_IN_MICROSECONDS - _lastUpdateTimestamp) // 10 ** 6
+                self._day.get() + 1) * DAY_IN_MICROSECONDS - _lastUpdateTimestamp) // 10 ** 6
         timeDelta = exaDiv(timeDifference, SECONDS_PER_YEAR)
         return exaMul(_rate, timeDelta) + EXA
 
     def _calculateCompoundedInterest(self, _rate: int, _lastUpdateTimestamp: int) -> int:
         timeDifference = (self.getStartTimestamp() + (
-                    self._day.get() + 1) * DAY_IN_MICROSECONDS - _lastUpdateTimestamp) // 10 ** 6
+                self._day.get() + 1) * DAY_IN_MICROSECONDS - _lastUpdateTimestamp) // 10 ** 6
         ratePerSecond = _rate // SECONDS_PER_YEAR
         return exaPow((ratePerSecond + EXA), timeDifference)
 
