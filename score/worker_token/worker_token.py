@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'SampleToken'
+TAG = 'WorkerToken'
 
 BATCH_SIZE = 100
 
@@ -42,7 +42,6 @@ class TokenFallbackInterface(InterfaceScore):
 
 
 class WorkerToken(IconScoreBase, TokenStandard):
-
     _BALANCES = 'balances'
     _TOTAL_SUPPLY = 'total_supply'
     _DECIMALS = 'decimals'
@@ -55,9 +54,9 @@ class WorkerToken(IconScoreBase, TokenStandard):
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._total_supply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
-        self._decimals = VarDB(self._DECIMALS, db, value_type = int)
-        self._balances = DictDB(self._BALANCES, db, value_type = int)
-        self._wallets = ArrayDB(self._WALLETS, db, value_type = Address)
+        self._decimals = VarDB(self._DECIMALS, db, value_type=int)
+        self._balances = DictDB(self._BALANCES, db, value_type=int)
+        self._wallets = ArrayDB(self._WALLETS, db, value_type=Address)
 
     def on_install(self, _initialSupply: int, _decimals: int) -> None:
         super().on_install()
@@ -77,7 +76,6 @@ class WorkerToken(IconScoreBase, TokenStandard):
 
     def on_update(self) -> None:
         super().on_update()
-    
 
     @external(readonly=True)
     def name(self) -> str:
@@ -112,9 +110,9 @@ class WorkerToken(IconScoreBase, TokenStandard):
 
         # Checks the sending value and balance.
         if _value < 0:
-            revert("Transferring value cannot be less than zero")
+            revert(f"{TAG}: ""Transferring value cannot be less than zero")
         if self._balances[_from] < _value:
-            revert("Out of balance")
+            revert(f"{TAG}: "f"Out of balance: {_value}")
 
         self._balances[_from] = self._balances[_from] - _value
         self._balances[_to] = self._balances[_to] + _value
