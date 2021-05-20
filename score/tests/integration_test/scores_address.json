@@ -1,0 +1,22 @@
+{
+    "addressProvider": "cx220100c70ffc3c14f5b5258119db33a046c2680e",
+    "daoFund": "cxe11483f087e2d0b3e22f1f77610fad9ea412da67",
+    "delegation": "cx9ea8c6783351b32585935f9f49dd57288b229743",
+    "governance": "cxa9d1c9b1383de246c61cda8c183ac366473efc34",
+    "lendingPool": "cx41153637416e0c5c7ea2421dc2fdb1a59d37eaa3",
+    "lendingPoolCore": "cxa8885861754e1927e571e4a314b080de4b2f4d39",
+    "lendingPoolDataProvider": "cxd24a550e1feffe8e57eec2ed70e027ecf0378a67",
+    "liquidationManager": "cx3421e214c02cf6bde9dc155ddd99aca244ade338",
+    "ommToken": "cx8e3582dcb79f6e1e163cb3872a7d08e91e0c5121",
+    "priceOracle": "cx519406f0970ec9d28e0daaa78b8432134e48cdf1",
+    "rewards": "cx248898c520ffe99c06dedfd2a6ab1519e3493591",
+    "sicx": "cxd59e42181ebcc5ab6c9e0803246d1e5170a7aff4",
+    "snapshot": "cxa29404c1fad2cba0477fd2c47e693cbf9beea022",
+    "staking": "cx634ac19ceaa647bbb06096fbc1e1337adb09361f",
+    "worker_token": "cx174290cb4ec1d520e7fb39c436a7129ad6db3e95",
+    "oICX": "cxe6a3e075d860f716b921019b978f464b25aab06a",
+    "oIUSDC": "cxc0e3b836d4ecdefc0ab6ed7f676a1d2fbd1f76b8",
+    "oUSDb": "cx5ccbe0271420dfe195f3c394abd55353d92e1822",
+    "usdb": "cxaa068556df80f9917ef146e889f0b2c4b13ab634",
+    "iusdc": "cx65f639254090820361da483df233f6d0e69af9b7"
+}
