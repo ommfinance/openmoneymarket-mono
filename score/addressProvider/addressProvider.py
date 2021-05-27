@@ -89,7 +89,7 @@ class AddressProvider(IconScoreBase):
     def getAllAddresses(self) -> dict:
         return {
             "collateral": {
-                "USDb": self._get_address(self.USDb),
+                "USDB": self._get_address(self.USDb),
                 "sICX": self._get_address(self.sICX),
                 "IUSDC": self._get_address(self.IUSDC),
             },
