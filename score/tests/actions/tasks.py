@@ -15,7 +15,7 @@ ACTIONS = {
 			"action": "borrow",
 			"reserve": "usdb",
 			"user": "1",
-			"amount": 100 * USDB,
+			"amount": 10 * USDB,
 			"expectedResult": 1
 		},
 		{
