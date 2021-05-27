@@ -2,6 +2,7 @@ from .test_integrate_base import *
 import os
 import json
 from pprint import pprint
+from prettytable import PrettyTable
 
 DIR_PATH = os.path.abspath(os.path.dirname(__file__))
 
@@ -23,7 +24,7 @@ class TestTest(OMMTestBase):
 
 		user_reserve_params = {
 			'_reserve': self.contracts['usdb'], 
-			'_user': self.test1_wallet.get_address()
+			'_user': self.deployer_wallet.get_address()
 			}
 
 		self._depositAmount = 1 * 10 ** 18
@@ -38,9 +39,16 @@ class TestTest(OMMTestBase):
 			method="getUserReserveData",
 			params=user_reserve_params)
 
+		user_params = {'_user': self.deployer_wallet.get_address()}
+
+		self.user_account_data_before = self.call_tx(
+			to=self.contracts["lendingPoolDataProvider"], 
+			method="getUserAccountData",
+			params=user_params)
+
 		## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
 
-		self.tx_result = self._deposit(self.test1_wallet, self._depositAmount)
+		self.tx_result = self._deposit(self.deployer_wallet, self._depositAmount)
 
 		## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
 
@@ -54,11 +62,16 @@ class TestTest(OMMTestBase):
 			method="getUserReserveData",
 			params=user_reserve_params)
 
+		self.user_account_data_after = self.call_tx(
+			to=self.contracts["lendingPoolDataProvider"], 
+			method="getUserAccountData",
+			params=user_params)
+		
 
 	def test_check(self):
-		self.assertEqual("Hello","Hello")
+	# 	self.assertEqual("Hello","Hello")
 
-	def test_reserve_configuration_data(self):
+	# def test_reserve_configuration_data(self):
 
 		# params while adding reserves to lending pool core
 		reserves = {
@@ -71,13 +84,6 @@ class TestTest(OMMTestBase):
 			"isActive":"1"
 			}
 
-		# params for calling the method.		
-		# params = {'_reserve': self.contracts['usdb']}
-		# reserve_configs = self.call_tx(
-		# 	to=self.contracts['lendingPoolDataProvider'], 
-		# 	method="getReserveConfigurationData",
-		# 	params=params)
-
 		self.assertEqual(int(self.reserve_configs['baseLTVasCollateral'],0), int(reserves['baseLTVasCollateral']))
 		self.assertEqual(int(self.reserve_configs['liquidationThreshold'],0), int(reserves['liquidationThreshold']))
 		self.assertEqual(self.reserve_configs['usageAsCollateralEnabled'], '0x1')
@@ -85,38 +91,26 @@ class TestTest(OMMTestBase):
 		self.assertEqual(self.reserve_configs['isActive'], '0x1')
 		self.assertEqual(int(self.reserve_configs['liquidationBonus'],0), int(reserves['liquidationBonus']))
 
-	def test_deposit_reserve_data(self):
-
-		# params = {'_reserve': self.contracts['usdb']}
-		# _depositAmount = 1 * 10 ** 18
-
-		# reserve_data_before = self.call_tx(
-		# 	to=self.contracts['lendingPoolDataProvider'], 
-		# 	method="getReserveData",
-		# 	params=params)
-
-		# self._deposit(self.test1_wallet, _depositAmount)
-
-		# reserve_data_after = self.call_tx(
-		# 	to=self.contracts['lendingPoolDataProvider'], 
-		# 	method="getReserveData",
-		# 	params=params)
+	# def test_deposit_reserve_data(self):
 
 		expected_rates = self._get_rates(
 			self._int(self.reserve_data_after['totalBorrows']), 
 			self._int(self.reserve_data_after['totalLiquidity']), 
 			self.contracts['usdb'])
 
-		self.assertEqual(self._int(self.reserve_data_after["totalLiquidity"]), self._int(self.reserve_data_before["totalLiquidity"])+_depositAmount)
-		self.assertEqual(self._int(self.reserve_data_after["borrowRate"]), self._int(self.reserve_data_after["borrowRate"]))
+		print("Before Deposit: totalLiquidity => ",self._int(self.reserve_data_before["totalLiquidity"]))
+		print("After Deposit: totalLiquidity => ",self._int(self.reserve_data_after["totalLiquidity"]))
+		print("totalLiquidityBefore + depositAmount => ", self._int(self.reserve_data_before["totalLiquidity"])+self._depositAmount)
+
+		self.assertEqual(self._int(self.reserve_data_after["totalLiquidity"]), self._int(self.reserve_data_before["totalLiquidity"])+self._depositAmount)
+		self.assertEqual(self._int(self.reserve_data_after["borrowRate"]), expected_rates["borrow_rate"])
 		self.assertEqual(self._int(self.reserve_data_after["liquidityRate"]), expected_rates['liquidity_rate'])
 		self.assertEqual(self._int(self.reserve_data_after['liquidationThreshold']), self._int(self.reserve_data_before['liquidationThreshold']))
 
-
-	def test_deposit_user_reserve_data(self):
+	# def test_deposit_user_reserve_data(self):
 
 		otoken_params = {
-			'_user': self.test1_wallet.get_address()
+			'_user': self.deployer_wallet.get_address()
 		}
 
 		otoken_principal_balance = self.call_tx(
@@ -129,18 +123,25 @@ class TestTest(OMMTestBase):
 		# asserts
 		self.assertEqual(self.user_reserve_data_after['principalOTokenBalance'], otoken_principal_balance)
 
-		self.assertEqual(
+		print("Before Deposit: principalOTokenBalance => ", self._int(self.user_reserve_data_before['principalOTokenBalance']))
+		print("After Deposit: principalOTokenBalance => ", self._int(self.user_reserve_data_after['principalOTokenBalance']))
+
+		## interest accured will increase the value after transaction
+		self.assertGreaterEqual(
 			self._int(self.user_reserve_data_after['principalOTokenBalance']),
-			self._int(self.user_reserve_data_before['principalOTokenBalance']) + self._depositAmount + minted_amount
+			self._int(self.user_reserve_data_before['principalOTokenBalance']) + self._depositAmount
 			)
 
 		# since someone has already borrowed usdb, on depositing more usdb, the borrow rate should decrease
-		self.assertEqual((self._int(self.user_reserve_data_before["borrowRate"]) - self._int(self.user_reserve_data_after["borrowRate"])) > 0, True)
+		self.assertEqual(
+			(self._int(self.user_reserve_data_before["borrowRate"]) - self._int(self.user_reserve_data_after["borrowRate"])) > 0, 
+			True)
 
 		# no changes in borrow balances
-		self.assertEqual(
-			self._int(self.user_reserve_data_before["currentBorrowBalance"]), 
-			self._int(self.user_reserve_data_after["currentBorrowBalance"])
+		self.assertAlmostEqual(
+			self._int(self.user_reserve_data_before["currentBorrowBalance"])/10**18, 
+			self._int(self.user_reserve_data_after["currentBorrowBalance"])/10**18,
+			places = 6
 			)
 
 		self.assertEqual(
@@ -148,16 +149,15 @@ class TestTest(OMMTestBase):
 			self._int(self.user_reserve_data_after["principalBorrowBalance"])
 			)
 
-	def test_user_account_data(self):
-		params = {'_user': self.test1_wallet.get_address()}
-		user_account_data = self.call_tx(
-			to=self.contracts["lendingPoolDataProvider"], 
-			method="getUserAccountData",
-			params=params)
+	# def test_user_account_data(self):
 
 		# asserts
-		self.assertEqual(self._int(user_account_data["totalBorrowBalanceUSD"]), 0)
-		self.assertEqual(self._int(user_account_data['healthFactorBelowThreshold']), False)
+		self.assertGreater(
+			self._int(self.user_account_data_after["availableBorrowsUSD"]),
+			self._int(self.user_account_data_before["availableBorrowsUSD"])
+			)
+		
+		self.assertEqual(self._int(self.user_account_data_after['healthFactorBelowThreshold']), False)
 
 	def _get_rates(self, totalBorrow, totalLiquidity, reserve) -> dict:
 		utilization_rate = exaDiv(totalBorrow, totalLiquidity)
@@ -184,7 +184,9 @@ class TestTest(OMMTestBase):
 		return {"borrow_rate":borrow_rate, "liquidity_rate":liquidity_rate}
 
 	def _deposit(self, _from, _depositAmount):
+
 		depositData = {'method': 'deposit', 'params': {'amount': _depositAmount}}
+
 		data = json.dumps(depositData).encode('utf-8')
 		params = {"_to": self.contracts['lendingPool'],
 				  "_value": _depositAmount, 
