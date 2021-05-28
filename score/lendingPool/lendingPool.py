@@ -50,6 +50,10 @@ class StakingInterface(InterfaceScore):
     def getTodayRate(self) -> int:
         pass
 
+    @interface
+    def getTodayRate(self) -> int:
+        pass
+
 
 # An interface to LendingPoolCore
 class CoreInterface(InterfaceScore):
@@ -349,7 +353,7 @@ class LendingPool(IconScoreBase):
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         staking = self.create_interface_score(self.getStaking(), StakingInterface)
-        # reward.distribute()
+        reward.distribute()
         reserveData = core.getReserveData(_reserve)
         oTokenAddress = reserveData['oTokenAddress']
 
