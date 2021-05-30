@@ -3,8 +3,9 @@ USDB = 10 ** 18
 IUSDC = 10 ** 6
 
 ACTIONS = {
-	"transactions": [
-		{
+	"transactions": 
+		[
+		{	
 			"action": "deposit",
 			"reserve": "usdb",
 			"user": "1",
@@ -50,7 +51,19 @@ ACTIONS = {
 			"action": "deposit",
 			"reserve": "icx",
 			"user": "1",
-			"amount": 100 * ICX,
+			"amount": 1 * ICX,
+			"expectedResult": 1
+		},{
+			"action": "deposit",
+			"reserve": "icx",
+			"user": "1",
+			"amount": 5 * ICX,
+			"expectedResult": 1
+		},{
+			"action": "deposit",
+			"reserve": "icx",
+			"user": "1",
+			"amount": 1234 * ICX,
 			"expectedResult": 1
 		},
 		{
@@ -96,5 +109,5 @@ ACTIONS = {
 			"expectedResult": 0
 		}
 		# test left: repay more than loan, and check if extra balance is back. 
-	]
+	]	
 }
