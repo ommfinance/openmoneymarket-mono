@@ -45,10 +45,6 @@ class StakingInterface(InterfaceScore):
     @interface
     def stakeICX(self, _to: Address, _data: bytes = None) -> int:
         pass
-    
-    @interface
-    def getTodayRate(self) -> int:
-        pass
 
     @interface
     def getTodayRate(self) -> int:
@@ -392,7 +388,7 @@ class LendingPool(IconScoreBase):
             revert(f'There is not enough liquidity available to redeem')
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        # reward.distribute()
+        reward.distribute()
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
         if _waitForUnstaking:
@@ -432,7 +428,7 @@ class LendingPool(IconScoreBase):
         self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in the reserve")
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        # reward.distribute()
+        reward.distribute()
 
         availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
 
@@ -480,7 +476,7 @@ class LendingPool(IconScoreBase):
 
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        # reward.distribute()
+        reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
         returnAmount = 0

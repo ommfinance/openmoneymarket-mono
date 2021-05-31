@@ -2,12 +2,12 @@ EXA = 10 ** 18
 
 ACTIONS = {
     "description": "1. Deposit 1000 ICX, Borrow 500 USDb, ICX price drops to $0.7, liquidation happens (basic - most likely)",
-    "user":"new",
+    "user": "new",
     "transaction": [
         {
             "action": "set_reference_data",
             "contract": "priceOracle",
-            "user": 1, # user 1 can change the price oracle value
+            "user": 1,  # user 1 can change the price oracle value
             "rate": 1 * EXA,
             "expectedResult": 1,
             "remarks": "Set price for ICX equal to 1 USD"
@@ -29,8 +29,8 @@ ACTIONS = {
         {
             "action": "set_reference_data",
             "contract": "priceOracle",
-            "user": 1, # user 1 can change the price oracle value
-            "rate": 1 * EXA,
+            "user": 1,  # user 1 can change the price oracle value
+            "rate": 7 * EXA // 10,
             "expectedResult": 1,
             "remarks": "Set price for ICX equal to 0.7 USD"
         }
