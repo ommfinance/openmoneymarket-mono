@@ -1,31 +1,34 @@
 import json
 import os
-from typing import Union, List
 from pprint import pprint
 from checkscore.repeater import retry
-import time
 from dotenv import load_dotenv
-from .test_integrate_utils import TestUtils
 from iconsdk.exception import JSONRPCException
-from iconsdk.signed_transaction import SignedTransaction
-from iconsdk.wallet.wallet import KeyWallet
-from iconservice.base.address import Address
-from tbears.config.tbears_config import tbears_server_config, TConfigKey as TbConf
-from tbears.libs.icon_integrate_test import Account
-from tbears.libs.icon_integrate_test import IconIntegrateTestBase, SCORE_INSTALL_ADDRESS
 from iconsdk.icon_service import IconService
 from iconsdk.providers.http_provider import HTTPProvider
+from iconsdk.wallet.wallet import KeyWallet
+from iconservice.base.address import Address
+from tbears.libs.icon_integrate_test import Account
+from tbears.libs.icon_integrate_test import SCORE_INSTALL_ADDRESS
 
-DIR_PATH = os.path.abspath(os.path.dirname(__file__))
-ENV_PATH = os.path.abspath(os.path.join(
-            DIR_PATH, "../.env"))
+from .test_integrate_utils import TestUtils
+
+print(os.curdir)
+ROOT=os.path.abspath(os.curdir)
+print(ROOT)
+ENV_PATH = os.path.abspath(os.path.join(ROOT, ".env.test"))
+
+HELPER_CONTRACTS=os.path.abspath(os.path.join(ROOT,'tests/config/helper-contracts'))
+print(ROOT,ENV_PATH)
 load_dotenv(ENV_PATH)
 
-TEST2_PRIV = os.environ.get("TEST2_PRIV")
-TEST3_PRIV = os.environ.get("TEST3_PRIV")
-TEST4_PRIV = os.environ.get("TEST4_PRIV")
-SCORE_ADDRESS_PATH = os.environ.get("SCORE_ADDRESS_PATH")
-AWS_IP = os.environ.get("AWS_IP")
+score_configuration_path=os.environ.get("SCORE_ADDRESS_PATH")
+print("score_configuration_path",score_configuration_path)
+SCORE_ADDRESS_PATH = os.path.join(score_configuration_path)
+
+print("SCORE_ADDRESS_PATH",SCORE_ADDRESS_PATH)
+
+T_BEARS_URL = os.environ.get("T_BEARS_URL")
 SCORE_ADDRESS = "scoreAddress"
 
 ###### EXA MATH LIBRARY
@@ -76,53 +79,54 @@ def convertExaToOther(_amount: int, _decimals: int) -> int:
 
 
 class OMMTestBase(TestUtils):
-    DIR = os.path.abspath(os.path.join(DIR_PATH, "../../"))
-    print("DIR", DIR)
+    DIR = ROOT
+
     CONTRACTS = ['addressProvider', 'daoFund', 'delegation', 'governance', 'lendingPool',
                  'lendingPoolCore', 'lendingPoolDataProvider', 'liquidationManager',
                  'ommToken', 'priceOracle', 'rewards', 'snapshot', 'worker_token']
     OTOKENS = ['oUSDb', 'oICX']
 
     def setUp(self):
+        self._wallet_setup()
         super().setUp(
             network_only=True,
-            icon_service=IconService(HTTPProvider(AWS_IP, 3)),  # aws tbears
+            icon_service=IconService(HTTPProvider(T_BEARS_URL, 3)),  # aws tbears
             nid=3,
             tx_result_wait=5
         )
-        self._wallet_setup()
         self.contracts = {}
-        # self.send_icx(self._test1, self.btest_wallet.get_address(), 1_000_000 * self.icx_factor)
-        # self.send_icx(self._test1, self.staking_wallet.get_address(), 1_000_000 * self.icx_factor)
-        # self.PREPS = {
-        # 	self._wallet_array[0].get_address(),
-        # 	self._wallet_array[1].get_address()
-        # }
+        self._register_preps()
+        self._deploy_contracts()
+        with open(SCORE_ADDRESS_PATH, "r") as file:
+            self.contracts = json.load(file)
 
-        if os.path.exists(os.path.join(DIR_PATH, SCORE_ADDRESS_PATH)):
-            with open(os.path.join(DIR_PATH, SCORE_ADDRESS_PATH), "r") as file:
-                self.contracts = json.load(file)
+    def _deploy_contracts(self):
+        if os.path.exists(SCORE_ADDRESS_PATH) is False:
+            print(f'{SCORE_ADDRESS_PATH} is not exists')
+            self._deploy_all()
+            self._deploy_helper_contracts()
+            self._config_omm()
 
 
-            # self._deploy_helper_contracts()
-            # self._config_omm()
-            # self._update_contract("lendingPool")
-            # self._update_helper_contract("staking")
-            return
-        else:
-            pass
-            # self._register_100_preps(40, 60)
-            # self._register_100_preps(60, 80)
-            # self._register_100_preps(80, 99)
-            # self._register_100_preps(100, 120)
-            # self._register_100_preps(120, 150)
-            # self._deploy_all()
-            # self._deploy_helper_contracts()
-            # self._config_omm()
-            # # a = 1
-            # for i in range(10):
-            #     self._register_100_preps(a, a + 9)
-            #     a += 10
+    def _register_preps(self):
+        has_enough_preps = False
+        try:
+            params = {"startRanking": 1, "endRanking": 100}
+            tx_result = self.call_tx(SCORE_INSTALL_ADDRESS, "getPReps", params)
+            if "preps" in tx_result:
+                preps_count = len(tx_result['preps'])
+                has_enough_preps = preps_count >= 100
+            else:
+                print("not enough P-Reps")
+        except JSONRPCException:
+            has_enough_preps = False
+        if has_enough_preps is False:
+            print("registering P-Reps...")
+            self._register_100_preps(20, 50)
+            self._register_100_preps(50, 80)
+            self._register_100_preps(80, 110)
+            self._register_100_preps(110, 140)
+            print("P-Reps registered.")
 
     def _wallet_setup(self):
         self.icx_factor = 10 ** 18
@@ -131,30 +135,7 @@ class OMMTestBase(TestUtils):
         self.user1: 'KeyWallet' = self._wallet_array[7]
         self.user2: 'KeyWallet' = self._wallet_array[8]
 
-
-        self._test2: 'KeyWallet' = KeyWallet.load(bytes.fromhex(TEST2_PRIV))
-        self._test3: 'KeyWallet' = KeyWallet.load(bytes.fromhex(TEST3_PRIV))
-        self._test4: 'KeyWallet' = KeyWallet.load(bytes.fromhex(TEST4_PRIV))
-
         self.deployer_wallet: 'KeyWallet' = self._test1
-
-        # self.send_icx(
-        #     self._test1, 
-        #     self._test2.get_address(), 
-        #     5000 * EXA
-        #     )
-
-        # self.send_icx(
-        #     self._test1, 
-        #     self._test3.get_address(), 
-        #     10000 * EXA
-        #     )
-
-        # self.send_icx(
-        #     self._test1, 
-        #     self._test4.get_address(), 
-        #     10000 * EXA
-        #     )
 
         self.genesis_accounts = [
             Account("test1", Address.from_string(
@@ -246,18 +227,16 @@ class OMMTestBase(TestUtils):
                              f"Failure: {tx_result['failure']}" if tx_result['status'] == 0 else "")
             self.contracts[self.OTOKENS[idx]] = tx_result[SCORE_ADDRESS]
 
-        with open(os.path.join(DIR_PATH, SCORE_ADDRESS_PATH), "w") as file:
+        with open(SCORE_ADDRESS_PATH, "w") as file:
             json.dump(self.contracts, file, indent=4)
 
     def _deploy_helper_contracts(self):
-        DIR = os.path.abspath(os.path.join(
-            DIR_PATH, "../../helper-contracts/"))
 
-        if os.path.exists(os.path.join(DIR_PATH, SCORE_ADDRESS_PATH)):
-            with open(os.path.join(DIR_PATH, SCORE_ADDRESS_PATH), "r") as file:
+        if os.path.exists(SCORE_ADDRESS_PATH):
+            with open(SCORE_ADDRESS_PATH, "r") as file:
                 self.contracts = json.load(file)
 
-        content = os.path.abspath(os.path.join(DIR, "staking"))
+        content = os.path.abspath(os.path.join(HELPER_CONTRACTS, "staking.zip"))
         deploy_staking = self.build_deploy_tx(
             from_=self.deployer_wallet,
             to=self.contracts.get("staking", SCORE_INSTALL_ADDRESS),
@@ -275,7 +254,7 @@ class OMMTestBase(TestUtils):
         deploy_bridge = self.build_deploy_tx(
             from_=self.deployer_wallet,
             to=self.contracts.get("usdb", SCORE_INSTALL_ADDRESS),
-            content=os.path.abspath(os.path.join(DIR, "bridge"))
+            content=os.path.abspath(os.path.join(HELPER_CONTRACTS, "bridge.zip"))
         )
 
         tx_hash_1 = self.process_transaction(deploy_bridge, self.icon_service)
@@ -287,18 +266,17 @@ class OMMTestBase(TestUtils):
         deploy_sicx = self.build_deploy_tx(
             from_=self.deployer_wallet,
             to=self.contracts.get("sicx", SCORE_INSTALL_ADDRESS),
-            content=os.path.abspath(os.path.join(DIR, "sicx")),
-            params={"_admin": self.contracts['staking']} # staking_score
+            content=os.path.abspath(os.path.join(HELPER_CONTRACTS, "sicx.zip")),
+            params={"_admin": self.contracts['staking']}  # staking_score
         )
 
         tx_hash_1 = self.process_transaction(deploy_sicx, self.icon_service)
         tx_result_1 = self.get_tx_result(tx_hash_1['txHash'])
-        print(tx_result_1)
         self.assertEqual(True, tx_hash_1['status'])
         self.assertTrue('scoreAddress' in tx_result_1)
         self.contracts.update({"sicx": tx_result_1['scoreAddress']})
 
-        with open(os.path.join(DIR_PATH, SCORE_ADDRESS_PATH), "w") as file:
+        with open(SCORE_ADDRESS_PATH, "w") as file:
             json.dump(self.contracts, file, indent=4)
 
     @retry(JSONRPCException, tries=10, delay=1, back_off=2)
@@ -307,7 +285,7 @@ class OMMTestBase(TestUtils):
         return tx_result
 
     def _update_contract(self, contract):
-        
+
         content = os.path.abspath(os.path.join(self.DIR, contract))
         deploy_contract = self.build_deploy_tx(
             from_=self.deployer_wallet,
@@ -323,10 +301,8 @@ class OMMTestBase(TestUtils):
         self.assertTrue('scoreAddress' in tx_result)
 
     def _update_helper_contract(self, contract):
-        DIR = os.path.abspath(os.path.join(
-            DIR_PATH, "../../helper-contracts/"))
-        
-        content = os.path.abspath(os.path.join(DIR, contract))
+
+        content = os.path.abspath(os.path.join(HELPER_CONTRACTS, f"{contract}.zip"))
         deploy_staking = self.build_deploy_tx(
             from_=self.deployer_wallet,
             to=self.contracts.get(contract, SCORE_INSTALL_ADDRESS),
@@ -339,10 +315,9 @@ class OMMTestBase(TestUtils):
         self.assertEqual(True, tx_hash['status'])
         self.assertTrue('scoreAddress' in tx_result)
 
-
     def _config_omm(self):
         print("-------------------------------Configuring OMM----------------------------------------------------")
-        with open(os.path.join(DIR_PATH, SCORE_ADDRESS_PATH), "r") as file:
+        with open(SCORE_ADDRESS_PATH, "r") as file:
             self.contracts = json.load(file)
         self._config_lendingPool()
         self._config_lendingPoolDataProvider()
@@ -381,9 +356,9 @@ class OMMTestBase(TestUtils):
              'params': {'_address': contracts['oICX']}},
             {'contract': 'lendingPool', 'method': 'setReward',
              'params': {'_address': contracts['rewards']}},
-            {'contract': 'lendingPool', 'method': 'setDaoFund', # 
+            {'contract': 'lendingPool', 'method': 'setDaoFund',  #
              'params': {'_address': contracts['daoFund']}},
-            {'contract': 'lendingPool', 'method': 'setSnapshot', #
+            {'contract': 'lendingPool', 'method': 'setSnapshot',  #
              'params': {'_address': contracts['snapshot']}},
             {'contract': 'lendingPool', 'method': 'setSICX',
              'params': {'_address': contracts['sicx']}},
@@ -716,21 +691,26 @@ class OMMTestBase(TestUtils):
 
     def _register_100_preps(self, start, end):
         txs = []
-        # for i in range(start, end):
-        #     params = {"name": "Test P-rep " + str(i), "country": "KOR", "city": "Unknown",
-        #               "email": "nodehx9eec61296a7010c867ce24c20e69588e283212" + str(i) + "@example.com", "website":
-        #                   'https://nodehx9eec61296a7010c867ce24c20e69588e283212' +
-        #                   str(i) + '.example.com',
-        #               "details": 'https'
-        #                          '://nodehx9eec61296a7010c867ce24c20e69588e283212' +
-        #                          str(i) + '.example.com/details',
-        #               "p2pEndpoint": "nodehx9eec61296a7010c867ce24c20e69588e283212" + str(i) + ".example.com:7100",
-        #               "nodeAddress": "hx9eec61296a7010c867ce24c20e69588e28321" + str(i)}
-        #     self.send_icx(
-        #         self.deployer_wallet, self._wallet_array[i].get_address(), 3000000000000000000000)
-        #     txs.append(self.build_tx(self._wallet_array[i], "cx0000000000000000000000000000000000000000",
-        #                              2000000000000000000000, "registerPRep", params))
-        # ab = self.process_transaction_bulk(txs, self.icon_service, 10)
+        send_icx_txs=[]
+        for i in range(start, end):
+            node_address = "hx9eec61296a7010c867ce24c20e69588e283212" + hex(i)[2:]
+            params = {
+                "name": f'Test P-rep{str(i)}',
+                "country": "KOR",
+                "city": "Unknown",
+                "email": f'node{node_address}@example.com',
+                "website": f'https://node{node_address}.example.com',
+                "details": f'https://node{node_address}.example.com/details',
+                "p2pEndpoint": f'node{node_address}.example.com:7100',
+                "nodeAddress": node_address
+            }
+            wallet = self._wallet_array[i]
+            send_icx_txs.append(self.build_send_icx(self.deployer_wallet, wallet.get_address(), 3000000000000000000000))
+            txs.append(self.build_tx(wallet, SCORE_INSTALL_ADDRESS,
+                                     2000000000000000000000, "registerPRep", params))
+        send_icx_txs_result=self.process_transaction_bulk(send_icx_txs, self.icon_service, 10)
+        # pprint(send_icx_txs_result)
+        ab = self.process_transaction_bulk(txs, self.icon_service, 10)
         # pprint(ab)
 
     def _get_transaction(self, settings):
@@ -753,5 +733,3 @@ class OMMTestBase(TestUtils):
             self.assertTrue('status' in tx_result, tx_result)
             self.assertEqual(1, tx_result['status'],
                              f"Failure: {tx_result['failure']}" if tx_result['status'] == 0 else "")
-
-

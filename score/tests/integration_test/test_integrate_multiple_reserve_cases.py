@@ -2,7 +2,7 @@ from .test_integrate_omm_cases import OMMTestCases
 from ..actions.user_all_txns_multiple_reserve import ACTIONS
 
 
-class Test(OMMTestCases):
+class MultipleReserveTest(OMMTestCases):
 	def setUp(self):
 		super().setUp()
 

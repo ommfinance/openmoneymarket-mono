@@ -1,4 +1,4 @@
-Open Money Market Pool primary SCOREs
+##Open Money Market Pool primary SCOREs
 
 1. LendingPool
 
@@ -27,3 +27,29 @@ Open Money Market Pool primary SCOREs
 9. oToken
 
    Interest bearing redeem tokens to represent the collatral deposited. oUSDb to represent USDb deposited. oICX to represent ICX.
+
+
+
+## How to run tests
+
+- Assuming you're in score directory.
+- copy `.env.test.sample` and create `.env.test` with appropriate value
+   - `T_BEARS_URL` - t-bears url 
+   - `SCORE_ADDRESS_PATH` - path to deployed score address json 
+- To run docker t-bears
+```shell
+docker-compose up -d --build
+```
+- Install dependencies for tests
+```shell
+pip install -r tests/config/test_requirement.txt
+``` 
+- To run all tests
+```shell
+tbears test tests
+```
+
+- To run individual test
+```shell
+python3 -m unittest tests.integration_test.test_integrate_icx_cases.ICXTest
+```

@@ -1,14 +1,16 @@
+from pprint import pprint
+
+from iconsdk.wallet.wallet import KeyWallet
+
 from .test_integrate_omm_cases import OMMTestCases
 from ..actions.liquidation_cases import ACTIONS
-from iconsdk.wallet.wallet import KeyWallet
-from pprint import pprint
 
 EXA = 10 ** 18
 
 def _int(_value):
 	return int(_value, 0)
 
-class Test(OMMTestCases):
+class LiquidationTest(OMMTestCases):
 	def setUp(self):
 		super().setUp()
 

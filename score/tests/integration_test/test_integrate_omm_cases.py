@@ -1,8 +1,5 @@
 from .test_integrate_base import *
-import os
-import json
-from pprint import pprint
-from iconsdk.wallet.wallet import KeyWallet
+
 
 def _int(_data):
 	return int(_data, 0)

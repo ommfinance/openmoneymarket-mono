@@ -1,9 +1,8 @@
 from typing import Union, List
-from pprint import pprint
 
 from iconsdk.builder.call_builder import CallBuilder
-from iconsdk.exception import JSONRPCException
 from iconsdk.builder.transaction_builder import TransactionBuilder, DeployTransactionBuilder, CallTransactionBuilder
+from iconsdk.icon_service import IconService
 from iconsdk.libs.in_memory_zip import gen_deploy_data_content
 from iconsdk.signed_transaction import SignedTransaction
 from iconsdk.wallet.wallet import KeyWallet
@@ -11,8 +10,7 @@ from iconservice.base.address import Address
 from tbears.config.tbears_config import tbears_server_config, TConfigKey as TbConf
 from tbears.libs.icon_integrate_test import Account
 from tbears.libs.icon_integrate_test import IconIntegrateTestBase, SCORE_INSTALL_ADDRESS
-from iconsdk.icon_service import IconService
-from iconsdk.providers.http_provider import HTTPProvider
+
 
 def get_key(my_dict: dict, value: Union[str, int]):
     return list(my_dict.keys())[list(my_dict.values()).index(value)]

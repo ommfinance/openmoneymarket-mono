@@ -2,7 +2,7 @@ from .test_integrate_omm_cases import OMMTestCases
 from ..actions.user_all_txn_icx_reserve import ACTIONS
 
 
-class Test(OMMTestCases):
+class ICXTest(OMMTestCases):
 
 	def setUp(self):
 		super().setUp()
