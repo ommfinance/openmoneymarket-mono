@@ -30,6 +30,8 @@ class Delegation(IconScoreBase):
     _EQUAL_DISTRIBUTION = 'equalDistribution'
     _OMM_TOKEN = 'ommToken'
     _LENDING_POOL_CORE = 'lendingPoolCore'
+    _CONTRIBUTORS = 'contributors'
+    _VOTED = 'voted'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -40,7 +42,9 @@ class Delegation(IconScoreBase):
         self._userVotes = DictDB(self._USER_VOTES, db, value_type=int)
         self._totalVotes = VarDB(self._TOTAL_VOTES, db, value_type=int)
         self._ommToken = VarDB(self._OMM_TOKEN, db, value_type=Address)
+        self._voted = DictDB(self._VOTED, db, value_type=bool)
         self._lendingPoolCore = VarDB(self._LENDING_POOL_CORE, db, value_type=Address)
+        self._contributors = ArrayDB(self._CONTRIBUTORS, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -79,6 +83,24 @@ class Delegation(IconScoreBase):
     def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCore.get()
 
+    @only_owner
+    @external
+    def addContributor(self, _prep: Address) -> None:
+        if _prep not in self._contributors:
+            self._contributors.put(_prep)
+
+    @only_owner
+    @external
+    def removeContributor(self, _prep: Address) -> None:
+        if _prep not in self._contributors:
+            revert(f"{TAG}: {_prep} is not in contributor list")
+        else:
+            topPrep = self._contributors.pop()
+            if topPrep != _prep:
+                for i in range(len(self._contributors)):
+                    if self._contributors[i] == _prep:
+                        self._contributors[i] = topPrep
+
     @external
     def clearPrevious(self, _user: Address):
         if self.msg.sender == self._ommToken.get() or self.msg.sender == _user:
@@ -113,11 +135,14 @@ class Delegation(IconScoreBase):
         delegationBefore = f'{initialDelegation}'
         if _delegations is None:
             delegations = self.getUserDelegationDetails(user)
+            if not delegations:
+                delegations = self.distributeVoteToContributors()
         else:
             self._require(len(_delegations) <= 5, f'{TAG}: '
                                                   f'updating delegation unsuccessful,more than 5 preps provided by user'
                                                   f'delegations provided {_delegations}')
             delegations = _delegations
+            self._voted[user] = True
 
         omm_token = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
         user_staked_token = omm_token.details_balanceOf(user)['stakedBalance']
@@ -158,6 +183,24 @@ class Delegation(IconScoreBase):
             core = self.create_interface_score(self._lendingPoolCore.get(), LendingPoolCoreInterface)
             core.updatePrepDelegations(updated_delegation)
             self.DelegationUpdated(delegationBefore, f'{updated_delegation}')
+
+    def distributeVoteToContributors(self) -> List[PrepDelegations]:
+        user_details = []
+        totalContributors = len(self._contributors)
+        prepPercentage = EXA // totalContributors
+        for index, preps in enumerate(self._contributors):
+            if index == totalContributors - 1:
+                percent = EXA - prepPercentage * (totalContributors - 1)
+            else:
+
+                percent = prepPercentage
+            user_details.append(
+                {
+                    '_address': preps,
+                    '_votes_in_per': percent
+                }
+            )
+        return user_details
 
     @external(readonly=True)
     def prepVotes(self, _prep: Address) -> int:
