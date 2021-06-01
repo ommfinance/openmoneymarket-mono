@@ -1,8 +1,5 @@
-from iconservice import *
 from .Math import *
 from .utils.checks import *
-
-TAG = 'Delegation'
 
 
 class PrepDelegations(TypedDict):
@@ -117,8 +114,9 @@ class Delegation(IconScoreBase):
         if _delegations is None:
             delegations = self.getUserDelegationDetails(user)
         else:
-            self._require(len(_delegations) <= 5,
-                          "Delegation SCORE : Add error-Cant take more than 5 preps for a user ")
+            self._require(len(_delegations) <= 5, f'{TAG}: '
+                                                  f'updating delegation unsuccessful,more than 5 preps provided by user'
+                                                  f'delegations provided {_delegations}')
             delegations = _delegations
 
         omm_token = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
@@ -148,7 +146,11 @@ class Delegation(IconScoreBase):
                 total_percentage += votes
 
             self._require(total_percentage == EXA,
-                          "Delegation SCORE :Update error- sum of percentages not equal to 100 ")
+                          f'{TAG}: '
+                          f'updating delegation unsuccessful,sum of percentages not equal to 100'
+                          f'sum total of percentages {total_percentage}'
+                          f'delegation preferences {delegations}'
+                          )
             self._userVotes[user] = user_staked_token
 
             # get updated prep percentages and updating the preference
