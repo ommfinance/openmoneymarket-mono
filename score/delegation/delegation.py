@@ -1,10 +1,18 @@
 from .Math import *
 from .utils.checks import *
 
+SYSTEM_SCORE_ADDRESS = Address.from_string("cx0000000000000000000000000000000000000000")
+
 
 class PrepDelegations(TypedDict):
     _address: Address
     _votes_in_per: int
+
+
+class SystemInterface(InterfaceScore):
+    @interface
+    def getPRep(self, address: Address) -> dict:
+        pass
 
 
 class OmmTokenInterface(InterfaceScore):
@@ -35,6 +43,7 @@ class Delegation(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
+        self._system = IconScoreBase.create_interface_score(SYSTEM_SCORE_ADDRESS, SystemInterface)
         self._preps = ArrayDB(self._PREPS, db, Address)
         self._userPreps = DictDB(self._USER_PREPS, db, value_type=Address, depth=2)
         self._percentageDelegations = DictDB(self._PERCENTAGE_DELEGATIONS, db, value_type=int, depth=2)
@@ -101,6 +110,13 @@ class Delegation(IconScoreBase):
                     if self._contributors[i] == _prep:
                         self._contributors[i] = topPrep
 
+    @only_owner
+    @external
+    def addAllContributors(self, _preps: List[Address]) -> None:
+        for preps in _preps:
+            self.addContributor(preps)
+
+    
     @external
     def clearPrevious(self, _user: Address):
         if self.msg.sender == self._ommToken.get() or self.msg.sender == _user:
