@@ -89,12 +89,12 @@ class AddressProvider(IconScoreBase):
     def getAllAddresses(self) -> dict:
         return {
             "collateral": {
-                "USDB": self._get_address(self.USDb),
+                "USDS": self._get_address(self.USDb),
                 "sICX": self._get_address(self.sICX),
                 "IUSDC": self._get_address(self.IUSDC),
             },
             "oTokens": {
-                "oUSDb": self._get_address(self.oUSDb),
+                "oUSDS": self._get_address(self.oUSDb),
                 "oICX": self._get_address(self.oICX),
                 "oIUSDC": self._get_address(self.oIUSDC),
             },
