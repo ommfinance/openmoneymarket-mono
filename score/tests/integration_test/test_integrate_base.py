@@ -1,6 +1,6 @@
 import json
 import os
-from pprint import pprint
+
 from checkscore.repeater import retry
 from dotenv import load_dotenv
 from iconsdk.exception import JSONRPCException
@@ -30,6 +30,9 @@ print("SCORE_ADDRESS_PATH",SCORE_ADDRESS_PATH)
 
 T_BEARS_URL = os.environ.get("T_BEARS_URL")
 SCORE_ADDRESS = "scoreAddress"
+
+
+RE_DEPLOY_CONTRACT=[]
 
 ###### EXA MATH LIBRARY
 
@@ -95,8 +98,9 @@ class OMMTestBase(TestUtils):
             tx_result_wait=5
         )
         self.contracts = {}
-        self._register_preps()
         self._deploy_contracts()
+        for contract in RE_DEPLOY_CONTRACT:
+            self._update_contract(contract)
         with open(SCORE_ADDRESS_PATH, "r") as file:
             self.contracts = json.load(file)
 
@@ -107,26 +111,6 @@ class OMMTestBase(TestUtils):
             self._deploy_helper_contracts()
             self._config_omm()
 
-
-    def _register_preps(self):
-        has_enough_preps = False
-        try:
-            params = {"startRanking": 1, "endRanking": 100}
-            tx_result = self.call_tx(SCORE_INSTALL_ADDRESS, "getPReps", params)
-            if "preps" in tx_result:
-                preps_count = len(tx_result['preps'])
-                has_enough_preps = preps_count >= 100
-            else:
-                print("not enough P-Reps")
-        except JSONRPCException:
-            has_enough_preps = False
-        if has_enough_preps is False:
-            print("registering P-Reps...")
-            self._register_100_preps(20, 50)
-            self._register_100_preps(50, 80)
-            self._register_100_preps(80, 110)
-            self._register_100_preps(110, 140)
-            print("P-Reps registered.")
 
     def _wallet_setup(self):
         self.icx_factor = 10 ** 18
@@ -275,6 +259,18 @@ class OMMTestBase(TestUtils):
         self.assertEqual(True, tx_hash_1['status'])
         self.assertTrue('scoreAddress' in tx_result_1)
         self.contracts.update({"sicx": tx_result_1['scoreAddress']})
+
+        deploy_lp_token = self.build_deploy_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts.get("lptoken", SCORE_INSTALL_ADDRESS),
+            content=os.path.abspath(os.path.join(HELPER_CONTRACTS, "lpToken.zip")),
+        )
+
+        tx_hash_lp_token = self.process_transaction(deploy_lp_token, self.icon_service)
+        tx_result_lp_token = self.get_tx_result(tx_hash_lp_token['txHash'])
+        self.assertEqual(True, tx_hash_lp_token['status'])
+        self.assertTrue('scoreAddress' in tx_result_lp_token)
+        self.contracts.update({"lpToken": tx_result_lp_token[SCORE_ADDRESS]})
 
         with open(SCORE_ADDRESS_PATH, "w") as file:
             json.dump(self.contracts, file, indent=4)
@@ -616,7 +612,7 @@ class OMMTestBase(TestUtils):
             {'contract': 'rewards', 'method': 'setDaoFund',
              'params': {'_address': contracts['daoFund']}},
             {'contract': 'rewards', 'method': 'setLpToken',
-             'params': {'_address': "cx291dacbb875a94b364194a5febaac4e6318681f7"}},
+             'params': {'_address': contracts['lpToken']}},
         ]
 
         self._get_transaction(settings_rewards)
@@ -689,29 +685,6 @@ class OMMTestBase(TestUtils):
         ]
         self._get_transaction(settings)
 
-    def _register_100_preps(self, start, end):
-        txs = []
-        send_icx_txs=[]
-        for i in range(start, end):
-            node_address = "hx9eec61296a7010c867ce24c20e69588e283212" + hex(i)[2:]
-            params = {
-                "name": f'Test P-rep{str(i)}',
-                "country": "KOR",
-                "city": "Unknown",
-                "email": f'node{node_address}@example.com',
-                "website": f'https://node{node_address}.example.com',
-                "details": f'https://node{node_address}.example.com/details',
-                "p2pEndpoint": f'node{node_address}.example.com:7100',
-                "nodeAddress": node_address
-            }
-            wallet = self._wallet_array[i]
-            send_icx_txs.append(self.build_send_icx(self.deployer_wallet, wallet.get_address(), 3000000000000000000000))
-            txs.append(self.build_tx(wallet, SCORE_INSTALL_ADDRESS,
-                                     2000000000000000000000, "registerPRep", params))
-        send_icx_txs_result=self.process_transaction_bulk(send_icx_txs, self.icon_service, 10)
-        # pprint(send_icx_txs_result)
-        ab = self.process_transaction_bulk(txs, self.icon_service, 10)
-        # pprint(ab)
 
     def _get_transaction(self, settings):
         txs = []

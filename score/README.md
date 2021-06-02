@@ -49,6 +49,12 @@ pip install -r tests/config/test_requirement.txt
 tbears test tests
 ```
 
+- To initialize P-Reps on T-Bears service
+```shell
+T_BEARS_URL=http://18.237.205.52:9000/ python3 -m unittest tests.config.register_preps.RegisterPReps
+```
+
+
 - To run individual test
 ```shell
 python3 -m unittest tests.integration_test.test_integrate_icx_cases.ICXTest
