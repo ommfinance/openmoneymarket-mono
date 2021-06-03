@@ -566,7 +566,7 @@ class LendingPoolDataProvider(IconScoreBase):
         unstakeDetails = staking.getUserUnstakeInfo(_address)
         response = []
         for unstakedRecords in unstakeDetails:
-            if unstakedRecords['contract'] == self._lendingPoolCore.get():
+            if unstakedRecords['from'] == self._lendingPoolCore.get():
                 unstake = {'amount': unstakedRecords["amount"], 'unstakingBlockHeight': unstakedRecords["blockHeight"]}
                 response.append(unstake)
         return response
