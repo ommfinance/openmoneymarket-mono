@@ -110,13 +110,16 @@ class Delegation(IconScoreBase):
                     if self._contributors[i] == _prep:
                         self._contributors[i] = topPrep
 
+    @external(readonly=True)
+    def getContributors(self):
+        return [prep for prep in self._contributors]
+
     @only_owner
     @external
     def addAllContributors(self, _preps: List[Address]) -> None:
         for preps in _preps:
             self.addContributor(preps)
 
-    
     @external
     def clearPrevious(self, _user: Address):
         if self.msg.sender == self._ommToken.get() or self.msg.sender == _user:
