@@ -111,7 +111,7 @@ class Delegation(IconScoreBase):
                         self._contributors[i] = topPrep
 
     @external(readonly=True)
-    def getContributors(self):
+    def getContributors(self) -> List[Address]:
         return [prep for prep in self._contributors]
 
     @only_owner
@@ -122,6 +122,15 @@ class Delegation(IconScoreBase):
 
     @external
     def clearPrevious(self, _user: Address):
+        if self.msg.sender != _user:
+            revert(f'{TAG}: You are not authorized to clear others delegation preference')
+
+        # if user wants to clear his delegation preference,votes are delegated to contributor preps
+        defaultDelegation = self.distributeVoteToContributors()
+        self.updateDelegations(defaultDelegation)
+
+    
+    def _resetUser(self, _user: Address):
         if self.msg.sender == self._ommToken.get() or self.msg.sender == _user:
             for index in range(5):
 
@@ -139,7 +148,7 @@ class Delegation(IconScoreBase):
             self._userVotes[_user] = 0
 
     @external(readonly=True)
-    def getPrepList(self) -> list:
+    def getPrepList(self) -> List[Address]:
         return [prep for prep in self._preps]
 
     @external
@@ -167,7 +176,7 @@ class Delegation(IconScoreBase):
         user_staked_token = omm_token.details_balanceOf(user)['stakedBalance']
         if len(delegations) > 0:
             # resetting previous delegation preferences
-            self.clearPrevious(user)
+            self._resetUser(user)
 
             for index, delegation in enumerate(delegations):
                 address: Address = delegation['_address']
@@ -226,6 +235,17 @@ class Delegation(IconScoreBase):
         return self._prepVotes[_prep]
 
     @external(readonly=True)
+    def userPrepVotes(self, _user: Address) -> dict:
+        response = {}
+        omm_token = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
+        user_staked_token = omm_token.details_balanceOf(_user)['stakedBalance']
+        for index in range(5):
+            prep: Address = self._userPreps[_user][index]
+            if prep != ZERO_SCORE_ADDRESS and prep is not None:
+                response[str(prep)] = exaMul(self._percentageDelegations[_user][index], user_staked_token)
+        return response
+
+    @external(readonly=True)
     def getUserDelegationDetails(self, _user: Address) -> List[PrepDelegations]:
         user_details = []
 
@@ -265,10 +285,11 @@ class Delegation(IconScoreBase):
                     max_votes = votes
                     max_votes_prep_index = index
 
-            if votes < 1 * 10 ** 15:
+            if votes < 1 * 10 ** 15 and votes != 0:
                 dust_votes += votes
                 below_threshold_prep_indexes.append(index)
-            prep_delegations.append(votes_percentage)
+            if votes != 0:
+                prep_delegations.append(votes_percentage)
         prep_delegations[max_votes_prep_index]['_votes_in_per'] += dust_votes
         for items in below_threshold_prep_indexes:
             prep_delegations.pop(items)
