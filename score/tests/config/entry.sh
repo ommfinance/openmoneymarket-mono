@@ -8,7 +8,7 @@ tbears sync_mainnet
 tbears start
 
 echo "---------******---------"
-python3 -m unittest register_preps.RegisterPReps
+python3 -m unittest scripts.register_preps.RegisterPReps
 echo "---------******---------"
 
 exec /bin/bash

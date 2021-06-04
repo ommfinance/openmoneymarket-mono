@@ -38,7 +38,7 @@
    - `SCORE_ADDRESS_PATH` - path to deployed score address json 
 - To run docker t-bears
 ```shell
-docker-compose up -d --build
+docker-compose up -d --build && docker logs -f omm-tbears
 ```
 - Install dependencies for tests
 ```shell
@@ -58,4 +58,13 @@ T_BEARS_URL=http://18.237.205.52:9000/ python3 -m unittest tests.config.register
 - To run individual test
 ```shell
 python3 -m unittest tests.integration_test.test_integrate_icx_cases.ICXTest
+```
+
+
+## 💡**FYI**
+
+- If you get `is inactive SCORE` JSONRPCException, please remove score address json file and try again.
+- To clear t-bears (all score), first remove score address json file and use following command
+```shell
+docker restart omm-tbears
 ```
