@@ -150,7 +150,7 @@ class Snapshot(IconScoreBase):
     @only_admin
     @external
     def updateUserSnapshot(self, _user: Address, _reserve: Address, _userData: UserSnapshotData) -> None:
-        currentDay = self._getDay()
+        currentDay = self.getDay()
         userReserve = self._userData[_user][_reserve]
         length = userReserve["length"][0]
 
@@ -164,6 +164,7 @@ class Snapshot(IconScoreBase):
         if length == 0:
             for key in keys:
                 userReserve[key][length] = _userData[key]
+            userReserve["ids"][length] = currentDay
             userReserve["length"][0] += 1
             return
         else:
@@ -181,7 +182,7 @@ class Snapshot(IconScoreBase):
     @only_admin
     @external
     def updateReserveSnapshot(self, _reserve: Address, _reserveData: ReserveSnapshotData) -> None:
-        currentDay = self._getDay()
+        currentDay = self.getDay()
         reserveData = self._reserveData[_reserve]
         length = reserveData["length"][0]
 
@@ -196,6 +197,7 @@ class Snapshot(IconScoreBase):
         if length == 0:
             for key in keys:
                 reserveData[key][length] = _reserveData[key]
+            reserveData["ids"][length] = currentDay
             reserveData["price"][length] = _reserveData["price"]
             reserveData["length"][0] += 1
             return
@@ -211,11 +213,10 @@ class Snapshot(IconScoreBase):
         else:
             for key in keys:
                 reserveData[key][length - 1] = _reserveData[key]
-            # TODO check why length is not "length - 1"
-            reserveData["price"][length] = _reserveData["price"]
+            reserveData["price"][length - 1] = _reserveData["price"]
 
     @external(readonly=True)
-    def _getDay(self) -> int:
+    def getDay(self) -> int:
         return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
 
     @external(readonly=True)
