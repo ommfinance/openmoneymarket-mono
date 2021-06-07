@@ -456,12 +456,12 @@ class LiquidationTest(OMMTestCases):
 							## before -> new for new case
 
 							self.user1_account_data_before_lqdn = self.user1_account_data_after_lqdn
-							#  self.user1_lq_data_before = self.user1_lq_data_after
-							#  self.reserve1_data_before = self.reserve1_data_after
-							#  self.reserve2_data_before = self.reserve2_data_after
-							#  self.lqdtr_account_data_before = self.lqdtr_account_data_after
-							#  self.lqdtr_usdb_balance_before = self.lqdtr_usdb_balance_after
-							#  self.lqdtr_sicx_balance_before = self.lqdtr_sicx_balance_after
+							self.user1_lq_data_before = self.user1_lq_data_after
+							self.reserve1_data_before = self.reserve1_data_after
+							self.reserve2_data_before = self.reserve2_data_after
+							self.lqdtr_account_data_before = self.lqdtr_account_data_after
+							self.lqdtr_usdb_balance_before = self.lqdtr_usdb_balance_after
+							self.lqdtr_sicx_balance_before = self.lqdtr_sicx_balance_after
 
 							print(" LOOP OVER ")
 							
