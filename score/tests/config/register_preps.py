@@ -24,7 +24,8 @@ class RegisterPReps(IconIntegrateTestBase):
 
     def _register_preps(self):
         has_enough_preps = False
-        self.count=0
+        self.count = 0
+        preps_count = 0
         try:
             params = {"startRanking": 1, "endRanking": 100}
             params = {} if params is None else params
@@ -48,6 +49,8 @@ class RegisterPReps(IconIntegrateTestBase):
             self._register_100_preps(80, 110)
             self._register_100_preps(110, 140)
             print("P-Reps registered.")
+        else:
+            print(f"t-bears has {preps_count} P-Reps")
 
     def test_init(self):
         self.assertEqual(1, 1, "P-Reps configuration successful")

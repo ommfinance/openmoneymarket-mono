@@ -99,10 +99,10 @@ class OMMTestBase(TestUtils):
         )
         self.contracts = {}
         self._deploy_contracts()
-        for contract in RE_DEPLOY_CONTRACT:
-            self._update_contract(contract)
         with open(SCORE_ADDRESS_PATH, "r") as file:
             self.contracts = json.load(file)
+        for contract in RE_DEPLOY_CONTRACT:
+            self._update_contract(contract)
 
     def _deploy_contracts(self):
         if os.path.exists(SCORE_ADDRESS_PATH) is False:
