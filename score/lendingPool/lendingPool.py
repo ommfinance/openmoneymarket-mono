@@ -44,6 +44,10 @@ class StakingInterface(InterfaceScore):
     def stakeICX(self, _to: Address, _data: bytes = None) -> int:
         pass
 
+    @interface
+    def getTodayRate(self) -> int:
+        pass
+
 
 # An interface to LendingPoolCore
 class CoreInterface(InterfaceScore):
@@ -317,12 +321,12 @@ class LendingPool(IconScoreBase):
         if self.msg.value != _amount:
             revert(f'{TAG}: Amount in param {_amount} doesnt match with the icx sent {self.msg.value} to the Lending Pool')
 
-        # add_collateral must be a method in staking contract
-        # self.getSICXAddress() must be replaced by self.getStakingAddress()
         staking = self.create_interface_score(self.getStaking(), StakingInterface)
 
-        # _amount will now be equal to equivalent amt of sICX
-        _amount = staking.icx(self.msg.value).stakeICX(self._lendingPoolCoreAddress.get())
+        rate = staking.getTodayRate()
+
+        # getting equivalent sicx amount for the icx
+        _amount = EXA * self.msg.value // rate
         _reserve = self._sIcxAddress.get()
         self._deposit(_reserve, _amount, self.msg.sender)
 
@@ -342,6 +346,7 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
+        staking = self.create_interface_score(self.getStaking(), StakingInterface)
         reward.distribute()
         reserveData = core.getReserveData(_reserve)
         oTokenAddress = reserveData['oTokenAddress']
@@ -352,7 +357,9 @@ class LendingPool(IconScoreBase):
         oToken.mintOnDeposit(_sender, _amount)
         if _reserve != self._sIcxAddress.get():
             reserve.transfer(lendingPoolCoreAddress, _amount)
-
+        else:
+            # icx sent to staking contract and equivalent sicx received to lendingPoolCore
+            _amount = staking.icx(self.msg.value).stakeICX(self._lendingPoolCoreAddress.get())
         self._updateSnapshot(_reserve, _sender)
 
         self.Deposit(_reserve, _sender, _amount, self.now())
