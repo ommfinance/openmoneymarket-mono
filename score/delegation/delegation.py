@@ -1,8 +1,6 @@
 from .Math import *
 from .utils.checks import *
 
-SYSTEM_SCORE_ADDRESS = Address.from_string("cx0000000000000000000000000000000000000000")
-
 
 class PrepDelegations(TypedDict):
     _address: Address
@@ -34,16 +32,14 @@ class Delegation(IconScoreBase):
     _PREP_VOTES = 'prepVotes'
     _USER_VOTES = 'userVotes'
     _TOTAL_VOTES = 'totalVotes'
-    _VOTED = 'voted'
     _EQUAL_DISTRIBUTION = 'equalDistribution'
     _OMM_TOKEN = 'ommToken'
     _LENDING_POOL_CORE = 'lendingPoolCore'
     _CONTRIBUTORS = 'contributors'
-    _VOTED = 'voted'
+    _VOTE_THRESHOLD = 'voteThreshold'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._system = IconScoreBase.create_interface_score(SYSTEM_SCORE_ADDRESS, SystemInterface)
         self._preps = ArrayDB(self._PREPS, db, Address)
         self._userPreps = DictDB(self._USER_PREPS, db, value_type=Address, depth=2)
         self._percentageDelegations = DictDB(self._PERCENTAGE_DELEGATIONS, db, value_type=int, depth=2)
@@ -51,12 +47,13 @@ class Delegation(IconScoreBase):
         self._userVotes = DictDB(self._USER_VOTES, db, value_type=int)
         self._totalVotes = VarDB(self._TOTAL_VOTES, db, value_type=int)
         self._ommToken = VarDB(self._OMM_TOKEN, db, value_type=Address)
-        self._voted = DictDB(self._VOTED, db, value_type=bool)
         self._lendingPoolCore = VarDB(self._LENDING_POOL_CORE, db, value_type=Address)
         self._contributors = ArrayDB(self._CONTRIBUTORS, db, value_type=Address)
+        self._voteThreshold = VarDB(self._VOTE_THRESHOLD, db, value_type=int)
 
     def on_install(self) -> None:
         super().on_install()
+        self._voteThreshold.set(1 * 10 ** 15)
 
     def on_update(self) -> None:
         super().on_update()
@@ -82,6 +79,15 @@ class Delegation(IconScoreBase):
     @external(readonly=True)
     def getOmmToken(self) -> Address:
         return self._ommToken.get()
+
+    @only_owner
+    @external
+    def setVoteThreshold(self, _vote: int):
+        self._voteThreshold.set(_vote)
+
+    @external(readonly=True)
+    def getVoteThreshold(self) -> int:
+        return self._voteThreshold.get()
 
     @only_owner
     @external
@@ -126,10 +132,13 @@ class Delegation(IconScoreBase):
             revert(f'{TAG}: You are not authorized to clear others delegation preference')
 
         # if user wants to clear his delegation preference,votes are delegated to contributor preps
-        defaultDelegation = self.distributeVoteToContributors()
+        defaultDelegation = self._distributeVoteToContributors()
         self.updateDelegations(defaultDelegation)
 
-    
+    @external(readonly=True)
+    def userDefaultDelegation(self, _user: Address) -> bool:
+        return self._distributeVoteToContributors() == self.getUserDelegationDetails(_user)
+
     def _resetUser(self, _user: Address):
         if self.msg.sender == self._ommToken.get() or self.msg.sender == _user:
             for index in range(5):
@@ -160,17 +169,16 @@ class Delegation(IconScoreBase):
 
         total_percentage = 0
         initialDelegation = self.computeDelegationPercentages()
-        delegationBefore = f'{initialDelegation}'
+
         if _delegations is None:
             delegations = self.getUserDelegationDetails(user)
             if not delegations:
-                delegations = self.distributeVoteToContributors()
+                delegations = self._distributeVoteToContributors()
         else:
             self._require(len(_delegations) <= 5, f'{TAG}: '
                                                   f'updating delegation unsuccessful,more than 5 preps provided by user'
                                                   f'delegations provided {_delegations}')
             delegations = _delegations
-            self._voted[user] = True
 
         omm_token = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
         user_staked_token = omm_token.details_balanceOf(user)['stakedBalance']
@@ -206,13 +214,16 @@ class Delegation(IconScoreBase):
                           )
             self._userVotes[user] = user_staked_token
 
-            # get updated prep percentages and updating the preference
+            # get updated prep percentages 
             updated_delegation = self.computeDelegationPercentages()
-            core = self.create_interface_score(self._lendingPoolCore.get(), LendingPoolCoreInterface)
-            core.updatePrepDelegations(updated_delegation)
-            self.DelegationUpdated(delegationBefore, f'{updated_delegation}')
 
-    def distributeVoteToContributors(self) -> List[PrepDelegations]:
+            # updating the delegation if there is change in previous delegation
+            if updated_delegation != initialDelegation:
+                core = self.create_interface_score(self._lendingPoolCore.get(), LendingPoolCoreInterface)
+                core.updatePrepDelegations(updated_delegation)
+                self.DelegationUpdated(f'{initialDelegation}', f'{updated_delegation}')
+
+    def _distributeVoteToContributors(self) -> List[PrepDelegations]:
         user_details = []
         totalContributors = len(self._contributors)
         prepPercentage = EXA // totalContributors
@@ -268,29 +279,32 @@ class Delegation(IconScoreBase):
         max_votes_prep_index = 0
         max_votes = 0
         below_threshold_prep_indexes = []
-        for index, prep in enumerate(prep_list):
-            votes: int = 0
-            votes_percentage: PrepDelegations = {'_address': prep, '_votes_in_per': 0}
-            if index == len(prep_list) - 1:
-                votes = 100 * EXA - total_percentage
-                votes_percentage['_votes_in_per'] = votes
-                if votes > max_votes:
-                    max_votes = votes
-                    max_votes_prep_index = index
-            else:
-                votes = exaDiv(self._prepVotes[prep], self._totalVotes.get()) * 100
-                votes_percentage['_votes_in_per'] = votes
-                total_percentage += votes_percentage['_votes_in_per']
-                if votes > max_votes:
-                    max_votes = votes
-                    max_votes_prep_index = index
+        if prep_list:
+            for index, prep in enumerate(prep_list):
+                votes: int = 0
+                votes_percentage: PrepDelegations = {'_address': prep, '_votes_in_per': 0}
+                if index == len(prep_list) - 1:
+                    votes = 100 * EXA - total_percentage
+                    votes_percentage['_votes_in_per'] = votes
+                    if votes > max_votes:
+                        max_votes = votes
+                        max_votes_prep_index = index
+                else:
+                    votes = exaDiv(self._prepVotes[prep], self._totalVotes.get()) * 100
+                    votes_percentage['_votes_in_per'] = votes
+                    total_percentage += votes_percentage['_votes_in_per']
+                    if votes > max_votes:
+                        max_votes = votes
+                        max_votes_prep_index = index
 
-            if votes < 1 * 10 ** 15 and votes != 0:
-                dust_votes += votes
-                below_threshold_prep_indexes.append(index)
-            if votes != 0:
-                prep_delegations.append(votes_percentage)
-        prep_delegations[max_votes_prep_index]['_votes_in_per'] += dust_votes
-        for items in below_threshold_prep_indexes:
-            prep_delegations.pop(items)
+                if votes < self._voteThreshold.get() and votes != 0:
+                    dust_votes += votes
+                    below_threshold_prep_indexes.append(index)
+                if votes != 0:
+                    prep_delegations.append(votes_percentage)
+
+        if dust_votes > 0:
+            prep_delegations[max_votes_prep_index]['_votes_in_per'] += dust_votes
+            for items in below_threshold_prep_indexes:
+                prep_delegations.pop(items)
         return prep_delegations
