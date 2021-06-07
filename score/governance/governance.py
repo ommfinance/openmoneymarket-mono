@@ -1,7 +1,4 @@
-from iconservice import *
 from .utils.checks import *
-
-TAG = 'Governance'
 
 
 # An interface to Rewards

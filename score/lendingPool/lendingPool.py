@@ -1,8 +1,6 @@
-from iconservice import *
 from .utils.checks import *
 from .utils.Math import *
 
-TAG = 'LendingPool'
 BATCH_SIZE = 100
 
 
@@ -44,10 +42,6 @@ class ReserveInterface(InterfaceScore):
 class StakingInterface(InterfaceScore):
     @interface
     def stakeICX(self, _to: Address, _data: bytes = None) -> int:
-        pass
-
-    @interface
-    def getTodayRate(self) -> int:
         pass
 
 
@@ -321,14 +315,14 @@ class LendingPool(IconScoreBase):
     @external
     def deposit(self, _amount: int):
         if self.msg.value != _amount:
-            revert(f'Amount param doesnt match with the icx sent to the Lending Pool')
+            revert(f'{TAG}: Amount in param {_amount} doesnt match with the icx sent {self.msg.value} to the Lending Pool')
 
+        # add_collateral must be a method in staking contract
+        # self.getSICXAddress() must be replaced by self.getStakingAddress()
         staking = self.create_interface_score(self.getStaking(), StakingInterface)
 
-        rate = staking.getTodayRate()
-
-        # getting equivalent sicx amount for the icx
-        _amount = EXA * self.msg.value // rate
+        # _amount will now be equal to equivalent amt of sICX
+        _amount = staking.icx(self.msg.value).stakeICX(self._lendingPoolCoreAddress.get())
         _reserve = self._sIcxAddress.get()
         self._deposit(_reserve, _amount, self.msg.sender)
 
@@ -348,7 +342,6 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        staking = self.create_interface_score(self.getStaking(), StakingInterface)
         reward.distribute()
         reserveData = core.getReserveData(_reserve)
         oTokenAddress = reserveData['oTokenAddress']
@@ -359,9 +352,7 @@ class LendingPool(IconScoreBase):
         oToken.mintOnDeposit(_sender, _amount)
         if _reserve != self._sIcxAddress.get():
             reserve.transfer(lendingPoolCoreAddress, _amount)
-        else:
-            # icx sent to staking contract and equivalent sicx received to lendingPoolCore
-            _amount = staking.icx(self.msg.value).stakeICX(self._lendingPoolCoreAddress.get())
+
         self._updateSnapshot(_reserve, _sender)
 
         self.Deposit(_reserve, _sender, _amount, self.now())
@@ -382,10 +373,11 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserveData = core.getReserveData(_reserve)
         if self.msg.sender != reserveData['oTokenAddress']:
-            revert(f'{TAG}'
-                   f'{self.msg.sender} is unauthorized to call, only otoken can invoke the method')
-        if core.getReserveAvailableLiquidity(_reserve) < _amount:
-            revert(f'There is not enough liquidity available to redeem')
+            revert(f'{TAG}: {self.msg.sender} is unauthorized to call, only otoken can invoke the method')
+
+        reserveAvailableLiquidity = core.getReserveAvailableLiquidity(_reserve)
+        if reserveAvailableLiquidity < _amount:
+            revert(f'{TAG}: Amount {_amount} is more than available liquidity {reserveAvailableLiquidity}')
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         reward.distribute()
@@ -407,7 +399,7 @@ class LendingPool(IconScoreBase):
     @staticmethod
     def _require(_condition: bool, _message: str):
         if not _condition:
-            revert(_message)
+            revert(f'{TAG}: {_message}')
 
     @external
     def borrow(self, _reserve: Address, _amount: int):
@@ -573,9 +565,9 @@ class LendingPool(IconScoreBase):
         try:
             d = json_loads(_data.decode("utf-8"))
         except BaseException as e:
-            revert(f'Invalid data: {_data}. Exception: {e}')
+            revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')
         if set(d.keys()) != {"method", "params"}:
-            revert('Invalid parameters.')
+            revert(f'{TAG}: Invalid parameters.')
         if d["method"] == "deposit":
             self._deposit(self.msg.sender, d["params"].get("amount", -1), _from)
         elif d["method"] == "repay":
@@ -586,7 +578,7 @@ class LendingPool(IconScoreBase):
                                  Address.from_string(d["params"].get("_user")),
                                  d["params"].get("_purchaseAmount"), _from)
         else:
-            revert(f'No valid method called, data: {_data}')
+            revert(f'{TAG}: No valid method called, data: {_data}')
 
     @staticmethod
     def _get_array_items(arraydb, index: int = 0) -> list:
