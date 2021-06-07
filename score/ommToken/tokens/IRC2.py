@@ -1,9 +1,8 @@
-from iconservice import *
 from .IIRC2 import TokenStandard
 from ..utils.checks import *
 from ..utils.consts import *
 
-TAG = 'IRC_2'
+TAG = 'OMM_Token_IRC_2'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6
 MICROSECONDS = 10 ** 6
 
@@ -157,20 +156,18 @@ class IRC2(TokenStandard, IconScoreBase):
         """
         return self._balances[_owner]
 
+    @only_owner
     @external
     def setDelegation(self, _address: Address):
-        if self.msg.sender != self.owner:
-            revert("Omm token error:Setting address failed,you are not authorized")
         self._delegation.set(_address)
 
     @external(readonly=True)
     def getDelegation(self) -> Address:
         return self._delegation.get()
 
+    @only_owner
     @external
     def setRewards(self, _address: Address):
-        if self.msg.sender != self.owner:
-            revert("Omm token error:Setting address failed,you are not authorized")
         self._rewards.set(_address)
 
     @external(readonly=True)
@@ -199,7 +196,7 @@ class IRC2(TokenStandard, IconScoreBase):
         :param _time: Staking time period in days.
         """
         if _time < 0:
-            revert("Time cannot be negative.")
+            revert(f"{TAG}: ""Time cannot be negative.")
         # total_time = _time * DAY_TO_MICROSECOND  # convert days to microseconds
         total_time = _time * MICROSECONDS
         self._unstaking_period.set(total_time)
@@ -288,7 +285,7 @@ class IRC2(TokenStandard, IconScoreBase):
     @only_owner
     @external
     def remove_from_lockList(self, _user: Address):
-        self._require(_user in self._lock_list, "Remove error: User not in locklist")
+        self._require(_user in self._lock_list, f'Cannot remove,the user {_user} is not in lock list')
         top = self._lock_list.pop()
         if top != _user:
             for i in range(len(self._lock_list)):
@@ -316,7 +313,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        self._require(self.msg.sender not in self._lock_list, "Transfer error:The address is locker")
+        self._require(self.msg.sender not in self._lock_list, f'Cannot transfer,the address {_to} is locked')
         if _data is None:
             _data = b'None'
         self._transfer(self.msg.sender, _to, _value, _data)
@@ -339,17 +336,19 @@ class IRC2(TokenStandard, IconScoreBase):
         """
 
         if _value < 0:
-            revert("Transferring value cannot be less than 0.")
+            revert(f"{TAG}: ""Transferring value cannot be less than 0.")
 
         if self._balances[_from] < _value:
-            revert(f"Insufficient balance")
+            revert(f"{TAG}: ""Insufficient balance")
 
         self._check_first_time(_from)
         self._check_first_time(_to)
         self._makeAvailable(_to)
         self._makeAvailable(_from)
         if self._staked_balances[_from][Status.AVAILABLE] < _value:
-            revert("OMM token transfer error:Out of available balance")
+            revert(f'{TAG}: '
+                   f'available balance of user {self._staked_balances[_from][Status.AVAILABLE]}'
+                   f'balance to transfer {_value}')
 
         self._balances[_from] -= _value
         self._balances[_to] += _value
@@ -368,9 +367,10 @@ class IRC2(TokenStandard, IconScoreBase):
         # Emits an event log `Transfer`
         self.Transfer(_from, _to, _value, _data)
 
-    def _require(self, _condition: bool, _message: str):
+    @staticmethod
+    def _require(_condition: bool, _message: str):
         if not _condition:
-            revert(_message)
+            revert(f'{TAG: }'+ _message)
 
     def _first_time(self, _from: Address) -> bool:
         if (
@@ -391,12 +391,14 @@ class IRC2(TokenStandard, IconScoreBase):
     @external
     def stake(self, _value: int) -> None:
         _from = self.msg.sender
-        self._require(_value > self._minimum_stake.get(), "Stake error:Stake amount must be greater than minimum stake")
+        self._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
+        self._require(_value > self._minimum_stake.get(),
+                      f'Amount to stake:{_value} is smaller the minimum stake:{self._minimum_stake.get()}')
         self._check_first_time(_from)
         self._makeAvailable(_from)
         self._require((self._balances[_from] - self._staked_balances[_from][Status.UNSTAKING]) >= _value,
-                      "Stake error: ")
-        self._require(_from not in self._lock_list, "Stake error: The address is locked ")
+                      f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_from} is  {self._balances[_from]}')
+        self._require(_from not in self._lock_list, f'Cannot stake,the address {_from} is locked')
         old_stake = self._staked_balances[_from][Status.STAKED]
         new_stake = _value
         stake_increment = new_stake - old_stake
@@ -411,11 +413,14 @@ class IRC2(TokenStandard, IconScoreBase):
     @external
     def unstake(self, _value: int) -> None:
         _from = self.msg.sender
-        self._require(_value > 0, "Unstake error:cant unstake less than zero")
+        self._require(_value > 0, f'Cannot unstake less than zero'
+                                  f'value to stake {_value}')
         self._makeAvailable(_from)
         staked_balance = self.staked_balanceOf(_from)
-        self._require(staked_balance >= _value, "Unstake error:not enough staked balance to unstake")
-        self._require(_from not in self._lock_list, "Stake error: The address is locked ")
+        self._require(staked_balance >= _value, f'Cannot unstake,user dont have enough staked  balance'
+                                                f'amount to unstake {_value}'
+                                                f'staked balance of user:{_from} is  {staked_balance}')
+        self._require(_from not in self._lock_list, f'Cannot unstake,the address {_from} is locked')
         if self._staked_balances[_from][Status.UNSTAKING] > 0:
             revert("you already have a unstaking order,try after the amount is unstaked")
         self._staked_balances[_from][Status.STAKED] -= _value

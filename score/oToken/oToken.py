@@ -1,9 +1,6 @@
-from iconservice import *
 from .IIRC2 import TokenStandard
 from .Math import *
 from .utils.checks import *
-
-TAG = 'OToken'
 
 
 class LendingPoolCoreInterface(InterfaceScore):
@@ -262,9 +259,8 @@ class OToken(IconScoreBase, TokenStandard):
 
         """
         if _amount <= 0 and _amount != -1:
-            revert(f'Amount to redeem needs to be greater than zero')
-        # if _waitForUnstaking:
-        #     revert(f'Unstaking to be implemented')
+            revert(f'{TAG}: '
+                   f'Amount: {_amount} to redeem needs to be greater than zero')
 
         cumulated = self._cumulateBalanceInternal(self.msg.sender)
         currentBalance = cumulated['principalBalance']
@@ -274,9 +270,11 @@ class OToken(IconScoreBase, TokenStandard):
         if _amount == -1:
             amountToRedeem = currentBalance
         if amountToRedeem > currentBalance:
-            revert("Redeem error:User cannot redeem more than the available balance")
+            revert(f'{TAG}: '
+                   f'Redeem amount: {amountToRedeem} is more than user balance {currentBalance} ')
         if not self.isTransferAllowed(self.msg.sender, amountToRedeem):
-            revert("Redeem error:Transfer cannot be allowed")
+            revert(f'{TAG}: '
+                   f'Transfer of amount {amountToRedeem} to the user is not allowed')
         self._burn(self.msg.sender, amountToRedeem)
 
         if currentBalance - amountToRedeem == 0:
@@ -287,7 +285,6 @@ class OToken(IconScoreBase, TokenStandard):
         pool.redeemUnderlying(self.getReserve(), self.msg.sender, amountToRedeem, currentBalance - amountToRedeem,
                               _waitForUnstaking)
         self.Redeem(self.msg.sender, amountToRedeem, balanceIncrease, index)
-        # revert('success')
 
     def _resetDataOnZeroBalanceInternal(self, _user: Address) -> None:
         self._userIndexes[_user] = 0
@@ -352,13 +349,16 @@ class OToken(IconScoreBase, TokenStandard):
         :param _data: Any information or message
         """
         if _value < 0:
-            revert(f"Transferring value cannot be less than 0.")
+            revert(f"{TAG}: "
+                   f"Transferring value:{_value} cannot be less than 0.")
 
         if self._balances[_from] < _value:
-            revert(f"Token transfer error:Insufficient balance.")
+            revert(f"{TAG}: "
+                   f"Token transfer error:Insufficient balance:{self._balances[_from]}")
 
         if not self.isTransferAllowed(self.msg.sender, _value):
-            revert("Transfer error:Transfer cannot be allowed")
+            revert(f"{TAG}: "
+                   f"Transfer error:Transfer cannot be allowed")
 
         self._executeTransfer(_from, _to, _value)
         self._balances[_from] -= _value
@@ -386,7 +386,8 @@ class OToken(IconScoreBase, TokenStandard):
         """
 
         if amount < 0:
-            revert(f"Invalid Value")
+            revert(f'{TAG}: ',
+                   f'Invalid value: {amount} to mint')
 
         self._totalSupply.set(self._totalSupply.get() + amount)
         self._balances[account] += amount
@@ -406,7 +407,8 @@ class OToken(IconScoreBase, TokenStandard):
         """
 
         if amount <= 0:
-            revert(f"Invalid Value")
+            revert(f'{TAG}: ',
+                   f'Invalid value: {amount} to burn')
 
         self._totalSupply.set(self._totalSupply.get() - amount)
         self._balances[account] -= amount
