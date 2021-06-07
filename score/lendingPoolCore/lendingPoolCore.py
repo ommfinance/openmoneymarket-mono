@@ -1,10 +1,8 @@
-from iconservice import *
 from .ReserveData import *
 from .UserData import *
 from .Math import *
 from .utils.checks import *
 
-TAG = 'LendingPoolCore'
 
 RESERVE_DB_PREFIX = b'reserve'
 USER_DB_PREFIX = b'userReserve'
@@ -154,7 +152,7 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def name(self) -> str:
         return 'OmmLendingPoolCore'
-        
+
     @only_owner
     @external
     def set_id(self, _value: str):
@@ -345,16 +343,6 @@ class LendingPoolCore(IconScoreBase):
             response = {}
         return response
 
-    # @external
-    # def addUserReserveData(self, _userReserveData: UserDataAttributes):
-    #     user_reserve_data_object = createUserReserveDataObject(_userReserveData)
-    #     if self._check_reserve(user_reserve_data_object.reserveAddress):
-    #         prefix = self.userReservePrefix(user_reserve_data_object.reserveAddress,
-    #                                         user_reserve_data_object.userAddress)
-    #         addDataToUserReserve(prefix, self.userReserve, user_reserve_data_object)
-    #     else:
-    #         revert("Reserve error:The reserve is not added to pool")
-
     @external(readonly=True)
     def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
         if self._check_reserve(_reserve):
@@ -363,30 +351,6 @@ class LendingPoolCore(IconScoreBase):
         else:
             response = {}
         return response
-
-    # @external
-    # def enableAsCollateral(self, _reserve: Address, _baseLTVasCollateral: int, _liquidationThreshold: int,
-    #                        _liquidationBonus: int) -> None:
-    #     self.updateUsageAsCollateralEnabled(_reserve, True)
-    #     self.updateBaseLTVasCollateral(_reserve, _baseLTVasCollateral)
-    #     self.updateLiquidationThreshold(_reserve, _liquidationThreshold)
-    #     self.updateLiquidationBonus(_reserve, _liquidationBonus)
-
-    #     reserveData = self.getReserveData(_reserve)
-    #     if reserveData['liquidityCumulativeIndex'] == 0:
-    #         self.updateLiquidityCumulativeIndex(_reserve, 10 ** 18)
-
-    # @external
-    # def disableAsCollateral(self, _reserve: Address) -> None:
-    #     self.updateUsageAsCollateralEnabled(_reserve, False)
-
-    # @external
-    # def enableBorrowing(self, _reserve: Address) -> None:
-    #     self.updateBorrowingEnabled(_reserve, True)
-
-    # @external
-    # def disableBorrowing(self, _reserve: Address) -> None:
-    #     self.updateBorrowingEnabled(_reserve, False)
 
     # Internal calculations
 
@@ -565,7 +529,7 @@ class LendingPoolCore(IconScoreBase):
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountBorrowed)
         currentBorrowRate = self.getCurrentBorrowRate(_reserve)
-       
+
         return {
             "currentBorrowRate": currentBorrowRate,
             "balanceIncrease": balanceIncrease
@@ -723,9 +687,9 @@ class LendingPoolCore(IconScoreBase):
         compoundedBorrowBalance = self.getCompoundedBorrowBalance(_reserve, _user)
         borrowBalanceIncrease = compoundedBorrowBalance - principalBorrowBalance
         return {
-                "principalBorrowBalance": principalBorrowBalance,
-                "compoundedBorrowBalance": compoundedBorrowBalance,
-                "borrowBalanceIncrease": borrowBalanceIncrease
+            "principalBorrowBalance": principalBorrowBalance,
+            "compoundedBorrowBalance": compoundedBorrowBalance,
+            "borrowBalanceIncrease": borrowBalanceIncrease
         }
 
     def calculateInterestRates(self, _reserve: Address, _availableLiquidity: int, _totalBorrows: int) -> dict:

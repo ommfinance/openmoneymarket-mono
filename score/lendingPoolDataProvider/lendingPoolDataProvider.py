@@ -1,8 +1,6 @@
 from .Math import *
 from .utils.checks import *
 
-TAG = 'LendingPoolDataProvider'
-
 HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 10 ** 18
 
 
@@ -251,7 +249,6 @@ class LendingPoolDataProvider(IconScoreBase):
                 if reserveConfiguration['usageAsCollateralEnabled'] and userBasicReserveData['useAsCollateral']:
                     totalCollateralBalanceUSD += liquidityBalanceUSD
                     currentLtv += exaMul(liquidityBalanceUSD, reserveConfiguration['baseLTVasCollateral'])
-                    # revert("Reached data provider")
                     currentLiquidationThreshold += exaMul(liquidityBalanceUSD,
                                                           reserveConfiguration['liquidationThreshold'])
 
