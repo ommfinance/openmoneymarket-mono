@@ -85,6 +85,7 @@ class LiquidationManager(IconScoreBase):
     _LENDINGPOOLCORE = 'lendingPoolCore'
     _PRICE_ORACLE = 'priceOracle'
     _STAKING = 'staking'
+    _FEE_PROVIDER = 'feeProvider'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -92,6 +93,7 @@ class LiquidationManager(IconScoreBase):
         self._lendingPoolCore = VarDB(self._LENDINGPOOLCORE, db, value_type=Address)
         self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
         self._staking = VarDB(self._STAKING, db, value_type=Address)
+        self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -131,6 +133,15 @@ class LiquidationManager(IconScoreBase):
     @external(readonly=True)
     def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCore.get()
+    
+    @only_owner
+    @external
+    def setFeeProvider(self, _address: Address):
+        self._feeProvider.set(_address)
+
+    @external(readonly=True)
+    def getFeeProvider(self) -> Address:
+        return self._feeProvider.get()
 
     @only_owner
     @external

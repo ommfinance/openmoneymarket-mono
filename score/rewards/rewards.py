@@ -106,7 +106,7 @@ class Rewards(IconScoreBase):
         self._recipients.put('borrow')
         self._recipients.put('worker')
         self._recipients.put('ommICX')
-        self._recipients.put('ommUSDb')
+        self._recipients.put('ommUSDS')
         self._recipients.put('daoFund')
         self._distComplete['daoFund'] = True
 
@@ -127,13 +127,13 @@ class Rewards(IconScoreBase):
 
     @only_owner
     @external
-    def setDistPercentage(self, _deposit: int, _borrow: int, _ommICX: int, _ommUSDb: int, _worker: int, _daoFund: int):
-        if (_deposit + _borrow + _ommICX + _ommUSDb + _worker + _daoFund) != EXA:
+    def setDistPercentage(self, _deposit: int, _borrow: int, _ommICX: int, _ommUSDS: int, _worker: int, _daoFund: int):
+        if (_deposit + _borrow + _ommICX + _ommUSDS + _worker + _daoFund) != EXA:
             revert(f"{TAG}: "f"Sum of distribution percentage doesn't match to 100")
         self._distPercentage['deposit'] = _deposit
         self._distPercentage['borrow'] = _borrow
         self._distPercentage['ommICX'] = _ommICX
-        self._distPercentage['ommUSDb'] = _ommUSDb
+        self._distPercentage['ommUSDS'] = _ommUSDS
         self._distPercentage['worker'] = _worker
         self._distPercentage['daoFund'] = _daoFund
 
@@ -406,29 +406,29 @@ class Rewards(IconScoreBase):
                 self._distComplete['ommICX'] = True
                 self._offset["OMMSICX"] = 0
 
-        elif not self._precompute['ommUSDb']:
-            self.State("precompute ommUSDb")
+        elif not self._precompute['ommUSDS']:
+            self.State("precompute ommUSDS")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            self._totalAmount['ommUSDb'] = data_source.getTotalValue("OMM/IUSDC", day)
-            self._totalAmount['ommUSDb'] += data_source.getTotalValue("OMM/USDb", day)
-            self._precompute['ommUSDb'] = True
+            self._totalAmount['ommUSDS'] = data_source.getTotalValue("OMM/IUSDC", day)
+            self._totalAmount['ommUSDS'] += data_source.getTotalValue("OMM/USDS", day)
+            self._precompute['ommUSDS'] = True
 
-        elif not self._distComplete['ommUSDb'] and self._check('ommUSDb'):
-            self.State("distribute ommUSDb")
+        elif not self._distComplete['ommUSDS'] and self._check('ommUSDS'):
+            self.State("distribute ommUSDS")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            data_batch1 = data_source.getDataBatch("OMM/IUSDC", day, BATCH_SIZE, self._offset["OMMUSDB"])
-            data_batch2 = data_source.getDataBatch("OMM/USDb", day, BATCH_SIZE, self._offset["OMMUSDB"])
-            self._offset["OMMUSDB"] += BATCH_SIZE
+            data_batch1 = data_source.getDataBatch("OMM/IUSDC", day, BATCH_SIZE, self._offset["OMMUSDS"])
+            data_batch2 = data_source.getDataBatch("OMM/USDS", day, BATCH_SIZE, self._offset["OMMUSDS"])
+            self._offset["OMMUSDS"] += BATCH_SIZE
 
             if data_batch1 or data_batch2:
-                totalAmount = self._totalAmount['ommUSDb']
-                tokenDistTracker = self._tokenDistTracker['ommUSDb']
+                totalAmount = self._totalAmount['ommUSDS']
+                tokenDistTracker = self._tokenDistTracker['ommUSDS']
 
                 for user in data_batch1:
                     if tokenDistTracker <= 0:
                         break
                     tokenAmount = exaMul(exaDiv(data_batch1[user], totalAmount), tokenDistTracker)
-                    self._tokenValue[Address.from_string(user)]['ommUSDb'] += tokenAmount
+                    self._tokenValue[Address.from_string(user)]['ommUSDS'] += tokenAmount
                     self.Distribution("ommIUSDC", Address.from_string(user), tokenAmount)
                     totalAmount -= data_batch1[user]
                     tokenDistTracker -= tokenAmount
@@ -437,17 +437,17 @@ class Rewards(IconScoreBase):
                     if tokenDistTracker <= 0:
                         break
                     tokenAmount = exaMul(exaDiv(data_batch2[user], totalAmount), tokenDistTracker)
-                    self._tokenValue[Address.from_string(user)]['ommUSDb'] += tokenAmount
-                    self.Distribution("ommUSDb", Address.from_string(user), tokenAmount)
+                    self._tokenValue[Address.from_string(user)]['ommUSDS'] += tokenAmount
+                    self.Distribution("ommUSDS", Address.from_string(user), tokenAmount)
                     totalAmount -= data_batch2[user]
                     tokenDistTracker -= tokenAmount
 
-                self._totalAmount['ommUSDb'] = totalAmount
-                self._tokenDistTracker['ommUSDb'] = tokenDistTracker
+                self._totalAmount['ommUSDS'] = totalAmount
+                self._tokenDistTracker['ommUSDS'] = tokenDistTracker
 
             else:
-                self._distComplete['ommUSDb'] = True
-                self._offset["OMMUSDB"] = 0
+                self._distComplete['ommUSDS'] = True
+                self._offset["OMMUSDS"] = 0
 
         elif not self._distComplete['worker']:
             self.State("distribute worker")
@@ -520,7 +520,7 @@ class Rewards(IconScoreBase):
         ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
         ommToken.mint(tokenDistributionPerDay)
 
-        for value in ('deposit', 'borrow', 'ommICX', 'ommUSDb'):
+        for value in ('deposit', 'borrow', 'ommICX', 'ommUSDS'):
             self._precompute[value] = False
             self._totalAmount[value] = 0
             self._distComplete[value] = False
@@ -530,7 +530,7 @@ class Rewards(IconScoreBase):
             self._distComplete[value] = False
             self._tokenDistTracker[value] = exaMul(tokenDistributionPerDay, self._distPercentage[value])
 
-        
+
 
     def _depositBalance(self, _reserve: Address, _user: Address) -> int:
         day: int = self._day.get()
