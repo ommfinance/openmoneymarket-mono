@@ -13,20 +13,20 @@ from tbears.libs.icon_integrate_test import SCORE_INSTALL_ADDRESS
 
 from .test_integrate_utils import TestUtils
 
-print(os.curdir)
+# print(os.curdir)
 ROOT=os.path.abspath(os.curdir)
-print(ROOT)
+# print(ROOT)
 ENV_PATH = os.path.abspath(os.path.join(ROOT, ".env.test"))
 
 HELPER_CONTRACTS=os.path.abspath(os.path.join(ROOT,'tests/config/helper-contracts'))
-print(ROOT,ENV_PATH)
+# print(ROOT,ENV_PATH)
 load_dotenv(ENV_PATH)
 
 score_configuration_path=os.environ.get("SCORE_ADDRESS_PATH")
-print("score_configuration_path",score_configuration_path)
+# print("score_configuration_path",score_configuration_path)
 SCORE_ADDRESS_PATH = os.path.join(score_configuration_path)
 
-print("SCORE_ADDRESS_PATH",SCORE_ADDRESS_PATH)
+# print("SCORE_ADDRESS_PATH",SCORE_ADDRESS_PATH)
 
 T_BEARS_URL = os.environ.get("T_BEARS_URL")
 SCORE_ADDRESS = "scoreAddress"
@@ -360,6 +360,8 @@ class OMMTestBase(TestUtils):
              'params': {'_address': contracts['sicx']}},
             {'contract': 'lendingPool', 'method': 'setLoanOriginationFeePercentage',
              'params': {'_percentage': 10 ** 15}},  # added later
+            {'contract': 'lendingPool', 'method': 'toggleRewardsDistribution',
+             'params': {} }
         ]
         self._get_transaction(settings_lendingPool)
 

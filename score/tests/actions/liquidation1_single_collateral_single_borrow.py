@@ -1,3 +1,4 @@
+from .steps import Steps
 EXA = 10 ** 18
 
 ACTIONS = {
@@ -5,43 +6,39 @@ ACTIONS = {
     "user":"new",
     "transaction": [
         {
+            "_step": Steps.UPDATE_PRICE,
             "action": "set_reference_data",
             "contract": "priceOracle",
-            "user": "deployer", # user 1 can change the price oracle value
+            "user": "admin",
             "rate": 1 * EXA,
             "expectedResult": 1,
             "remarks": "Set price for ICX equal to 1 USD"
         },
         {
-            "action": "deposit",
-            "reserve": "icx",
-            "user": "new",
-            "amount": 100 * EXA,
+            "_step": Steps.DEPOSIT_ICX,
+            "user": "borrower",
+            "amount": 1000 * EXA,
             "expectedResult": 1
         },
         {
-            "action": "borrow",
-            "reserve": "usdb",
-            "user": "new",
-            "amount": 50 * EXA,
+           "_step": Steps.BORROW_USDB,
+            "user": "borrower",
+            "amount": 500 * EXA,
             "expectedResult": 1
         },
         {
+            "_step": Steps.UPDATE_PRICE,
             "action": "set_reference_data",
             "contract": "priceOracle",
-            "user": "deployer", # user 1 can change the price oracle value
-            "rate": 7 * EXA // 10,
+            "user": "admin", 
+            "rate": 7 * EXA // 10, 
             "expectedResult": 1,
             "remarks": "Set price for ICX equal to 0.7 USD"
         },
         {
-            "call":"liquidation",
-            "action": "transfer",
-            "_collateral": "icx",
-            "reserve": "usdb",  # loan
-            "borrower": "new", # borrower
-            "liquidator": "deployer", # calls for liquidation
-            "expectedResult": 1
-        }
-    ]
-}
+            "_step": Steps.LIQUIDATION,
+            "user": "liquidator",
+            "_reserve": "usdb",
+            "expectedResult": 1 # now, liquidator has enough sicx to call liquidation 
+        }, 
+    ]}

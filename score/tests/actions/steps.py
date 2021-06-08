@@ -6,5 +6,5 @@ class Steps(enum.Enum):
     DEPOSIT_USDB = 2
     DEPOSIT_ICX = 3
     BORROW_ICX = 4
-    BORROW_USBD = 5
+    BORROW_USDB = 5
     LIQUIDATION = 6

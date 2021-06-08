@@ -1,46 +1,45 @@
 from .steps import Steps
-
 EXA = 10 ** 18
 
 ACTIONS = {
-    "description": "3. Deposit 1000 USDb, Borrow 500 ICX, ICX price increase to $1.4, liquidation happens",
-    "user": "new",
+    "description": "4. Deposit 200 ICX, 800 USDb, Borrow 500 ICX, ICX price increases to $1.5, liquidation happens",
+    "user":"new",
     "transaction": [
         {
             "_step": Steps.UPDATE_PRICE,
             "action": "set_reference_data",
             "contract": "priceOracle",
-            "user": "admin",  # user deployer can change the price oracle value
+            "user": "admin",
             "rate": 1 * EXA,
             "expectedResult": 1,
             "remarks": "Set price for ICX equal to 1 USD"
         },
         {
-            "_step": Steps.DEPOSIT_USDB,
-            "action": "deposit",
-            "reserve": "usdb",
+            "_step": Steps.DEPOSIT_ICX,
             "user": "borrower",
-            "amount": 1000 * EXA,
+            "amount": 200 * EXA,
+            "expectedResult": 1
+        },
+        {
+            "_step": Steps.DEPOSIT_USDB,
+            "user": "borrower",
+            "amount": 800 * EXA, # 100 deposit
             "expectedResult": 1
         },
         {
             "_step": Steps.DEPOSIT_ICX,
-            "reserve": "icx",
             "user": "liquidator",
-            "amount": 3100 * EXA,
+            "amount": 1200 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_ICX,
-            "reserve": "sicx",
             "user": "liquidator",
-            "amount": 1500 * EXA,
+            "amount": 550 * EXA, #liquidator has enough funds get it back to 30
             "expectedResult": 1
         },
         {
-            "_step": Steps.BORROW_ICX,
-            "action": "borrow",
-            "reserve": "icx",
+           "_step": Steps.BORROW_ICX,
             "user": "borrower",
             "amount": 500 * EXA,
             "expectedResult": 1
@@ -49,19 +48,15 @@ ACTIONS = {
             "_step": Steps.UPDATE_PRICE,
             "action": "set_reference_data",
             "contract": "priceOracle",
-            "user": "admin",  # user deployer can change the price oracle value
-            "rate": 14 * EXA // 10,
+            "user": "admin", 
+            "rate": 15 * EXA // 10, 
             "expectedResult": 1,
-            "remarks": "Set price for ICX equal to 1.4 USD"
+            "remarks": "Set price for ICX equal to 1.5 USD"
         },
         {
             "_step": Steps.LIQUIDATION,
-            "call": "liquidation",
-            "action": "transfer",
-            "_collateral": "usdb",
             "user": "liquidator",
             "_reserve": "icx",
-            "expectedResult": 1
-        }
-    ]
-}
+            "expectedResult": 1 # now, liquidator has enough sicx to call liquidation 
+        }, 
+    ]}

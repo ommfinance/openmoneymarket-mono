@@ -1,12 +1,11 @@
 from .steps import Steps
-
 EXA = 10 ** 18
 
 ACTIONS = {
-    "description": "2. Deposit 500 ICX, 500 USDb, Borrow 500 USDb, ICX price drops to $0.4, liquidation happens",
-    "user": "new",
+    "description": "7. Deposit 800 USDb, 200 ICX, Borrow 100 USDb, 400 ICX, ICX price increase to $1.7, liquidation happens",
+    "user":"new",
     "transaction": [
-        {
+        {   
             "_step": Steps.UPDATE_PRICE,
             "action": "set_reference_data",
             "contract": "priceOracle",
@@ -16,39 +15,27 @@ ACTIONS = {
             "remarks": "Set price for ICX equal to 1 USD"
         },
         {
-            "_step": Steps.DEPOSIT_ICX,
-            "user": "borrower",
-            "amount": 50 * EXA,
-            "expectedResult": 1
-        },
-        {
             "_step": Steps.DEPOSIT_USDB,
             "user": "borrower",
-            "amount": 50 * EXA,
+            "amount": 800 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.DEPOSIT_ICX,
-            "user": "liquidator",
-            "amount": 500 * EXA,
+            "user": "borrower",
+            "amount": 200 * EXA,
             "expectedResult": 1
         },
         {
-            "_step": Steps.DEPOSIT_USDB,
-            "user": "liquidator",
-            "amount": 500 * EXA,
+            "_step": Steps.BORROW_USDB,
+            "user": "borrower",
+            "amount": 100 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_ICX,
-            "user": "liquidator",
-            "amount": 300 * EXA,
-            "expectedResult": 1
-        },
-        {
-            "_step": Steps.BORROW_USBD,
             "user": "borrower",
-            "amount": 50 * EXA,
+            "amount": 390 * EXA,
             "expectedResult": 1
         },
         {
@@ -56,15 +43,26 @@ ACTIONS = {
             "action": "set_reference_data",
             "contract": "priceOracle",
             "user": "admin",
-            "rate": 4 * EXA // 10,
+            "rate": 17 * EXA // 10,
             "expectedResult": 1,
-            "remarks": "Set price for ICX equal to 0.4 USD"
+            "remarks": "Set price for ICX equal to 0.7 USD"
+        }, 
+        {
+            "_step": Steps.DEPOSIT_ICX,
+            "user": "liquidator",
+            "amount": 1000 * EXA,
+            "expectedResult": 1
+        },
+        {
+            "_step": Steps.BORROW_ICX,
+            "user": "liquidator",
+            "amount": 500 * EXA,
+            "expectedResult": 1
         },
         {
             "_step": Steps.LIQUIDATION,
             "user": "liquidator",
-            "_reserve": "usdb",
-            "expectedResult": 1
+            "_reserve": "icx",
+            "expectedResult":1
         }
-    ]
-}
+    ]}
