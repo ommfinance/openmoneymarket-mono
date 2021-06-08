@@ -32,7 +32,7 @@ T_BEARS_URL = os.environ.get("T_BEARS_URL")
 SCORE_ADDRESS = "scoreAddress"
 
 
-RE_DEPLOY_CONTRACT=["liquidationManager"]
+RE_DEPLOY_CONTRACT=[]
 
 ###### EXA MATH LIBRARY
 
