@@ -6,7 +6,6 @@ from iconsdk.wallet.wallet import KeyWallet
 from .test_integrate_omm_cases import OMMTestCases
 from ..actions.liquidation_usdb_to_icx import ACTIONS as USDB_TO_ICX
 from ..actions.liquidation_multi_collateral_single_borrow import ACTIONS as MULTI_COLLATERAL_SINGLE_BORROW
-from ..actions.liquidation_throw_exception import ACTIONS as THROW_EXCEPTION
 from ..actions.steps import Steps
 
 EXA = 10 ** 18
