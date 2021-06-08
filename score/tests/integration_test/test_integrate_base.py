@@ -32,7 +32,7 @@ T_BEARS_URL = os.environ.get("T_BEARS_URL")
 SCORE_ADDRESS = "scoreAddress"
 
 
-RE_DEPLOY_CONTRACT=[]
+RE_DEPLOY_CONTRACT=["liquidationManager"]
 
 ###### EXA MATH LIBRARY
 
@@ -516,6 +516,8 @@ class OMMTestBase(TestUtils):
                                         'params': {'_address': contracts['lendingPoolDataProvider']}},
                                        {'contract': 'liquidationManager', 'method': 'setLendingPoolCore',
                                         'params': {'_address': contracts['lendingPoolCore']}},
+                                       {'contract': 'liquidationManager', 'method': 'setFeeProvider',
+                                        'params': {'_address': contracts['daoFund']}},
                                        {'contract': 'liquidationManager', 'method': 'setPriceOracle',
                                         'params': {'_address': contracts['priceOracle']}},
                                        # {'contract': 'liquidationManager', 'method': 'setFeeProvider','params': {'_address':contracts['feeProvider']}},
