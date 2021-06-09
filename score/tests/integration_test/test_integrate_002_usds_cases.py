@@ -1,7 +1,7 @@
 from .test_integrate_omm_cases import OMMTestCases
-from ..actions.user_all_txn_usdb_reserve import ACTIONS
+from ..actions.user_all_txn_usds_reserve import ACTIONS
 
-class USDBTest(OMMTestCases):
+class USDSTest(OMMTestCases):
 	def setUp(self):
 		super().setUp()
 
