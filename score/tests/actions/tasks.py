@@ -1,5 +1,5 @@
 ICX = 10 ** 18
-USDB = 10 ** 18
+USDS = 10 ** 18
 IUSDC = 10 ** 6
 
 ACTIONS = {
@@ -7,44 +7,44 @@ ACTIONS = {
 		[
 		{	
 			"action": "deposit",
-			"reserve": "usdb",
+			"reserve": "usds",
 			"user": "1",
-			"amount": 100 * USDB,
+			"amount": 100 * USDS,
 			"expectedResult": 1
 		},
 		{
 			"action": "borrow",
-			"reserve": "usdb",
+			"reserve": "usds",
 			"user": "1",
-			"amount": 10 * USDB,
+			"amount": 10 * USDS,
 			"expectedResult": 1
 		},
 		{
 			"action": "borrow",
-			"reserve": "usdb",
+			"reserve": "usds",
 			"user": "1",
-			"amount": 100000000000 * USDB,
+			"amount": 100000000000 * USDS,
 			"expectedResult": 0
 		},
 		{
 			"action": "redeem",
-			"reserve": "usdb",
+			"reserve": "usds",
 			"user": "1",
-			"amount": 50 * USDB,
+			"amount": 50 * USDS,
 			"expectedResult": 1
 		},
 		{
 			"action": "redeem",
-			"reserve": "usdb",
+			"reserve": "usds",
 			"user": "1",
-			"amount": 100000000000 * USDB,
+			"amount": 100000000000 * USDS,
 			"expectedResult": 0
 		},
 		{
 			"action": "repay",
-			"reserve": "usdb",
+			"reserve": "usds",
 			"user": "1",
-			"amount": 100 * USDB,
+			"amount": 100 * USDS,
 			"expectedResult": 1
 		},
 		{

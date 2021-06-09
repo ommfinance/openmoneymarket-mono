@@ -23,7 +23,7 @@ class OMMTestCases(OMMTestBase):
 		if test_cases['user'] == "new":
 			from_ = KeyWallet.create()
 			self.send_icx(self._test1, from_.get_address(), 1000 * EXA )
-			tx = self._transferUSDB(self.deployer_wallet, from_.get_address(), 1200 * EXA)
+			tx = self._transferUSDS(self.deployer_wallet, from_.get_address(), 1200 * EXA)
 			self.assertEqual(tx['status'], 1)
 
 		for case in test_cases['transactions']:
@@ -46,13 +46,13 @@ class OMMTestCases(OMMTestBase):
 				from_ = self._test4
 
 			#####################################################################
-			################### TRANSFER USDB TO ALL WALLETS ####################
+			################### TRANSFER USDS TO ALL WALLETS ####################
 
-			# tx = self._transferUSDB(self.deployer_wallet, self._test2.get_address(), 10000 * EXA )
+			# tx = self._transferUSDS(self.deployer_wallet, self._test2.get_address(), 10000 * EXA )
 			# self.assertEqual(tx['status'], 1)
-			# tx = self._transferUSDB(self.deployer_wallet, self._test3.get_address(), 10000 * EXA )
+			# tx = self._transferUSDS(self.deployer_wallet, self._test3.get_address(), 10000 * EXA )
 			# self.assertEqual(tx['status'], 1)
-			# tx = self._transferUSDB(self.deployer_wallet, self._test4.get_address(), 10000 * EXA )
+			# tx = self._transferUSDS(self.deployer_wallet, self._test4.get_address(), 10000 * EXA )
 			# self.assertEqual(tx['status'], 1)
 
 			######################################################################
@@ -532,7 +532,7 @@ class OMMTestCases(OMMTestBase):
 							self.icx_balance_after - exaMul(amount, _int(self.sicx_rate))
 							)
 
-				if case['reserve'] == "usdb":
+				if case['reserve'] == "usds":
 
 					expected_rates = self._get_rates(
 							_int(self.reserve_data_after['totalBorrows']), 
@@ -554,7 +554,7 @@ class OMMTestCases(OMMTestBase):
 							expected_rates['liquidity_rate'])
 
 						oTokenBalance = self.call_tx(
-							to=self.contracts["oUSDb"], 
+							to=self.contracts["oUSDs"], 
 							method="principalBalanceOf",
 							params=user_params)
 
@@ -564,7 +564,7 @@ class OMMTestCases(OMMTestBase):
 							_int(self.user_reserve_data_before['principalOTokenBalance']) + amount
 							)
 
-						# since someone has already borrowed usdb, on depositing more usdb, the borrow rate should decrease
+						# since someone has already borrowed usds, on depositing more usds, the borrow rate should decrease
 						self.assertGreaterEqual(
 							_int(self.user_reserve_data_before["borrowRate"]),
 							_int(self.user_reserve_data_after["borrowRate"])
@@ -695,15 +695,15 @@ class OMMTestCases(OMMTestBase):
 				tx = self._redeemICX(_from, amount)
 			if method == "repay":
 				tx = self._repayICX(_from, amount)
-		if reserve == "usdb":
+		if reserve == "usds":
 			if method == "deposit":
-				tx = self._depositUSDB(_from, amount)
+				tx = self._depositUSDS(_from, amount)
 			if method == "borrow":
-				tx = self._borrowUSDB(_from, amount)
+				tx = self._borrowUSDS(_from, amount)
 			if method == "redeem":
-				tx = self._redeemUSDB(_from, amount)
+				tx = self._redeemUSDS(_from, amount)
 			if method == "repay":
-				tx = self._repayUSDB(_from, amount)
+				tx = self._repayUSDS(_from, amount)
 
 		return tx
 
@@ -784,16 +784,16 @@ class OMMTestCases(OMMTestBase):
 
 		tx_result = self.send_tx(
 			from_=_from,
-			to=self.contracts["sicx"], #USDB contract
+			to=self.contracts["sicx"], #USDS contract
 			method="transfer",
 			params=params
 			)
 		return tx_result
 
-	def _borrowUSDB(self, _from, _borrowAmount):
+	def _borrowUSDS(self, _from, _borrowAmount):
 
 		params = {
-				  "_reserve": self.contracts['usdb'],
+				  "_reserve": self.contracts['usds'],
 				  "_amount": _borrowAmount,
 				  }
 		tx_result = self.send_tx(
@@ -804,7 +804,7 @@ class OMMTestCases(OMMTestBase):
 			)
 		return tx_result
 
-	def _depositUSDB(self, _from, _depositAmount):
+	def _depositUSDS(self, _from, _depositAmount):
 
 		depositData = {'method': 'deposit', 'params': {'amount': _depositAmount}}
 
@@ -814,13 +814,13 @@ class OMMTestCases(OMMTestBase):
 				  "_data": data}
 		tx_result = self.send_tx(
 			from_=_from,
-			to=self.contracts["usdb"], #USDB contract
+			to=self.contracts["usds"], #USDS contract
 			method="transfer",
 			params=params
 			)
 		return tx_result
 
-	def _redeemUSDB(self, _from, _redeemAmount):
+	def _redeemUSDS(self, _from, _redeemAmount):
 
 		params = {
 				  "_amount": _redeemAmount,
@@ -828,13 +828,13 @@ class OMMTestCases(OMMTestBase):
 
 		tx_result = self.send_tx(
 			from_=_from,
-			to=self.contracts["oUSDb"],
+			to=self.contracts["oUSDs"],
 			method="redeem",
 			params=params
 			)
 		return tx_result
 
-	def _repayUSDB(self, _from, _repayAmount):
+	def _repayUSDS(self, _from, _repayAmount):
 
 		repay_data = {'method': 'repay', 'params': {'amount': _repayAmount}}
 		data = json.dumps(repay_data).encode('utf-8')
@@ -846,13 +846,13 @@ class OMMTestCases(OMMTestBase):
 
 		tx_result = self.send_tx(
 			from_=_from,
-			to=self.contracts["usdb"], #USDB contract
+			to=self.contracts["usds"], #USDS contract
 			method="transfer",
 			params=params
 			)
 		return tx_result
 
-	def _transferUSDB(self, _from, _to, _transferAmount):
+	def _transferUSDS(self, _from, _to, _transferAmount):
 
 		params = {
 			"_to": _to,
@@ -861,7 +861,7 @@ class OMMTestCases(OMMTestBase):
 
 		tx_result = self.send_tx(
 			from_=_from,
-			to=self.contracts["usdb"], #USDB contract
+			to=self.contracts["usds"], #USDS contract
 			method="transfer",
 			params=params
 			)

@@ -1,16 +1,16 @@
 # action = ["deposit","borrow","redeem","repay"]
-# reserve = ["icx","usdb"]
+# reserve = ["icx","usds"]
 # amount is in loop value
 
 EXA = 10 ** 18
 
 ACTIONS = {
-    "description": "User deposits icx and borrows usdb,tries different redeem and repay scenarios on the reserve",
+    "description": "User deposits icx and borrows usds,tries different redeem and repay scenarios on the reserve",
     "user":"new",
     "transactions": [
         {
             "action": "borrow",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 50 * EXA,
             "expectedResult": 0,
@@ -26,14 +26,14 @@ ACTIONS = {
         },
         {
             "action": "borrow",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 50 * EXA,
             "expectedResult": 1
         },
         {
             "action": "redeem",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 20 * EXA,
             "expectedResult": 0,
@@ -67,7 +67,7 @@ ACTIONS = {
         },
         {
             "action": "repay",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 10 * EXA,
             "expectedResult": 1

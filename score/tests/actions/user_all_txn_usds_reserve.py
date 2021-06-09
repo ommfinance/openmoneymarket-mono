@@ -1,16 +1,16 @@
 # action = ["deposit","borrow","redeem","repay"]
-# reserve = ["icx","usdb"]
+# reserve = ["icx","usds"]
 # amount is in loop value
 
 EXA = 10 ** 18
 
 ACTIONS = {
-    "description": "User deposits usdb and borrows usdb,tries different redeem and repay scenarios on the reserve,usdb price is 1$",
+    "description": "User deposits usds and borrows usds,tries different redeem and repay scenarios on the reserve,usds price is 1$",
     "user":"new",
     "transactions": [
         {
             "action": "borrow",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 50 * EXA,
             "expectedResult": 0,
@@ -19,21 +19,21 @@ ACTIONS = {
         },
         {
             "action": "deposit",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 1000 * EXA,
             "expectedResult": 1
         },
         {
             "action": "borrow",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 500 * EXA,
             "expectedResult": 1
         },
         {
             "action": "redeem",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 250 * EXA,
             "expectedResult": 0,
@@ -42,21 +42,21 @@ ACTIONS = {
         },
         {
             "action": "redeem",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 100 * EXA,
             "expectedResult": 1
         },
         {
             "action": "repay",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 100 * EXA,
             "expectedResult": 1
         },
         {
             "action": "repay",
-            "reserve": "usdb",
+            "reserve": "usds",
             "user": "new",
             "amount": 500 * EXA,
             "expectedResult": 1,

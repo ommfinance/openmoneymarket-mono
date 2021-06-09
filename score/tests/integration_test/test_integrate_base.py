@@ -87,7 +87,7 @@ class OMMTestBase(TestUtils):
     CONTRACTS = ['addressProvider', 'daoFund', 'delegation', 'governance', 'lendingPool',
                  'lendingPoolCore', 'lendingPoolDataProvider', 'liquidationManager',
                  'ommToken', 'priceOracle', 'rewards', 'snapshot', 'worker_token']
-    OTOKENS = ['oUSDb', 'oICX']
+    OTOKENS = ['oUSDs', 'oICX']
 
     def setUp(self):
         self._wallet_setup()
@@ -141,7 +141,7 @@ class OMMTestBase(TestUtils):
             params = {}
             if item == "sample_token":
                 params = {'_name': "BridgeDollars",
-                          '_symbol': 'USDb', '_decimals': 18}
+                          '_symbol': 'USDs', '_decimals': 18}
             elif item == "omm_token":
                 params = {'_initialSupply': 0, '_decimals': 18}
             elif item == "worker_token":
@@ -150,7 +150,7 @@ class OMMTestBase(TestUtils):
                 params = {'_initialSupply': 500000000, '_decimals': 18}
             elif item == "oToken":
                 params = {"_name": "BridgeUSDInterestToken",
-                          "_symbol": "oUSDb"}
+                          "_symbol": "oUSDs"}
 
             deploy_tx = self.build_deploy_tx(
                 from_=self.deployer_wallet,
@@ -161,12 +161,12 @@ class OMMTestBase(TestUtils):
             txns.append(deploy_tx)
 
         otxns = []
-        param1 = {"_name": "OmmUSDbInterestToken", "_symbol": "oUSDb"}
+        param1 = {"_name": "OmmUSDsInterestToken", "_symbol": "oUSDs"}
         param2 = {"_name": "ICXinterestToken", "_symbol": "oICX"}
         # param3 = {"_name":"IconUSDInterest","_symbol":"oIUSDC","_decimals":6}
-        deploy_oUSDb = self.build_deploy_tx(
+        deploy_oUSDs = self.build_deploy_tx(
             from_=self.deployer_wallet,
-            to=self.contracts.get("oUSDb", SCORE_INSTALL_ADDRESS),
+            to=self.contracts.get("oUSDs", SCORE_INSTALL_ADDRESS),
             content=os.path.abspath(os.path.join(self.DIR, "oToken")),
             params=param1
         )
@@ -182,7 +182,7 @@ class OMMTestBase(TestUtils):
         # 	content = os.path.abspath(os.path.join(self.DIR, "oToken")),
         # 	params = param3
         # 	)
-        otxns.append(deploy_oUSDb)
+        otxns.append(deploy_oUSDs)
         otxns.append(deploy_oICX)
         # otxns.append(deploy_oIUSDc)
 
@@ -237,7 +237,7 @@ class OMMTestBase(TestUtils):
 
         deploy_bridge = self.build_deploy_tx(
             from_=self.deployer_wallet,
-            to=self.contracts.get("usdb", SCORE_INSTALL_ADDRESS),
+            to=self.contracts.get("usds", SCORE_INSTALL_ADDRESS),
             content=os.path.abspath(os.path.join(HELPER_CONTRACTS, "bridge.zip"))
         )
 
@@ -245,7 +245,7 @@ class OMMTestBase(TestUtils):
         tx_result_1 = self.get_tx_result(tx_hash_1['txHash'])
         self.assertEqual(True, tx_hash_1['status'])
         self.assertTrue('scoreAddress' in tx_result_1)
-        self.contracts.update({"usdb": tx_result_1['scoreAddress']})
+        self.contracts.update({"usds": tx_result_1['scoreAddress']})
 
         deploy_sicx = self.build_deploy_tx(
             from_=self.deployer_wallet,
@@ -360,8 +360,8 @@ class OMMTestBase(TestUtils):
              'params': {'_address': contracts['sicx']}},
             {'contract': 'lendingPool', 'method': 'setLoanOriginationFeePercentage',
              'params': {'_percentage': 10 ** 15}},  # added later
-            {'contract': 'lendingPool', 'method': 'toggleRewardsDistribution',
-             'params': {} }
+            # {'contract': 'lendingPool', 'method': 'toggleRewardsDistribution',
+            #  'params': {} }
         ]
         self._get_transaction(settings_lendingPool)
 
@@ -371,7 +371,7 @@ class OMMTestBase(TestUtils):
 
         contracts = self.contracts
         settings_lendinPoolDataProvider = [{'contract': 'lendingPoolDataProvider', 'method': 'setSymbol',
-                                            'params': {'_reserve': contracts['usdb'], '_sym': "USDb"}},
+                                            'params': {'_reserve': contracts['usds'], '_sym': "USDs"}},
                                            {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol',
                                             'params': {'_reserve': contracts['sicx'], '_sym': "ICX"}},
                                            # {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params':{'_reserve': contracts['iusdc'],'_sym':"USDC"}},
@@ -393,15 +393,15 @@ class OMMTestBase(TestUtils):
 
         contracts = self.contracts
         settings_oToken = [
-            {'contract': 'oUSDb', 'method': 'setLendingPoolCore',
+            {'contract': 'oUSDs', 'method': 'setLendingPoolCore',
              'params': {'_address': contracts['lendingPoolCore']}},
-            {'contract': 'oUSDb', 'method': 'setReserve',
-             'params': {'_address': contracts['usdb']}},
-            {'contract': 'oUSDb', 'method': 'setLendingPoolDataProvider',
+            {'contract': 'oUSDs', 'method': 'setReserve',
+             'params': {'_address': contracts['usds']}},
+            {'contract': 'oUSDs', 'method': 'setLendingPoolDataProvider',
              'params': {'_address': contracts['lendingPoolDataProvider']}},
-            {'contract': 'oUSDb', 'method': 'setLendingPool',
+            {'contract': 'oUSDs', 'method': 'setLendingPool',
              'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'oUSDb', 'method': 'setLiquidation', 'params': {'_address': contracts['liquidationManager']}}]
+            {'contract': 'oUSDs', 'method': 'setLiquidation', 'params': {'_address': contracts['liquidationManager']}}]
 
         self._get_transaction(settings_oToken)
 
@@ -411,7 +411,7 @@ class OMMTestBase(TestUtils):
 
         contracts = self.contracts
         setting_priceOracle = [{'contract': 'priceOracle', 'method': 'set_reference_data',
-                                'params': {'_base': 'USDb', '_quote': 'USD', '_rate': 1 * 10 ** 18}},
+                                'params': {'_base': 'USDs', '_quote': 'USD', '_rate': 1 * 10 ** 18}},
                                {'contract': 'priceOracle', 'method': 'set_reference_data',
                                 'params': {'_base': 'ICX', '_quote': 'USD', '_rate': 15 * 10 ** 17}},
                                # {'contract': 'priceOracle', 'method': 'set_reference_data', 'params':{'_base':'IUSDC','_quote':'USDC','_rate':10*10**17}}
@@ -429,9 +429,9 @@ class OMMTestBase(TestUtils):
                                    {'contract': 'addressProvider', 'method': 'setLendingPoolDataProvider',
                                     'params': {'_address': contracts['lendingPoolDataProvider']}},
                                    {'contract': 'addressProvider', 'method': 'setUSDb',
-                                    'params': {'_address': contracts['usdb']}},
+                                    'params': {'_address': contracts['usds']}},
                                    {'contract': 'addressProvider', 'method': 'setoUSDb',
-                                    'params': {'_address': contracts['oUSDb']}},
+                                    'params': {'_address': contracts['oUSDs']}},
                                    {'contract': 'addressProvider', 'method': 'setsICX',
                                     'params': {'_address': contracts['sicx']}},
                                    {'contract': 'addressProvider', 'method': 'setoICX',
@@ -457,7 +457,7 @@ class OMMTestBase(TestUtils):
         contracts = self.contracts
         settings_reserves = [{'contract': 'lendingPoolCore',
                               'method': 'setReserveConstants',
-                              'params': {"_constants": [{"reserve": contracts['usdb'],
+                              'params': {"_constants": [{"reserve": contracts['usds'],
                                                          "optimalUtilizationRate": f"8{'0' * 17}",
                                                          "baseBorrowRate": f"2{'0' * 16}",
                                                          "slopeRate1": f"6{'0' * 16}",
@@ -664,8 +664,8 @@ class OMMTestBase(TestUtils):
 
         contracts = self.contracts
         # params_iusdc ={"_reserve": {"reserveAddress":contracts['iusdc'],"oTokenAddress":contracts['oIUSDC'],"totalBorrows":"0","lastUpdateTimestamp": "0","liquidityRate":"0","borrowRate":"0","liquidityCumulativeIndex":f"1{'0'*18}","borrowCumulativeIndex":f"1{'0'*18}","baseLTVasCollateral":"500000000000000000","liquidationThreshold":"650000000000000000","liquidationBonus":"100000000000000000","decimals":"6","borrowingEnabled": "1","usageAsCollateralEnabled":"1","isFreezed":"0","isActive":"1"} }
-        params_usdb = {
-            "_reserve": {"reserveAddress": contracts['usdb'], "oTokenAddress": contracts['oUSDb'], "totalBorrows": "0",
+        params_usds = {
+            "_reserve": {"reserveAddress": contracts['usds'], "oTokenAddress": contracts['oUSDs'], "totalBorrows": "0",
                          "lastUpdateTimestamp": "0", "liquidityRate": "0", "borrowRate": "0",
                          "liquidityCumulativeIndex": f"1{'0' * 18}", "borrowCumulativeIndex": f"1{'0' * 18}",
                          "baseLTVasCollateral": "500000000000000000", "liquidationThreshold": "650000000000000000",
@@ -683,7 +683,7 @@ class OMMTestBase(TestUtils):
             # {'contract': 'lendingPoolCore',
             #  'method': 'addReserveData', 'params': params_iusdc},
             {'contract': 'lendingPoolCore',
-             'method': 'addReserveData', 'params': params_usdb},
+             'method': 'addReserveData', 'params': params_usds},
             {'contract': 'lendingPoolCore',
              'method': 'addReserveData', 'params': params_icx}
         ]

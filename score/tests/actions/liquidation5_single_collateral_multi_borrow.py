@@ -2,7 +2,7 @@ from .steps import Steps
 EXA = 10 ** 18
 
 ACTIONS = {
-    "description": "5. Deposit 1000 ICX, Borrow 300 USDb, 200 ICX, ICX price drops to $0.6, liquidation happens",
+    "description": "5. Deposit 1000 ICX, Borrow 300 USDs, 200 ICX, ICX price drops to $0.6, liquidation happens",
     "user":"new",
     "transaction": [
         {
@@ -21,7 +21,7 @@ ACTIONS = {
             "expectedResult": 1
         },
         {
-            "_step": Steps.BORROW_USDB,
+            "_step": Steps.BORROW_USDS,
             "user": "borrower",
             "amount": 300 * EXA,
             "expectedResult": 1
@@ -44,7 +44,7 @@ ACTIONS = {
         {
             "_step": Steps.LIQUIDATION,
             "user": "liquidator",
-            "_reserve": "usdb",
+            "_reserve": "usds",
             "expectedResult":1
         },
     ]}
