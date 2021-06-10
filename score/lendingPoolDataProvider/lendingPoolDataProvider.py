@@ -433,10 +433,12 @@ class LendingPoolDataProvider(IconScoreBase):
         price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
         reserves = core.getReserves()
         userAccountData = self.getUserAccountData(_user)
-        badDebt = liquidationManager.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
-                                                      userAccountData['totalFeesUSD'],
-                                                      userAccountData['totalCollateralBalanceUSD'],
-                                                      userAccountData['currentLtv'])
+        badDebt = 0
+        if userAccountData['healthFactorBelowThreshold']:
+            badDebt = liquidationManager.calculateBadDebt(userAccountData['totalBorrowBalanceUSD'],
+                                                          userAccountData['totalFeesUSD'],
+                                                          userAccountData['totalCollateralBalanceUSD'],
+                                                          userAccountData['currentLtv'])
 
         borrows = {}
         collaterals = {}
