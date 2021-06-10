@@ -30,3 +30,11 @@ def exaPow(x: int, n: int) -> int:
         n = n // 2
         
     return z
+    
+def convertToExa(_amount:int,_decimals:int)-> int:
+    if _decimals >= 0:
+        return _amount * EXA // (10 ** _decimals)
+
+def convertExaToOther(_amount:int,_decimals:int)->int:
+    if _decimals >= 0:
+        return _amount * (10 ** _decimals) // EXA
