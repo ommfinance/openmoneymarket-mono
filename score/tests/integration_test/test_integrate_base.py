@@ -110,6 +110,7 @@ class OMMTestBase(TestUtils):
             self._deploy_all()
             self._deploy_helper_contracts()
             self._config_omm()
+            self._supply_liquidity()
 
 
     def _wallet_setup(self):
@@ -688,6 +689,34 @@ class OMMTestBase(TestUtils):
              'method': 'addReserveData', 'params': params_icx}
         ]
         self._get_transaction(settings)
+
+    def _supply_liquidity(self):
+
+        # deposit USDS
+        depositData = {'method': 'deposit', 'params': {'amount': 5000 * 10 ** 18}}
+
+        data = json.dumps(depositData).encode('utf-8')
+        params = {"_to": self.contracts['lendingPool'],
+                "_value": _depositAmount, 
+                "_data": data}
+        tx_result = self.send_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts["usds"], #USDS contract
+            method="transfer",
+            params=params
+            )
+        self.assertEqual(tx_result['status'], 1)
+
+        # deposit ICX
+        params = {"_amount": 10000 * 10 ** 18}
+        tx_result = self.send_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts["lendingPool"], 
+            value=10000 * 10 ** 18,
+            method="deposit",
+            params=params
+            )
+        self.assertEqual(tx_result['status'], 1)
 
 
     def _get_transaction(self, settings):
