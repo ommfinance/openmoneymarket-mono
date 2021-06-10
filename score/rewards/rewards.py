@@ -37,6 +37,9 @@ class CoreInterface(InterfaceScore):
     def getReserves(self) -> list:
         pass
 
+    @interface
+    def getReserveConfiguration(self, _reserve: Address) -> dict:
+        pass
 
 # An interface to Snapshot
 class SnapshotInterface(InterfaceScore):
@@ -535,8 +538,15 @@ class Rewards(IconScoreBase):
     def _depositBalance(self, _reserve: Address, _user: Address) -> int:
         day: int = self._day.get()
         snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         userData = snapshot.userDataAt(_user, _reserve, day)
         balance = userData['principalOTokenBalance']
+        
+        reserveConfiguration = core.getReserveConfiguration(_reserve)
+        reserveDecimals = reserveConfiguration['decimals']
+
+        if reserveDecimals != 18:
+            balance = convertToExa(balance,reserveDecimals)
 
         if userData['userLiquidityCumulativeIndex'] != 0:
             reserveData = snapshot.reserveDataAt(_reserve, day)
@@ -549,15 +559,23 @@ class Rewards(IconScoreBase):
     def _borrowBalance(self, _reserve: Address, _user: Address) -> int:
         day: int = self._day.get()
         snapshot = self.create_interface_score(self._snapshotAddress.get(), SnapshotInterface)
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         userData = snapshot.userDataAt(_user, _reserve, day)
         reserveData = snapshot.reserveDataAt(_reserve, day)
-        if userData['principalBorrowBalance'] == 0:
+        balance = userData['principalBorrowBalance']
+        if balance == 0:
             return 0
+
+        reserveConfiguration = core.getReserveConfiguration(_reserve)
+        reserveDecimals = reserveConfiguration['decimals']
+
+        if reserveDecimals != 18:
+            balance = convertToExa(balance,reserveDecimals)
 
         cumulatedInterest = exaDiv(
             exaMul(self._calculateCompoundedInterest(reserveData['borrowRate'], reserveData['lastUpdateTimestamp']),
                    reserveData['borrowCumulativeIndex']), userData['userBorrowCumulativeIndex'])
-        compoundedBalance = exaMul(userData['principalBorrowBalance'], cumulatedInterest)
+        compoundedBalance = exaMul(balance, cumulatedInterest)
 
         return compoundedBalance
 
