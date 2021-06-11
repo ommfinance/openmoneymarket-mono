@@ -2,7 +2,7 @@ import json
 
 from iconsdk.wallet.wallet import KeyWallet
 
-from .test_integrate_omm_cases import OMMTestCases
+from .test_integrate_omm_utils import OmmUtils
 from ..actions.liquidation1_single_collateral_single_borrow import ACTIONS as SINGLE_COLLATERAL_SINGLE_BORROW
 from ..actions.liquidation2_multi_collateral_single_borrow import ACTIONS as MULTI_COLLATERAL_SINGLE_BORROW
 from ..actions.liquidation3_single_collateral_single_borrow2 import ACTIONS as SINGLE_COLLATERAL_SINGLE_BORROW2
@@ -34,7 +34,7 @@ def _dec(_value):
     return int(_value, 0) / EXA
 
 
-class LiquidationTest(OMMTestCases):
+class LiquidationTest(OmmUtils):
     def setUp(self):
         super().setUp()
         self.return_amount = {}

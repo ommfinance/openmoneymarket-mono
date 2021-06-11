@@ -697,7 +697,7 @@ class OMMTestBase(TestUtils):
 
         data = json.dumps(depositData).encode('utf-8')
         params = {"_to": self.contracts['lendingPool'],
-                "_value": _depositAmount, 
+                "_value": 5000*EXA,
                 "_data": data}
         tx_result = self.send_tx(
             from_=self.deployer_wallet,
