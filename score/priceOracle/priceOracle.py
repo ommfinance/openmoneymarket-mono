@@ -52,8 +52,10 @@ class PriceOracle(IconScoreBase):
 
     @external(readonly=True)
     def get_reference_data(self, _base: str, _quote) -> int:
+        if _base == "USDS":
+            _base ="USDB"
         if self._oraclePriceBool.get():
-            if _base == "USDb":
+            if _base == "USDB":
                 return 10 ** 18
             else:
                 oracle = self.create_interface_score(self._bandOracle.get(), OracleInterface)
