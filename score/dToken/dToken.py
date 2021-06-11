@@ -105,21 +105,14 @@ class DToken(IconScoreBase, TokenStandard):
         pass
 
     @eventlog(indexed=3)
-    def Redeem(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
-        pass
-
-    @eventlog(indexed=3)
-    def MintOnDeposit(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
+    def MintOnBorrow(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
         pass
 
     @eventlog(indexed=3)
     def BurnOnLiquidation(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
         pass
 
-    @eventlog(indexed=3)
-    def BalanceTransfer(self, _from: Address, _to: Address, _value: int, _fromBalanceIncrease: int,
-                        _toBalanceIncrease: int, _fromIndex: int, _toIndex: int):
-        pass
+    
 
     @external(readonly=True)
     def name(self) -> str:
@@ -199,7 +192,6 @@ class DToken(IconScoreBase, TokenStandard):
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
         core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
         userIndex = self._userIndexes[_user]
-
         if userIndex == 0:
             return _balance
         else:
@@ -210,12 +202,21 @@ class DToken(IconScoreBase, TokenStandard):
             return convertExaToOther(balance, decimals)
 
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
+        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
+        previousUserIndex = self._userIndexes[_user]
+        decimals = self._decimals.get()
         previousPrincipalBalance = self.principalBalanceOf(_user)
-        balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
+        if previousUserIndex != 0:
+            balanceInExa = exaDiv(
+                exaMul(convertToExa(previousPrincipalBalance, decimals),core.getReserveBorrowCumulativeIndex(self.getReserve())),previousUserIndex)
+            balance = convertExaToOther(balanceInExa, decimals)
+        else:
+            balance = previousPrincipalBalance
+        balanceIncrease = balance - previousPrincipalBalance
         if balanceIncrease > 0:
             self._mint(_user, balanceIncrease)
-        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
-        userIndex = core.getNormalizedDebt(self.getReserve())
+
+        userIndex = core.getReserveBorrowCumulativeIndex(self.getReserve())
         self._userIndexes[_user] = userIndex
 
         return {
@@ -270,7 +271,7 @@ class DToken(IconScoreBase, TokenStandard):
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
         self._mint(_user, _amount)
-        self.MintOnDeposit(_user, _amount, balanceIncrease, index)
+        self.MintOnBorrow(_user, _amount, balanceIncrease, index)
 
     @only_lending_pool_core
     @external
