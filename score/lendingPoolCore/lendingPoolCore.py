@@ -302,12 +302,12 @@ class LendingPoolCore(IconScoreBase):
         self._reserveList.put(_res)
 
     @external(readonly=True)
-    def getReserveLiquidityCumulativeIndex(self, _reserve: int) -> int:
+    def getReserveLiquidityCumulativeIndex(self, _reserve: Address) -> int:
         prefix = self.reservePrefix(_reserve)
         return self.reserve[prefix].liquidityCumulativeIndex.get()
 
     @external(readonly=True)
-    def getReserveBorrowCumulativeIndex(self, _reserve: int) -> int:
+    def getReserveBorrowCumulativeIndex(self, _reserve: Address) -> int:
         prefix = self.reservePrefix(_reserve)
         return self.reserve[prefix].borrowCumulativeIndex.get()
 
@@ -399,7 +399,7 @@ class LendingPoolCore(IconScoreBase):
     def getReserveTotalBorrows(self, _reserve: Address) -> int:
         prefix = self.reservePrefix(_reserve)
         reserveData = getDataFromReserve(prefix, self.reserve)
-        dToken = self.create_interface_score(reserveData['dToken'], DTokenInterface)
+        dToken = self.create_interface_score(reserveData['dTokenAddress'], DTokenInterface)
         return dToken.principalTotalSupply()
 
     def getReserveUtilizationRate(self, _reserve: Address) -> int:
@@ -496,8 +496,8 @@ class LendingPoolCore(IconScoreBase):
     @only_lending_pool
     @external
     def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int) -> dict:
-        balanceIncrease = self.getUserBorrowBalances(_reserve, _user)
-        dToken = self.create_interface_score(_reserve, DTokenInterface)
+        balanceIncrease = self.getUserBorrowBalances(_reserve, _user)['borrowBalanceIncrease']
+        dToken = self.create_interface_score(self.getReserveOTokenAddress(_reserve), DTokenInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         if balanceIncrease > 0:
             reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
@@ -549,7 +549,7 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def getReserveOTokenAddress(self, _reserve: Address) -> Address:
         reserveData = self.getReserveData(_reserve)
-        return reserveData['oTokenAddress']
+        return reserveData['dTokenAddress']
 
     @only_liquidation_manager
     @external
