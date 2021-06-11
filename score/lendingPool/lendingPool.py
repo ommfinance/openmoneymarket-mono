@@ -343,6 +343,7 @@ class LendingPool(IconScoreBase):
         _reserve = self._sIcxAddress.get()
         self._deposit(_reserve, _amount, self.msg.sender)
 
+    # only active and unfreezed reserve
     def _deposit(self, _reserve: Address, _amount: int, _sender: Address):
         """
         deposits the underlying asset to the reserve
@@ -379,6 +380,7 @@ class LendingPool(IconScoreBase):
 
         self.Deposit(_reserve, _sender, _amount, self.now())
 
+    # only active
     @external
     def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int,
                          _waitForUnstaking: bool = False):
@@ -424,6 +426,7 @@ class LendingPool(IconScoreBase):
         if not _condition:
             revert(f'{TAG}: {_message}')
 
+    # only active and unfreezed
     @external
     def borrow(self, _reserve: Address, _amount: int):
         """
@@ -476,6 +479,7 @@ class LendingPool(IconScoreBase):
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
                     borrowData['balanceIncrease'], self.now())
 
+    # only active
     def _repay(self, _reserve: Address, _amount: int, _sender: Address):
         """
         repays a borrow on the specific reserve, for the specified amount (or for the whole amount, if -1 is send as params for _amount).
@@ -530,8 +534,6 @@ class LendingPool(IconScoreBase):
         self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
                    borrowData['borrowBalanceIncrease'], self.now())
 
-    @payable
-    @external
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int,
                         _sender: Address):
         """
