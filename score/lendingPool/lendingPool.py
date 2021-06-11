@@ -1,6 +1,8 @@
 from .utils.checks import *
 from .utils.Math import *
 
+BATCH_SIZE = 100
+
 
 # An interface to oToken
 class OTokenInterface(InterfaceScore):
@@ -145,12 +147,8 @@ class LendingPool(IconScoreBase):
         self._sIcxAddress = VarDB(self.sICX_ADDRESS, db, value_type=Address)
         self._oIcxAddress = VarDB(self.oICX_ADDRESS, db, value_type=Address)
         self._stakingAddress = VarDB(self.STAKING_ADDRESS, db, value_type=Address)
-        
-
         self._liquidationManagerAddress = VarDB(self.LIQUIDATION_MANAGER_ADDRESS, db, value_type=Address)
         self._originationFeePercent = VarDB(self.ORIGINATION_FEE_PERCENT, db, value_type=int)
-        
-
     def on_install(self) -> None:
         super().on_install()
 
@@ -179,8 +177,6 @@ class LendingPool(IconScoreBase):
     @external
     def setLoanOriginationFeePercentage(self, _percentage: int) -> None:
         self._originationFeePercent.set(_percentage)
-
-    
 
     @external(readonly=True)
     def calculateOriginationFee(self, _amount: int) -> int:
@@ -411,7 +407,6 @@ class LendingPool(IconScoreBase):
                       "Borrow error:Insufficient collateral to cover new borrow")
 
         borrowData: dict = core.updateStateOnBorrow(_reserve, self.msg.sender, _amount, borrowFee)
-
         core.transferToUser(_reserve, self.msg.sender, _amount)
         # self._updateSnapshot(_reserve, self.msg.sender)
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
@@ -452,7 +447,7 @@ class LendingPool(IconScoreBase):
             self.Repay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
                        self.now())
 
-            self._updateSnapshot(_reserve, _sender)
+            # self._updateSnapshot(_reserve, _sender)
             return
 
         paybackAmountMinusFees = paybackAmount - userBasicReserveData['originationFee']
