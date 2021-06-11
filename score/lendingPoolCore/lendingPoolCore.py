@@ -3,7 +3,6 @@ from .UserData import *
 from .Math import *
 from .utils.checks import *
 
-
 RESERVE_DB_PREFIX = b'reserve'
 USER_DB_PREFIX = b'userReserve'
 
@@ -11,7 +10,7 @@ USER_DB_PREFIX = b'userReserve'
 class ReserveAttributes(TypedDict):
     reserveAddress: Address
     oTokenAddress: Address
-    totalBorrows: int
+    dTokenAddress: Address
     lastUpdateTimestamp: int
     liquidityRate: int
     borrowRate: int
@@ -28,29 +27,9 @@ class ReserveAttributes(TypedDict):
 
 
 class UserDataAttributes(TypedDict):
-    reserveAddress: Address
-    userAddress: Address
-    principalBorrowBalance: int
-    userBorrowCumulativeIndex: int
     lastUpdateTimestamp: int
     originationFee: int
     useAsCollateral: bool
-
-
-class UserSnapshotData(TypedDict):
-    principalOTokenBalance: int
-    principalBorrowBalance: int
-    userLiquidityCumulativeIndex: int
-    userBorrowCumulativeIndex: int
-
-
-class ReserveSnapshotData(TypedDict):
-    liquidityRate: int
-    borrowRate: int
-    liquidityCumulativeIndex: int
-    borrowCumulativeIndex: int
-    lastUpdateTimestamp: int
-    price: int
 
 
 class Constant(TypedDict):
@@ -67,7 +46,7 @@ class PrepDelegations(TypedDict):
 
 
 # An interface to oToken
-class oTokenInterface(InterfaceScore):
+class OTokenInterface(InterfaceScore):
     @interface
     def balanceOf(self, _owner: Address) -> int:
         pass
@@ -81,10 +60,34 @@ class oTokenInterface(InterfaceScore):
         pass
 
 
-# An interface to PriceOracle
-class OracleInterface(InterfaceScore):
+# An interface to debt token
+class DTokenInterface(InterfaceScore):
     @interface
-    def get_reference_data(self, _base: str, _quote: str) -> int:
+    def balanceOf(self, _owner: Address) -> int:
+        pass
+
+    @interface
+    def principalBalanceOf(self, _user: Address) -> int:
+        pass
+
+    @interface
+    def mintOnBorrow(self, _user: Address, _amount: int):
+        pass
+
+    @interface
+    def getUserBorrowCumulativeIndex(self, _user: Address) -> int:
+        pass
+
+    @interface
+    def principalTotalSupply(self) -> int:
+        pass
+
+    @interface
+    def burnOnRepay(self, _user: Address, _amount: int):
+        pass
+
+    @interface
+    def burnOnLiquidation(self, _user: Address, _amount: int) -> None:
         pass
 
 
@@ -127,7 +130,6 @@ class LendingPoolCore(IconScoreBase):
         self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
         self._daoFund = VarDB(self._DAOFUND, db, value_type=Address)
-        self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
         self._staking = VarDB(self._STAKING, db, value_type=Address)
         self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
         self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
@@ -198,15 +200,6 @@ class LendingPoolCore(IconScoreBase):
     def getDelegation(self) -> Address:
         return self._delegation.get()
 
-    @only_owner
-    @external
-    def setPriceOracle(self, _address: Address) -> None:
-        self._priceOracle.set(_address)
-
-    @external(readonly=True)
-    def getPriceOracle(self) -> Address:
-        return self._priceOracle.get()
-
     @external(readonly=True)
     def getDaoFund(self) -> Address:
         return self._daoFund.get()
@@ -224,9 +217,9 @@ class LendingPoolCore(IconScoreBase):
 
     # Methods to update the states of a reserve
 
-    def updateTotalBorrows(self, _reserve: Address, _totalBorrows: int):
+    def updateDToken(self, _reserve: Address, _dToken: Address):
         prefix = self.reservePrefix(_reserve)
-        self.reserve[prefix].totalBorrows.set(_totalBorrows)
+        self.reserve[prefix].dTokenAddress.set(_dToken)
 
     def updateLastUpdateTimestamp(self, _reserve: Address, _lastUpdateTimestamp: int):
         prefix = self.reservePrefix(_reserve)
@@ -285,17 +278,6 @@ class LendingPoolCore(IconScoreBase):
         self.reserve[prefix].oTokenAddress.set(_oTokenAddress)
 
     # Update methods for user attributes for a specific reserve
-
-    def updateUserPrincipalBorrowBalance(self, _reserve: Address, _user: Address,
-                                         _principalBorrowBalance: int):
-        prefix = self.userReservePrefix(_reserve, _user)
-        self.userReserve[prefix].principalBorrowBalance.set(_principalBorrowBalance)
-
-    def updateUserBorrowCumulativeIndex(self, _reserve: Address, _user: Address,
-                                        _userBorrowCumulativeIndex: int):
-        prefix = self.userReservePrefix(_reserve, _user)
-        self.userReserve[prefix].userBorrowCumulativeIndex.set(_userBorrowCumulativeIndex)
-
     def updateUserLastUpdateTimestamp(self, _reserve: Address, _user: Address,
                                       _lastUpdateTimestamp: int):
         prefix = self.userReservePrefix(_reserve, _user)
@@ -320,6 +302,16 @@ class LendingPoolCore(IconScoreBase):
         self._reserveList.put(_res)
 
     @external(readonly=True)
+    def getReserveLiquidityCumulativeIndex(self, _reserve: int) -> int:
+        prefix = self.reservePrefix(_reserve)
+        return self.reserve[prefix].liquidityCumulativeIndex.get()
+
+    @external(readonly=True)
+    def getReserveBorrowCumulativeIndex(self, _reserve: int) -> int:
+        prefix = self.reservePrefix(_reserve)
+        return self.reserve[prefix].borrowCumulativeIndex.get()
+
+    @external(readonly=True)
     def isReserveBorrowingEnabled(self, _reserve: Address) -> bool:
         return self.getReserveData(_reserve)['borrowingEnabled']
 
@@ -339,6 +331,7 @@ class LendingPoolCore(IconScoreBase):
             response = getDataFromReserve(prefix, self.reserve)
             response['totalLiquidity'] = self.getReserveTotalLiquidity(_reserve)
             response['availableLiquidity'] = self.getReserveAvailableLiquidity(_reserve)
+            response['totalBorrows'] = self.getReserveTotalBorrows(_reserve)
         else:
             response = {}
         return response
@@ -348,6 +341,7 @@ class LendingPoolCore(IconScoreBase):
         if self._check_reserve(_reserve):
             prefix = self.userReservePrefix(_reserve, _user)
             response = getDataFromUserReserve(prefix, self.userReserve)
+
         else:
             response = {}
         return response
@@ -371,6 +365,13 @@ class LendingPoolCore(IconScoreBase):
         cumulated = exaMul(interest, reserveData['liquidityCumulativeIndex'])
         return cumulated
 
+    @external(readonly=True)
+    def getNormalizedDebt(self, _reserve: Address) -> int:
+        reserveData = self.getReserveData(_reserve)
+        interest = self.calculateCompoundedInterest(reserveData['borrowRate'], reserveData['lastUpdateTimestamp'])
+        cumulated = exaMul(interest, reserveData['borrowCumulativeIndex'])
+        return cumulated
+
     def updateCumulativeIndexes(self, _reserve: Address) -> None:
         reserveData = self.getReserveData(_reserve)
         totalBorrows = reserveData['totalBorrows']
@@ -385,45 +386,21 @@ class LendingPoolCore(IconScoreBase):
             self.updateBorrowCumulativeIndex(_reserve,
                                              exaMul(cumulatedBorrowInterest, reserveData['borrowCumulativeIndex']))
 
-    def _increaseTotalBorrows(self, _reserve: Address, _amount: int) -> None:
-        reserveData = self.getReserveData(_reserve)
-        self.updateTotalBorrows(_reserve, reserveData['totalBorrows'] + _amount)
-
-    def _decreaseTotalBorrows(self, _reserve: Address, _amount: int) -> None:
-        reserveData = self.getReserveData(_reserve)
-        self.updateTotalBorrows(_reserve, reserveData['totalBorrows'] - _amount)
-
-    @external(readonly=True)
-    def getCompoundedBorrowBalance(self, _reserve: Address, _user: Address) -> int:
-        userReserveData = self.getUserReserveData(_reserve, _user)
-        reserveData = self.getReserveData(_reserve)
-        if userReserveData['principalBorrowBalance'] == 0:
-            return 0
-
-        cumulatedInterest = exaDiv(
-            exaMul(self.calculateCompoundedInterest(reserveData['borrowRate'], reserveData['lastUpdateTimestamp']),
-                   reserveData['borrowCumulativeIndex']), userReserveData['userBorrowCumulativeIndex'])
-        compoundedBalance = exaMul(userReserveData['principalBorrowBalance'], cumulatedInterest)
-
-        if compoundedBalance == userReserveData['principalBorrowBalance']:
-            if userReserveData['lastUpdateTimestamp'] != self.now():
-                return userReserveData['principalBorrowBalance'] + 1
-
-        return compoundedBalance
-
     @external(readonly=True)
     def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
         reserveScore = self.create_interface_score(_reserve, ReserveInterface)
         balance = reserveScore.balanceOf(self.address)
         return balance
 
+    # TODO  principal total supply balance
     def getReserveTotalLiquidity(self, _reserve: Address) -> int:
+        return self.getReserveAvailableLiquidity(_reserve) + self.getReserveTotalBorrows(_reserve)
+
+    def getReserveTotalBorrows(self, _reserve: Address) -> int:
         prefix = self.reservePrefix(_reserve)
         reserveData = getDataFromReserve(prefix, self.reserve)
-        return self.getReserveAvailableLiquidity(_reserve) + reserveData['totalBorrows']
-
-    def getReserveNormalizedIncome(self, _reserve: Address) -> int:
-        return self.getNormalizedIncome(_reserve)
+        dToken = self.create_interface_score(reserveData['dToken'], DTokenInterface)
+        return dToken.principalTotalSupply()
 
     def getReserveUtilizationRate(self, _reserve: Address) -> int:
         reserveData = self.getReserveData(_reserve)
@@ -519,13 +496,15 @@ class LendingPoolCore(IconScoreBase):
     @only_lending_pool
     @external
     def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int) -> dict:
-        borrowData = self.getUserBorrowBalances(_reserve, _user)
-        balanceIncrease = borrowData['borrowBalanceIncrease']
+        balanceIncrease = self.getUserBorrowBalances(_reserve, _user)
+        dToken = self.create_interface_score(_reserve, DTokenInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         if balanceIncrease > 0:
             reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
         self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
-        self.updateReserveStateOnBorrowInternal(_reserve, balanceIncrease, _amountBorrowed)
+        # self.updateReserveStateOnBorrowInternal(_reserve, balanceIncrease, _amountBorrowed)
+        self.updateCumulativeIndexes(_reserve)
+        dToken.mintOnBorrow(_user, _amountBorrowed)
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountBorrowed)
         currentBorrowRate = self.getCurrentBorrowRate(_reserve)
@@ -540,18 +519,18 @@ class LendingPoolCore(IconScoreBase):
     def updateStateOnRepay(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
                            _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
         reserve = self.create_interface_score(_reserve, ReserveInterface)
+        dToken = self.create_interface_score(self.getReserveData(_reserve)['dTokenAddress'], DTokenInterface)
         if _balanceIncrease > 0:
             reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
         self.DaoFundTransfer(_balanceIncrease // 10, _reserve, self.tx.origin)
-        self.updateReserveStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _balanceIncrease)
+        self.updateCumulativeIndexes(_reserve)
+        dToken.burnOnRepay(_user, _paybackAmountMinusFees)
+        # self.updateReserveStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _balanceIncrease)
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
                                             _balanceIncrease, _repaidWholeLoan)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, _paybackAmountMinusFees, 0)
 
-    def updateReserveStateOnBorrowInternal(self, _reserve: Address, _balanceIncrease: int, _amountBorrowed: int):
-        self.updateCumulativeIndexes(_reserve)
-        self.updateReserveTotalBorrows(_reserve, _balanceIncrease, _amountBorrowed)
-
+    # TODO remove
     def updateReserveStateOnRepayInternal(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
                                           _balanceIncrease: int):
         self.updateCumulativeIndexes(_reserve)
@@ -560,27 +539,14 @@ class LendingPoolCore(IconScoreBase):
         newTotalBorrows = totalBorrows + _balanceIncrease - _paybackAmountMinusFees
         self.updateTotalBorrows(_reserve, newTotalBorrows)
 
-    def updateReserveTotalBorrows(self, _reserve: Address, _balanceIncrease: int, _amountBorrowed: int):
-
-        reserveData = self.getReserveData(_reserve)
-        reserveBorrows = reserveData['totalBorrows']
-        newTotalBorrows = reserveBorrows + _balanceIncrease + _amountBorrowed
-        self.updateTotalBorrows(_reserve, newTotalBorrows)
-
     def getCurrentBorrowRate(self, _reserve: Address) -> int:
         reserveData = self.getReserveData(_reserve)
         return reserveData['borrowRate']
 
     def updateUserStateOnBorrowInternal(self, _reserve: Address, _user: Address, _amountBorrowed: int,
                                         _balanceIncrease: int, _borrowFee: int):
-        reserveData = self.getReserveData(_reserve)
         userReserveData = self.getUserReserveData(_reserve, _user)
-        principalBorrowBalance = userReserveData['principalBorrowBalance']
         userPreviousOriginationFee = userReserveData['originationFee']
-        lastReserveBorrowCumulativeIndex = reserveData['borrowCumulativeIndex']
-        self.updateUserBorrowCumulativeIndex(_reserve, _user, lastReserveBorrowCumulativeIndex)
-        self.updateUserPrincipalBorrowBalance(_reserve, _user,
-                                              principalBorrowBalance + _amountBorrowed + _balanceIncrease)
         self.updateUserOriginationFee(_reserve, _user, userPreviousOriginationFee + _borrowFee)
         self.updateUserLastUpdateTimestamp(_reserve, _user, self.now())
 
@@ -611,6 +577,7 @@ class LendingPoolCore(IconScoreBase):
         reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
         self.updatePrincipalReserveStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate,
                                                               _balanceIncrease)
+
         self.updateCollateralReserveStateOnLiquidationInternal(_collateralReserve)
         self.updateUserStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate, _feeLiquidated,
                                                   _balanceIncrease)
@@ -621,18 +588,20 @@ class LendingPoolCore(IconScoreBase):
     def updatePrincipalReserveStateOnLiquidationInternal(self, _principalReserve: Address, _user: Address,
                                                          _amountToLiquidate: int, _balanceIncrease: int) -> None:
         reserveData = self.getReserveData(_principalReserve)
-        self.updateTotalBorrows(_principalReserve, reserveData['totalBorrows'] + _balanceIncrease - _amountToLiquidate)
+        dToken = self.create_interface_score(reserveData['dTokenAddress'], DTokenInterface)
+        dToken.burnOnLiquidation(_user, _amountToLiquidate)
+        # self.updateTotalBorrows(_principalReserve, reserveData['totalBorrows'] + _balanceIncrease - _amountToLiquidate)
 
     def updateCollateralReserveStateOnLiquidationInternal(self, _collateralReserve: Address) -> None:
         self.updateCumulativeIndexes(_collateralReserve)
 
     def updateUserStateOnLiquidationInternal(self, _reserve: Address, _user: Address, _amountToLiquidate: int,
                                              _feeLiquidated: int, _balanceIncrease: int) -> None:
-        reserveData = self.getReserveData(_reserve)
+        # reserveData = self.getReserveData(_reserve)
         userData = self.getUserReserveData(_reserve, _user)
-        self.updateUserPrincipalBorrowBalance(_reserve, _user, userData[
-            'principalBorrowBalance'] - _amountToLiquidate + _balanceIncrease)
-        self.updateUserBorrowCumulativeIndex(_reserve, _user, reserveData['borrowCumulativeIndex'])
+        # self.updateUserPrincipalBorrowBalance(_reserve, _user, userData[
+        #     'principalBorrowBalance'] - _amountToLiquidate + _balanceIncrease)
+        # self.updateUserBorrowCumulativeIndex(_reserve, _user, reserveData['borrowCumulativeIndex'])
 
         if _feeLiquidated > 0:
             self.updateUserOriginationFee(_reserve, _user, userData['originationFee'] - _feeLiquidated)
@@ -645,8 +614,15 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def getUserUnderlyingAssetBalance(self, _reserve: Address, _user: Address) -> int:
         reserveData = self.getReserveData(_reserve)
-        oToken = self.create_interface_score(reserveData['oTokenAddress'], oTokenInterface)
+        oToken = self.create_interface_score(reserveData['oTokenAddress'], OTokenInterface)
         balance = oToken.balanceOf(_user)
+        return balance
+
+    @external(readonly=True)
+    def getUserUnderlyingBorrowBalance(self, _reserve: Address, _user: Address) -> int:
+        reserveData = self.getReserveData(_reserve)
+        dToken = self.create_interface_score(reserveData['dTokenAddress'], OTokenInterface)
+        balance = dToken.balanceOf(_user)
         return balance
 
     @external(readonly=True)
@@ -658,15 +634,8 @@ class LendingPoolCore(IconScoreBase):
     def getUserBasicReserveData(self, _reserve: Address, _user: Address) -> dict:
         userReserveData = self.getUserReserveData(_reserve, _user)
         underlyingBalance = self.getUserUnderlyingAssetBalance(_reserve, _user)
-        if userReserveData['principalBorrowBalance'] == 0:
-            return {
-                'underlyingBalance': underlyingBalance,
-                'compoundedBorrowBalance': 0,
-                'originationFee': 0,
-                'useAsCollateral': userReserveData['useAsCollateral']
-            }
-
-        compoundedBorrowBalance = self.getCompoundedBorrowBalance(_reserve, _user)
+        compoundedBorrowBalance = self.getUserUnderlyingBorrowBalance(_reserve, _user)
+        # compoundedBorrowBalance = self.getCompoundedBorrowBalance(_reserve, _user)
         return {
             'underlyingBalance': underlyingBalance,
             'compoundedBorrowBalance': compoundedBorrowBalance,
@@ -676,15 +645,16 @@ class LendingPoolCore(IconScoreBase):
 
     @external(readonly=True)
     def getUserBorrowBalances(self, _reserve: Address, _user: Address) -> dict:
-        userReserveData = self.getUserReserveData(_reserve, _user)
-        principalBorrowBalance = userReserveData['principalBorrowBalance']
+        reserveData = self.getReserveData(_reserve)
+        dToken = self.create_interface_score(reserveData['dTokenAddress'], DTokenInterface)
+        principalBorrowBalance = dToken.principalBalanceOf(_user)
         if principalBorrowBalance == 0:
             return {
                 "principalBorrowBalance": 0,
                 "compoundedBorrowBalance": 0,
                 "borrowBalanceIncrease": 0
             }
-        compoundedBorrowBalance = self.getCompoundedBorrowBalance(_reserve, _user)
+        compoundedBorrowBalance = dToken.balanceOf(_user)
         borrowBalanceIncrease = compoundedBorrowBalance - principalBorrowBalance
         return {
             "principalBorrowBalance": principalBorrowBalance,
