@@ -53,6 +53,20 @@ class oTokenInterface(InterfaceScore):
         pass
 
 
+# An interface to oToken
+class dTokenInterface(InterfaceScore):
+    @interface
+    def balanceOf(self, _owner: Address) -> int:
+        pass
+
+    @interface
+    def getUserBorrowCumulativeIndex(self, _user: Address) -> int:
+        pass
+
+    @interface
+    def principalBalanceOf(self, _user: Address) -> int:
+        pass
+
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
     @interface
@@ -293,18 +307,22 @@ class LendingPoolDataProvider(IconScoreBase):
     def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
         core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
         reserveData = core.getReserveData(_reserve)
-        userReserveData = core.getUserReserveData(_reserve, _user)
+        dToken = self.create_interface_score(reserveData['dTokenAddress'], dTokenInterface)
         oToken = self.create_interface_score(reserveData['oTokenAddress'], oTokenInterface)
+        userReserveData = core.getUserReserveData(_reserve, _user)
         currentOTokenBalance = oToken.balanceOf(_user)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
         userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        principalBorrowBalance = userReserveData['principalBorrowBalance']
-        currentBorrowBalance = core.getCompoundedBorrowBalance(_reserve, _user)
+        # principalBorrowBalance = userReserveData['principalBorrowBalance']
+        principalBorrowBalance = dToken.principalBalanceOf(_user)
+        # currentBorrowBalance = core.getCompoundedBorrowBalance(_reserve, _user)
+        currentBorrowBalance = dToken.balanceOf(_user)
         borrowRate = reserveData['borrowRate']
         reserveDecimals = reserveData['decimals']
         liquidityRate = reserveData['liquidityRate']
         originationFee = userReserveData['originationFee']
-        userBorrowCumulativeIndex = userReserveData['userBorrowCumulativeIndex']
+        # userBorrowCumulativeIndex = userReserveData['userBorrowCumulativeIndex']
+        userBorrowCumulativeIndex = dToken.getUserBorrowCumulativeIndex(_user)
         lastUpdateTimestamp = userReserveData['lastUpdateTimestamp']
         useAsCollateral = userReserveData['useAsCollateral']
         price_provider = self.create_interface_score(self._priceOracle.get(), OracleInterface)
