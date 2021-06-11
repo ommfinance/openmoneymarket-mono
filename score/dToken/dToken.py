@@ -310,6 +310,8 @@ class DToken(IconScoreBase, TokenStandard):
         :param amount: Number of tokens to be created at the `account`.
 
         """
+        if data is None:
+            data = b'mint'
 
         if amount < 0:
             revert(f'{TAG}: ',
@@ -319,7 +321,7 @@ class DToken(IconScoreBase, TokenStandard):
         self._balances[account] += amount
 
         # Emits an event log Mint
-        self.Transfer(ZERO_SCORE_ADDRESS, account, amount, b'mint')
+        self.Transfer(ZERO_SCORE_ADDRESS, account, amount, data)
         self.Mint(account, amount)
 
     def _burn(self, account: Address, amount: int, data: bytes = None) -> None:
@@ -331,7 +333,8 @@ class DToken(IconScoreBase, TokenStandard):
         :param amount: The `amount` of tokens of `account` to be destroyed.
 
         """
-
+        if data is None:
+            data = b'burn'
         if amount <= 0:
             revert(f'{TAG}: ',
                    f'Invalid value: {amount} to burn')
