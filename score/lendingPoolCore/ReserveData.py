@@ -6,7 +6,7 @@ class ReserveData(object):
     def __init__(self, db: IconScoreDatabase) -> None:
         self.reserveAddress = VarDB('id', db, Address)
         self.oTokenAddress = VarDB('oToken', db, Address)
-        self.totalBorrows = VarDB('totalBorrow', db, int)
+        self.dTokenAddress = VarDB('dToken', db, Address)
         self.lastUpdateTimestamp = VarDB('lastUpdateTimestamp', db, int)
         self.liquidityRate = VarDB('liquidityRate', db, int)
         self.borrowRate = VarDB('borrowRate', db, int)
@@ -38,31 +38,11 @@ class ReserveDataDB:
     def __setitem__(self, key, value):
         revert('illegal access')
 
-    # def addToReserve(self,_prefix:bytes,reserveData:'ReserveDataObject'):
-    #     self._items[_prefix].totalBorrows.set(reserveData.totalBorrows)
-    #     # _reserve[_prefix].totalBorrows.set(reserveData.totalBorrows)
-    #     # _reserve[prefix].reserveAddress.set(reserveData.reserveAddress)
-    #     # _reserve[prefix].oTokenAddress.set(reserveData.oTokenAddress)
-    #     # _reserve[prefix].totalBorrows.set(reserveData.totalBorrows)
-    #     # _reserve[prefix].lastUpdateTimestamp.set(reserveData.lastUpdateTimestamp)
-    #     # _reserve[prefix].liquidityRate.set(reserveData.liquidityRate)
-    #     # _reserve[prefix].borrowRate.set(reserveData.borrowRate)
-    #     # _reserve[prefix].liquidityCumulativeIndex.set(reserveData.liquidityCumulativeIndex)
-    #     # _reserve[prefix].baseLTVasCollateral.set(reserveData.baseLTVasCollateral)
-    #     # _reserve[prefix].liquidationThreshold.set(reserveData.liquidationThreshold)
-    #     # _reserve[prefix].liquidationBonus.set(reserveData.liquidationBonus)
-    #     # _reserve[prefix].decimals.set(reserveData.decimals)
-    #     # _reserve[prefix].borrowingEnabled.set(reserveData.borrowingEnabled)
-    #     # _reserve[prefix].usageAsCollateralEnabled.set(reserveData.usageAsCollateralEnabled),
-    #     # _reserve[prefix].isFreezed.set(reserveData.isFreezed)
-    #     # _reserve[prefix].isActive.set(reserveData.isActive)
-
 
 def addDataToReserve(prefix: bytes, _reserve: 'ReserveDataDB', reserveData: 'ReserveDataObject'):
-    _reserve[prefix].totalBorrows.set(reserveData.totalBorrows)
+    _reserve[prefix].dTokenAddress.set(reserveData.dTokenAddress)
     _reserve[prefix].reserveAddress.set(reserveData.reserveAddress)
     _reserve[prefix].oTokenAddress.set(reserveData.oTokenAddress)
-    _reserve[prefix].totalBorrows.set(reserveData.totalBorrows)
     _reserve[prefix].lastUpdateTimestamp.set(reserveData.lastUpdateTimestamp)
     _reserve[prefix].liquidityRate.set(reserveData.liquidityRate)
     _reserve[prefix].borrowRate.set(reserveData.borrowRate)
@@ -81,7 +61,7 @@ def addDataToReserve(prefix: bytes, _reserve: 'ReserveDataDB', reserveData: 'Res
 def getDataFromReserve(prefix: bytes, _reserve: 'ReserveDataDB') -> dict:
     reserveAddress = _reserve[prefix].reserveAddress.get()
     oTokenAddress = _reserve[prefix].oTokenAddress.get()
-    totalBorrows = _reserve[prefix].totalBorrows.get()
+    dTokenAddress = _reserve[prefix].dTokenAddress.get()
     lastUpdateTimestamp = _reserve[prefix].lastUpdateTimestamp.get()
     liquidityRate = _reserve[prefix].liquidityRate.get()
     borrowRate = _reserve[prefix].borrowRate.get()
@@ -98,7 +78,7 @@ def getDataFromReserve(prefix: bytes, _reserve: 'ReserveDataDB') -> dict:
     return {
         'reserveAddress': reserveAddress,
         'oTokenAddress': oTokenAddress,
-        'totalBorrows': totalBorrows,
+        'dTokenAddress': dTokenAddress,
         'lastUpdateTimestamp': lastUpdateTimestamp,
         'liquidityRate': liquidityRate,
         'borrowRate': borrowRate,
@@ -119,7 +99,7 @@ def createReserveDataObject(reserveData: dict) -> 'ReserveDataObject':
     return ReserveDataObject(
         reserveAddress=reserveData['reserveAddress'],
         oTokenAddress=reserveData['oTokenAddress'],
-        totalBorrows=reserveData['totalBorrows'],
+        dTokenAddress=reserveData['dTokenAddress'],
         lastUpdateTimestamp=reserveData['lastUpdateTimestamp'],
         liquidityRate=reserveData['liquidityRate'],
         borrowRate=reserveData['borrowRate'],
@@ -141,7 +121,7 @@ class ReserveDataObject(object):
     def __init__(self, **kwargs) -> None:
         self.reserveAddress = kwargs.get('reserveAddress')
         self.oTokenAddress = kwargs.get('oTokenAddress')
-        self.totalBorrows = kwargs.get('totalBorrows')
+        self.dTokenAddress = kwargs.get('dTokenAddress')
         self.lastUpdateTimestamp = kwargs.get('lastUpdateTimestamp')
         self.liquidityRate = kwargs.get('liquidityRate')
         self.borrowRate = kwargs.get('borrowRate')
