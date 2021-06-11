@@ -502,7 +502,6 @@ class LendingPoolCore(IconScoreBase):
         if balanceIncrease > 0:
             reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
         self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
-        # self.updateReserveStateOnBorrowInternal(_reserve, balanceIncrease, _amountBorrowed)
         self.updateCumulativeIndexes(_reserve)
         dToken.mintOnBorrow(_user, _amountBorrowed)
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
@@ -525,19 +524,9 @@ class LendingPoolCore(IconScoreBase):
         self.DaoFundTransfer(_balanceIncrease // 10, _reserve, self.tx.origin)
         self.updateCumulativeIndexes(_reserve)
         dToken.burnOnRepay(_user, _paybackAmountMinusFees)
-        # self.updateReserveStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _balanceIncrease)
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
                                             _balanceIncrease, _repaidWholeLoan)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, _paybackAmountMinusFees, 0)
-
-    # TODO remove
-    def updateReserveStateOnRepayInternal(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
-                                          _balanceIncrease: int):
-        self.updateCumulativeIndexes(_reserve)
-        reserveData = self.getReserveData(_reserve)
-        totalBorrows = reserveData['totalBorrows']
-        newTotalBorrows = totalBorrows + _balanceIncrease - _paybackAmountMinusFees
-        self.updateTotalBorrows(_reserve, newTotalBorrows)
 
     def getCurrentBorrowRate(self, _reserve: Address) -> int:
         reserveData = self.getReserveData(_reserve)
@@ -552,14 +541,8 @@ class LendingPoolCore(IconScoreBase):
 
     def updateUserStateOnRepayInternal(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
                                        _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
-        reserveData = self.getReserveData(_reserve)
-        userReserveData = self.getUserReserveData(_reserve, _user)
-        self.updateUserPrincipalBorrowBalance(_reserve, _user, userReserveData[
-            'principalBorrowBalance'] + _balanceIncrease - _paybackAmountMinusFees)
-        self.updateUserBorrowCumulativeIndex(_reserve, _user, reserveData['borrowCumulativeIndex'])
-        if _repaidWholeLoan:
-            self.updateUserBorrowCumulativeIndex(_reserve, _user, 0)
 
+        userReserveData = self.getUserReserveData(_reserve, _user)
         self.updateUserOriginationFee(_reserve, _user, userReserveData['originationFee'] - _originationFeeRepaid)
         self.updateUserLastUpdateTimestamp(_reserve, _user, self.now())
 
