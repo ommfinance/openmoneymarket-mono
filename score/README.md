@@ -1,4 +1,4 @@
-Open Money Market Pool primary SCOREs
+##Open Money Market Pool primary SCOREs
 
 1. LendingPool
 
@@ -27,3 +27,44 @@ Open Money Market Pool primary SCOREs
 9. oToken
 
    Interest bearing redeem tokens to represent the collatral deposited. oUSDb to represent USDb deposited. oICX to represent ICX.
+
+
+
+## How to run tests
+
+- Assuming you're in score directory.
+- copy `.env.test.sample` and create `.env.test` with appropriate value
+   - `T_BEARS_URL` - t-bears url 
+   - `SCORE_ADDRESS_PATH` - path to deployed score address json 
+- To run docker t-bears
+```shell
+docker-compose up -d --build && docker logs -f omm-tbears
+```
+- Install dependencies for tests
+```shell
+pip install -r tests/config/test_requirement.txt
+``` 
+- To run all tests
+```shell
+tbears test tests
+```
+
+- To initialize P-Reps on T-Bears service
+```shell
+T_BEARS_URL=http://18.237.205.52:9000/ python3 -m unittest tests.config.register_preps.RegisterPReps
+```
+
+
+- To run individual test
+```shell
+python3 -m unittest tests.integration_test.test_integrate_icx_cases.ICXTest
+```
+
+
+## 💡**FYI**
+
+- If you get `is inactive SCORE` JSONRPCException, please remove score address json file and try again.
+- To clear t-bears (all score), first remove score address json file and use following command
+```shell
+docker restart omm-tbears
+```

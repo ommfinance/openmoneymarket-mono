@@ -533,7 +533,7 @@ class Rewards(IconScoreBase):
             self._distComplete[value] = False
             self._tokenDistTracker[value] = exaMul(tokenDistributionPerDay, self._distPercentage[value])
 
-        
+
 
     def _depositBalance(self, _reserve: Address, _user: Address) -> int:
         day: int = self._day.get()
