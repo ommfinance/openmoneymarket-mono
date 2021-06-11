@@ -306,12 +306,6 @@ class LiquidationManager(IconScoreBase):
         collateralOtokenAddress = core.getReserveOTokenAddress(_collateral)
         collateralOtoken = self.create_interface_score(collateralOtokenAddress, OtokenInterface)
         collateralOtoken.burnOnLiquidation(_user, maxCollateralToLiquidate)
-        # core.transferToUser(_collateral, self.msg.sender, maxCollateralToLiquidate)
-        # # have a deeper look at this part (transferring principal currency to the pool)
-        #
-        # principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
-        # principalCurrency.transfer(self.getLendingPoolCore(), actualAmountToLiquidate)
-
         if feeLiquidated > 0:
             collateralOtoken.burnOnLiquidation(_user, liquidatedCollateralForFee)
             # the liquidated fee is sent to fee provider
