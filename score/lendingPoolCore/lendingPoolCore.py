@@ -577,7 +577,6 @@ class LendingPoolCore(IconScoreBase):
                                                          _amountToLiquidate: int, _balanceIncrease: int) -> None:
         reserveData = self.getReserveData(_principalReserve)
         dToken = self.create_interface_score(reserveData['dTokenAddress'], DTokenInterface)
-        # revert(f"LendingPoolCore: dToken: {dToken}, current Address: {self.address}")
         dToken.burnOnLiquidation(_user, _amountToLiquidate)
         # self.updateTotalBorrows(_principalReserve, reserveData['totalBorrows'] + _balanceIncrease - _amountToLiquidate)
 
