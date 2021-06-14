@@ -109,7 +109,6 @@ class OmmUtils(OMMTestBase):
 
 		repay_data = {'method': 'repay', 'params': {'amount': _repayAmount}}
 		data = json.dumps(repay_data).encode('utf-8')
-		print(self.contracts['lendingPool'])
 
 		params = {"_to": self.contracts['lendingPool'],
 				"_value": _repayAmount, 

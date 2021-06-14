@@ -104,6 +104,7 @@ class OMMTestBase(TestUtils):
             self.contracts = json.load(file)
         for contract in RE_DEPLOY_CONTRACT:
             self._update_contract(contract)
+        # self._update_token_contract("dToken", "dICX")
         # self._update_token_contract("dToken", "dUSDS")
 
     def _deploy_contracts(self):

@@ -497,7 +497,7 @@ class LendingPoolCore(IconScoreBase):
     @external
     def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int) -> dict:
         balanceIncrease = self.getUserBorrowBalances(_reserve, _user)['borrowBalanceIncrease']
-        dToken = self.create_interface_score(self.getReserveOTokenAddress(_reserve), DTokenInterface)
+        dToken = self.create_interface_score(self.getReserveDTokenAddress(_reserve), DTokenInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         if balanceIncrease > 0:
             reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
@@ -549,6 +549,11 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def getReserveOTokenAddress(self, _reserve: Address) -> Address:
         reserveData = self.getReserveData(_reserve)
+        return reserveData['oTokenAddress']
+
+    @external(readonly=True)
+    def getReserveDTokenAddress(self, _reserve: Address) -> Address:
+        reserveData = self.getReserveData(_reserve)
         return reserveData['dTokenAddress']
 
     @only_liquidation_manager
@@ -572,6 +577,7 @@ class LendingPoolCore(IconScoreBase):
                                                          _amountToLiquidate: int, _balanceIncrease: int) -> None:
         reserveData = self.getReserveData(_principalReserve)
         dToken = self.create_interface_score(reserveData['dTokenAddress'], DTokenInterface)
+        # revert(f"LendingPoolCore: dToken: {dToken}, current Address: {self.address}")
         dToken.burnOnLiquidation(_user, _amountToLiquidate)
         # self.updateTotalBorrows(_principalReserve, reserveData['totalBorrows'] + _balanceIncrease - _amountToLiquidate)
 

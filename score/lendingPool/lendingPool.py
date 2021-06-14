@@ -133,7 +133,7 @@ class LendingPool(IconScoreBase):
     SNAPSHOT = 'snapshot'
     DAO_FUND = 'daoFund'
     ORIGINATION_FEE_PERCENT = 'originationFeePercentage'
-    REWARDS_DISTRIBUTION = 'rewardsDistrinution'
+    REWARDS_DISTRIBUTION = 'rewardsDistribution'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -149,6 +149,7 @@ class LendingPool(IconScoreBase):
         self._stakingAddress = VarDB(self.STAKING_ADDRESS, db, value_type=Address)
         self._liquidationManagerAddress = VarDB(self.LIQUIDATION_MANAGER_ADDRESS, db, value_type=Address)
         self._originationFeePercent = VarDB(self.ORIGINATION_FEE_PERCENT, db, value_type=int)
+        
     def on_install(self) -> None:
         super().on_install()
 
