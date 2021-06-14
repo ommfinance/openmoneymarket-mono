@@ -99,7 +99,7 @@ class OmmUtils(OMMTestBase):
 
 		tx_result = self.send_tx(
 			from_=_from,
-			to=self.contracts["oUSDs"],
+			to=self.contracts["oUSDS"],
 			method="redeem",
 			params=params
 			)
