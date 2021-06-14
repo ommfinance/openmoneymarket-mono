@@ -1,7 +1,7 @@
 from pprint import pprint
 from iconsdk.wallet.wallet import KeyWallet
 from .test_integrate_omm_utils import OmmUtils
-from ..actions.user_all_txn_usds_reserve import ACTIONS as USDB_CASES
+from ..actions.user_all_txn_usds_reserve import ACTIONS as USDS_CASES
 from ..actions.user_all_txn_icx_reserve import ACTIONS as ICX_CASES
 from ..actions.user_all_txns_multiple_reserve import ACTIONS as BOTH_CASES
 from ..actions.steps import Steps
@@ -25,7 +25,7 @@ def exaDiv(a: int, b: int) -> int:
 def exaMul(a: int, b: int) -> int:
     return (halfEXA + (a * b)) // EXA
 
-class OMMTestCases(OmmUtils):
+class OMMBaseTestCases(OmmUtils):
 	def setUp(self):
 		super().setUp()
 
@@ -33,7 +33,7 @@ class OMMTestCases(OmmUtils):
 		self._execute(ICX_CASES)
 
 	def test_02_usds_cases(self):
-		self._execute(USDB_CASES)
+		self._execute(USDS_CASES)
 
 	def test_03_multi_reserve_cases(self):
 		self._execute(BOTH_CASES)
@@ -130,7 +130,7 @@ class OMMTestCases(OmmUtils):
 			)
 
 		self.values[key][self.user]['balances']['ousds'] = self.call_tx(
-				to=self.contracts['oUSDs'], 
+				to=self.contracts['oUSDS'], 
 				method="balanceOf",
 				params={'_owner': self._user.get_address()}
 			)
@@ -578,9 +578,10 @@ class OMMTestCases(OmmUtils):
 				_int(sicx_reserve_data_after['availableLiquidity']),
 				_int(sicx_reserve_data_before['availableLiquidity'])
 				)
-		self.assertGreaterEqual( 
-				_int(sicx_reserve_data_after['totalLiquidity']),
-				_int(sicx_reserve_data_before['totalLiquidity']))
+		self.assertAlmostEqual( 
+				_dec(sicx_reserve_data_after['totalLiquidity']),
+				_dec(sicx_reserve_data_before['totalLiquidity']),
+				0)
 
 		self.assertGreaterEqual(
 				_int(sicx_reserve_data_before['totalBorrows']),

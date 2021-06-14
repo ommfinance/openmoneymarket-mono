@@ -84,10 +84,11 @@ def convertExaToOther(_amount: int, _decimals: int) -> int:
 class OMMTestBase(TestUtils):
     DIR = ROOT
 
-    CONTRACTS = ['addressProvider', 'daoFund', 'delegation', 'governance', 'lendingPool',
+    CONTRACTS = ['addressProvider', 'daoFund', 'delegation', 'lendingPool',
                  'lendingPoolCore', 'lendingPoolDataProvider', 'liquidationManager',
-                 'ommToken', 'priceOracle', 'rewards', 'snapshot', 'worker_token']
-    OTOKENS = ['oUSDs', 'oICX']
+                 'ommToken', 'priceOracle']
+    OTOKENS = ['oUSDS', 'oICX']
+    DTOKENS = ['dUSDS', 'dICX']
 
     def setUp(self):
         self._wallet_setup()
@@ -103,10 +104,12 @@ class OMMTestBase(TestUtils):
             self.contracts = json.load(file)
         for contract in RE_DEPLOY_CONTRACT:
             self._update_contract(contract)
+        # self._update_token_contract("dToken", "dICX")
+        # self._update_token_contract("dToken", "dUSDS")
 
     def _deploy_contracts(self):
         if os.path.exists(SCORE_ADDRESS_PATH) is False:
-            print(f'{SCORE_ADDRESS_PATH} is not exists')
+            print(f'{SCORE_ADDRESS_PATH} does not exists')
             self._deploy_all()
             self._deploy_helper_contracts()
             self._config_omm()
@@ -167,7 +170,7 @@ class OMMTestBase(TestUtils):
         # param3 = {"_name":"IconUSDInterest","_symbol":"oIUSDC","_decimals":6}
         deploy_oUSDs = self.build_deploy_tx(
             from_=self.deployer_wallet,
-            to=self.contracts.get("oUSDs", SCORE_INSTALL_ADDRESS),
+            to=self.contracts.get("oUSDS", SCORE_INSTALL_ADDRESS),
             content=os.path.abspath(os.path.join(self.DIR, "oToken")),
             params=param1
         )
@@ -187,6 +190,24 @@ class OMMTestBase(TestUtils):
         otxns.append(deploy_oICX)
         # otxns.append(deploy_oIUSDc)
 
+        dtxns = []
+        param1 = {"_name":"Omm USDS Debt Token","_symbol":"dUSDS"}
+        param2 = {"_name":"Omm ICX Debt Token","_symbol":"dICX"}
+        deploy_dUSDS = self.build_deploy_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts.get("dUSDS", SCORE_INSTALL_ADDRESS),
+            content=os.path.abspath(os.path.join(self.DIR, "dToken")),
+            params=param1
+        )
+        deploy_dICX = self.build_deploy_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts.get("dICX", SCORE_INSTALL_ADDRESS),
+            content=os.path.abspath(os.path.join(self.DIR, "dToken")),
+            params=param2
+        )
+        dtxns.append(deploy_dUSDS)
+        dtxns.append(deploy_dICX)
+
         results = self.process_transaction_bulk(
             requests=txns,
             network=self.icon_service,
@@ -195,6 +216,12 @@ class OMMTestBase(TestUtils):
 
         oresults = self.process_transaction_bulk(
             requests=otxns,
+            network=self.icon_service,
+            block_confirm_interval=self.tx_result_wait
+        )
+
+        dresults = self.process_transaction_bulk(
+            requests=dtxns,
             network=self.icon_service,
             block_confirm_interval=self.tx_result_wait
         )
@@ -211,6 +238,12 @@ class OMMTestBase(TestUtils):
             self.assertEqual(1, tx_result['status'],
                              f"Failure: {tx_result['failure']}" if tx_result['status'] == 0 else "")
             self.contracts[self.OTOKENS[idx]] = tx_result[SCORE_ADDRESS]
+
+        for idx, tx_result in enumerate(dresults):
+            self.assertTrue('status' in tx_result, tx_result)
+            self.assertEqual(1, tx_result['status'],
+                             f"Failure: {tx_result['failure']}" if tx_result['status'] == 0 else "")
+            self.contracts[self.DTOKENS[idx]] = tx_result[SCORE_ADDRESS]
 
         with open(SCORE_ADDRESS_PATH, "w") as file:
             json.dump(self.contracts, file, indent=4)
@@ -281,6 +314,20 @@ class OMMTestBase(TestUtils):
         tx_result = self.icon_service.get_transaction_result(_tx_hash)
         return tx_result
 
+    def _update_token_contract(self, contract, token):
+        content = os.path.abspath(os.path.join(self.DIR, contract))
+        update_contract = self.build_deploy_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts.get(token),
+            content=content,
+            params = {}
+            )
+
+        tx_hash = self.process_transaction(update_contract, self.icon_service)
+        tx_result = self.get_tx_result(tx_hash['txHash'])
+        self.assertEqual(True, tx_hash['status'])
+        self.assertTrue('scoreAddress' in tx_result)
+
     def _update_contract(self, contract):
 
         content = os.path.abspath(os.path.join(self.DIR, contract))
@@ -329,11 +376,12 @@ class OMMTestBase(TestUtils):
         self._config_ommToken()
         self._config_lendingPoolCore()
         # self._config_priceOracle()
-        self._config_snapshot()
-        self._config_rewards()
-        self._config_governance()
+        # self._config_snapshot()
+        # self._config_rewards()
+        # self._config_governance()
         self._add_reserves_to_lendingPoolCore()
         self._config_staking()
+        self._config_debt_tokens()
 
     def _config_lendingPool(self):
         print(
@@ -351,12 +399,12 @@ class OMMTestBase(TestUtils):
              'params': {'_address': contracts['staking']}},
             {'contract': 'lendingPool', 'method': 'setOICX',
              'params': {'_address': contracts['oICX']}},
-            {'contract': 'lendingPool', 'method': 'setReward',
-             'params': {'_address': contracts['rewards']}},
+            # {'contract': 'lendingPool', 'method': 'setReward',
+            #  'params': {'_address': contracts['rewards']}},
             {'contract': 'lendingPool', 'method': 'setDaoFund',  #
              'params': {'_address': contracts['daoFund']}},
-            {'contract': 'lendingPool', 'method': 'setSnapshot',  #
-             'params': {'_address': contracts['snapshot']}},
+            # {'contract': 'lendingPool', 'method': 'setSnapshot',  #
+            #  'params': {'_address': contracts['snapshot']}},
             {'contract': 'lendingPool', 'method': 'setSICX',
              'params': {'_address': contracts['sicx']}},
             {'contract': 'lendingPool', 'method': 'setLoanOriginationFeePercentage',
@@ -371,22 +419,24 @@ class OMMTestBase(TestUtils):
             "-------------------------------Configuring LENDING POOL DATA PROVIDER----------------------------------------------------")
 
         contracts = self.contracts
-        settings_lendinPoolDataProvider = [{'contract': 'lendingPoolDataProvider', 'method': 'setSymbol',
-                                            'params': {'_reserve': contracts['usds'], '_sym': "USDs"}},
-                                           {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol',
-                                            'params': {'_reserve': contracts['sicx'], '_sym': "ICX"}},
-                                           # {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params':{'_reserve': contracts['iusdc'],'_sym':"USDC"}},
-                                           {'contract': 'lendingPoolDataProvider', 'method': 'setLendingPoolCore',
-                                            'params': {'_address': contracts['lendingPoolCore']}},
-                                           {'contract': 'lendingPoolDataProvider', 'method': 'setPriceOracle',
-                                            'params': {'_address': contracts['priceOracle']}},
-                                           {'contract': 'lendingPoolDataProvider', 'method': 'setLendingPool',
-                                            'params': {'_address': contracts['lendingPool']}},
-                                           {'contract': 'lendingPoolDataProvider', 'method': 'setLiquidationManager',
-                                            'params': {'_address': contracts['liquidationManager']}},
-                                           {'contract': 'lendingPoolDataProvider', 'method': 'setStaking',
-                                            'params': {'_address': contracts['staking']}}
-                                           ]
+        settings_lendinPoolDataProvider = [
+            {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol',
+            'params': {'_reserve': contracts['usds'], '_sym': "USDs"}},
+            {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol',
+            'params': {'_reserve': contracts['sicx'], '_sym': "ICX"}},
+            # {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 
+            # 'params':{'_reserve': contracts['iusdc'],'_sym':"USDC"}},
+            {'contract': 'lendingPoolDataProvider', 'method': 'setLendingPoolCore',
+            'params': {'_address': contracts['lendingPoolCore']}},
+            {'contract': 'lendingPoolDataProvider', 'method': 'setPriceOracle',
+            'params': {'_address': contracts['priceOracle']}},
+            {'contract': 'lendingPoolDataProvider', 'method': 'setLendingPool',
+            'params': {'_address': contracts['lendingPool']}},
+            {'contract': 'lendingPoolDataProvider', 'method': 'setLiquidationManager',
+            'params': {'_address': contracts['liquidationManager']}},
+            {'contract': 'lendingPoolDataProvider', 'method': 'setStaking',
+            'params': {'_address': contracts['staking']}}
+        ]
         self._get_transaction(settings_lendinPoolDataProvider)
 
     def _config_oToken(self):
@@ -394,15 +444,15 @@ class OMMTestBase(TestUtils):
 
         contracts = self.contracts
         settings_oToken = [
-            {'contract': 'oUSDs', 'method': 'setLendingPoolCore',
+            {'contract': 'oUSDS', 'method': 'setLendingPoolCore',
              'params': {'_address': contracts['lendingPoolCore']}},
-            {'contract': 'oUSDs', 'method': 'setReserve',
+            {'contract': 'oUSDS', 'method': 'setReserve',
              'params': {'_address': contracts['usds']}},
-            {'contract': 'oUSDs', 'method': 'setLendingPoolDataProvider',
+            {'contract': 'oUSDS', 'method': 'setLendingPoolDataProvider',
              'params': {'_address': contracts['lendingPoolDataProvider']}},
-            {'contract': 'oUSDs', 'method': 'setLendingPool',
+            {'contract': 'oUSDS', 'method': 'setLendingPool',
              'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'oUSDs', 'method': 'setLiquidation', 'params': {'_address': contracts['liquidationManager']}}]
+            {'contract': 'oUSDS', 'method': 'setLiquidation', 'params': {'_address': contracts['liquidationManager']}}]
 
         self._get_transaction(settings_oToken)
 
@@ -411,12 +461,14 @@ class OMMTestBase(TestUtils):
             "-------------------------------Configuring PRICE ORACLE REFERENCE DATA----------------------------------------------------")
 
         contracts = self.contracts
-        setting_priceOracle = [{'contract': 'priceOracle', 'method': 'set_reference_data',
-                                'params': {'_base': 'USDs', '_quote': 'USD', '_rate': 1 * 10 ** 18}},
-                               {'contract': 'priceOracle', 'method': 'set_reference_data',
-                                'params': {'_base': 'ICX', '_quote': 'USD', '_rate': 15 * 10 ** 17}},
-                               # {'contract': 'priceOracle', 'method': 'set_reference_data', 'params':{'_base':'IUSDC','_quote':'USDC','_rate':10*10**17}}
-                               ]
+        setting_priceOracle = [
+            {'contract': 'priceOracle', 'method': 'set_reference_data',
+            'params': {'_base': 'USDs', '_quote': 'USD', '_rate': 1 * 10 ** 18}},
+            {'contract': 'priceOracle', 'method': 'set_reference_data',
+            'params': {'_base': 'ICX', '_quote': 'USD', '_rate': 15 * 10 ** 17}},
+            # {'contract': 'priceOracle', 'method': 'set_reference_data', 
+            # 'params':{'_base':'IUSDC','_quote':'USDC','_rate':10*10**17}}
+        ]
 
         self._get_transaction(setting_priceOracle)
 
@@ -425,30 +477,38 @@ class OMMTestBase(TestUtils):
             "-------------------------------Configuring ADDRESS PROVIDER ----------------------------------------------------")
 
         contracts = self.contracts
-        setting_addressProvider = [{'contract': 'addressProvider', 'method': 'setLendingPool',
-                                    'params': {'_address': contracts['lendingPool']}},
-                                   {'contract': 'addressProvider', 'method': 'setLendingPoolDataProvider',
-                                    'params': {'_address': contracts['lendingPoolDataProvider']}},
-                                   {'contract': 'addressProvider', 'method': 'setUSDb',
-                                    'params': {'_address': contracts['usds']}},
-                                   {'contract': 'addressProvider', 'method': 'setoUSDb',
-                                    'params': {'_address': contracts['oUSDs']}},
-                                   {'contract': 'addressProvider', 'method': 'setsICX',
-                                    'params': {'_address': contracts['sicx']}},
-                                   {'contract': 'addressProvider', 'method': 'setoICX',
-                                    'params': {'_address': contracts['oICX']}},
-                                   {'contract': 'addressProvider', 'method': 'setStaking',
-                                    'params': {'_address': contracts['staking']}},
-                                   # {'contract': 'addressProvider', 'method': 'setIUSDC', 'params':{'_address':contracts['iusdc']}},
-                                   # {'contract': 'addressProvider', 'method': 'setoIUSDC', 'params':{'_address':contracts['oIUSDC']}},
-                                   {'contract': 'addressProvider', 'method': 'setOmmToken',
-                                    'params': {'_address': contracts['ommToken']}},
-                                   {'contract': 'addressProvider', 'method': 'setDelegation',
-                                    'params': {'_address': contracts['delegation']}},
-                                   {'contract': 'addressProvider', 'method': 'setRewards',
-                                    'params': {'_address': contracts['rewards']}}
-                                   ]
-
+        setting_addressProvider = [
+            {'contract': 'addressProvider', 'method': 'setLendingPool',
+            'params': {'_address': contracts['lendingPool']}},
+            {'contract': 'addressProvider', 'method': 'setLendingPoolDataProvider',
+            'params': {'_address': contracts['lendingPoolDataProvider']}},
+            {'contract': 'addressProvider', 'method': 'setUSDs',
+            'params': {'_address': contracts['usds']}},
+            {'contract': 'addressProvider', 'method': 'setoUSDs',
+            'params': {'_address': contracts['oUSDS']}},
+            {'contract': 'addressProvider', 'method': 'setsICX',
+            'params': {'_address': contracts['sicx']}},
+            {'contract': 'addressProvider', 'method': 'setoICX',
+            'params': {'_address': contracts['oICX']}},
+            {'contract': 'addressProvider', 'method': 'setStaking',
+            'params': {'_address': contracts['staking']}},
+            # {'contract': 'addressProvider', 'method': 'setIUSDC', 
+            # 'params':{'_address':contracts['iusdc']}},
+            # {'contract': 'addressProvider', 'method': 'setoIUSDC', 
+            # 'params':{'_address':contracts['oIUSDC']}},
+            {'contract': 'addressProvider', 'method': 'setOmmToken',
+            'params': {'_address': contracts['ommToken']}},
+            {'contract': 'addressProvider', 'method': 'setDelegation',
+            'params': {'_address': contracts['delegation']}},
+            # {'contract': 'addressProvider', 'method': 'setRewards',
+            #  'params': {'_address': contracts['rewards']}},
+            {'contract': 'addressProvider', 'method': 'setdUSDs', 
+            'params':{'_address':contracts['dUSDS']}},
+            # {'contract': 'addressProvider', 'method': 'setdIUSDC', 
+            # 'params':{'_address':contracts['dIUSDC']}},
+            {'contract': 'addressProvider', 'method': 'setdICX', 
+            'params':{'_address':contracts['dICX']}}
+        ]
         self._get_transaction(setting_addressProvider)
 
     def _config_lendingPoolCoreSettings(self):
@@ -494,7 +554,9 @@ class OMMTestBase(TestUtils):
              'params': {'_address': contracts['lendingPoolDataProvider']}},
             {'contract': 'oICX', 'method': 'setLendingPool',
              'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'oICX', 'method': 'setLiquidation', 'params': {'_address': contracts['liquidationManager']}}]
+            {'contract': 'oICX', 'method': 'setLiquidation', 
+            'params': {'_address': contracts['liquidationManager']}}
+            ]
 
         self._get_transaction(settings_oicx)
 
@@ -515,18 +577,18 @@ class OMMTestBase(TestUtils):
             "-------------------------------Configuring LIQUIDATION MANAGER ----------------------------------------------------")
 
         contracts = self.contracts
-        settings_liquidationManager = [{'contract': 'liquidationManager', 'method': 'setLendingPoolDataProvider',
-                                        'params': {'_address': contracts['lendingPoolDataProvider']}},
-                                       {'contract': 'liquidationManager', 'method': 'setLendingPoolCore',
-                                        'params': {'_address': contracts['lendingPoolCore']}},
-                                       {'contract': 'liquidationManager', 'method': 'setFeeProvider',
-                                        'params': {'_address': contracts['daoFund']}},
-                                       {'contract': 'liquidationManager', 'method': 'setPriceOracle',
-                                        'params': {'_address': contracts['priceOracle']}},
-                                       # {'contract': 'liquidationManager', 'method': 'setFeeProvider','params': {'_address':contracts['feeProvider']}},
-                                       {'contract': 'liquidationManager', 'method': 'setStaking',
-                                        'params': {'_address': contracts['staking']}}
-                                       ]
+        settings_liquidationManager = [
+            {'contract': 'liquidationManager', 'method': 'setLendingPoolDataProvider',
+            'params': {'_address': contracts['lendingPoolDataProvider']}},
+            {'contract': 'liquidationManager', 'method': 'setLendingPoolCore',
+            'params': {'_address': contracts['lendingPoolCore']}},
+            {'contract': 'liquidationManager', 'method': 'setFeeProvider',
+            'params': {'_address': contracts['daoFund']}},
+            {'contract': 'liquidationManager', 'method': 'setPriceOracle',
+            'params': {'_address': contracts['priceOracle']}},
+            {'contract': 'liquidationManager', 'method': 'setStaking',
+            'params': {'_address': contracts['staking']}}
+        ]
         self._get_transaction(settings_liquidationManager)
 
     def _config_delegation(self):
@@ -545,14 +607,18 @@ class OMMTestBase(TestUtils):
             "-------------------------------Configuring OMM TOKEN ----------------------------------------------------")
 
         contracts = self.contracts
-        settings_ommToken = [{'contract': 'ommToken', 'method': 'setAdmin', 'params': {'_admin': contracts['rewards']}},
-                             {'contract': 'ommToken', 'method': 'setDelegation',
-                              'params': {'_address': contracts['delegation']}},
-                             {'contract': 'ommToken', 'method': 'setRewards',
-                              'params': {'_address': contracts['rewards']}},
-                             {'contract': 'ommToken', 'method': 'setMinimumStake',
-                              'params': {'_min': 10 * 10 ** 18}},
-                             {'contract': 'ommToken', 'method': 'setUnstakingPeriod', 'params': {'_time': 120}}]
+        settings_ommToken = [
+            # {'contract': 'ommToken', 'method': 'setAdmin', 
+            # 'params': {'_admin': contracts['rewards']}},
+            {'contract': 'ommToken', 'method': 'setDelegation',
+            'params': {'_address': contracts['delegation']}},
+            # {'contract': 'ommToken', 'method': 'setRewards',
+            #  'params': {'_address': contracts['rewards']}},
+            {'contract': 'ommToken', 'method': 'setMinimumStake',
+            'params': {'_min': 10 * 10 ** 18}},
+            {'contract': 'ommToken', 'method': 'setUnstakingPeriod', 
+            'params': {'_time': 120}}
+            ]
         self._get_transaction(settings_ommToken)
 
     def _config_lendingPoolCore(self):
@@ -560,19 +626,21 @@ class OMMTestBase(TestUtils):
             "-------------------------------Configuring LENDING POOL CORE ----------------------------------------------------")
 
         contracts = self.contracts
-        settings_lendingPoolCore = [{'contract': 'lendingPoolCore', 'method': 'setLendingPool',
-                                     'params': {'_address': contracts['lendingPool']}},
-                                    {'contract': 'lendingPoolCore', 'method': 'setDaoFund',
-                                     'params': {'_address': contracts['daoFund']}},
-                                    {'contract': 'lendingPoolCore', 'method': 'setPriceOracle',
-                                     'params': {'_address': contracts['priceOracle']}},
-                                    {'contract': 'lendingPoolCore', 'method': 'setLiquidationManager',
-                                     'params': {'_address': contracts['liquidationManager']}},
-                                    {'contract': 'lendingPoolCore', 'method': 'setDelegation',
-                                     'params': {'_address': contracts['delegation']}},
-                                    {'contract': 'lendingPoolCore', 'method': 'setStaking',
-                                     'params': {'_address': contracts['staking']}},
-                                    {'contract': 'lendingPoolCore', 'method': 'set_id', 'params': {'_value': '1'}}]
+        settings_lendingPoolCore = [
+            {'contract': 'lendingPoolCore', 'method': 'setLendingPool',
+            'params': {'_address': contracts['lendingPool']}},
+            {'contract': 'lendingPoolCore', 'method': 'setDaoFund',
+            'params': {'_address': contracts['daoFund']}},
+            # {'contract': 'lendingPoolCore', 'method': 'setPriceOracle',
+            #  'params': {'_address': contracts['priceOracle']}},
+            {'contract': 'lendingPoolCore', 'method': 'setLiquidationManager',
+            'params': {'_address': contracts['liquidationManager']}},
+            {'contract': 'lendingPoolCore', 'method': 'setDelegation',
+            'params': {'_address': contracts['delegation']}},
+            {'contract': 'lendingPoolCore', 'method': 'setStaking',
+            'params': {'_address': contracts['staking']}},
+            {'contract': 'lendingPoolCore', 'method': 'set_id', 'params': {'_value': '1'}}
+        ]
 
         self._get_transaction(settings_lendingPoolCore)
 
@@ -593,7 +661,9 @@ class OMMTestBase(TestUtils):
         settings_snapshot = [
             {'contract': 'snapshot', 'method': 'setAdmin',
              'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'snapshot', 'method': 'setGovernance', 'params': {'_address': contracts['governance']}}]
+            {'contract': 'snapshot', 'method': 'setGovernance', 
+            'params': {'_address': contracts['governance']}}
+        ]
 
         self._get_transaction(settings_snapshot)
 
@@ -659,26 +729,107 @@ class OMMTestBase(TestUtils):
             self.assertEqual(1, tx_result['status'],
                              f"Failure: {tx_result['failure']}" if tx_result['status'] == 0 else "")
 
+    def _config_debt_tokens(self):
+        print("-------------------------------Configuring DEBT Tokens----------------------------------------------------")
+        contracts = self.contracts
+        print("-------------------------------Configuring ICX DEBT Token----------------------------------------------------")
+
+        settings_dicx = [
+            {'contract': 'dICX', 'method': 'setLendingPoolCore', 'params':{'_address':contracts['lendingPoolCore']}},
+            {'contract': 'dICX', 'method': 'setReserve', 'params':{'_address':contracts['sicx']}},
+            {'contract': 'dICX', 'method': 'setLendingPoolDataProvider', 'params':{'_address':contracts['lendingPoolDataProvider']}},
+            {'contract': 'dICX', 'method': 'setLendingPool', 'params':{'_address':contracts['lendingPool']}},
+            {'contract': 'dICX', 'method': 'setLiquidation', 'params':{'_address':contracts['liquidationManager']}}
+        ]
+        self._get_transaction(settings_dicx)
+
+        print("-------------------------------Configuring USDS DEBT Token----------------------------------------------------")
+
+        settings_dUSDS = [
+            {'contract': 'dUSDS', 'method': 'setLendingPoolCore', 'params':{'_address':contracts['lendingPoolCore']}},
+            {'contract': 'dUSDS', 'method': 'setReserve', 'params':{'_address':contracts['usds']}},
+            {'contract': 'dUSDS', 'method': 'setLendingPoolDataProvider', 'params':{'_address':contracts['lendingPoolDataProvider']}},
+            {'contract': 'dUSDS', 'method': 'setLendingPool', 'params':{'_address':contracts['lendingPool']}},
+            {'contract': 'dUSDS', 'method': 'setLiquidation', 'params':{'_address':contracts['liquidationManager']}}
+        ]
+        self._get_transaction(settings_dUSDS)
+
+        # settings_diusdc =[
+        #     {'contract': 'dIUSDC', 'method': 'setLendingPoolCore', 'params':{'_address':contracts['lendingPoolCore']}},
+        #     {'contract': 'dIUSDC', 'method': 'setReserve', 'params':{'_address':contracts['iusdc']}},
+        #     {'contract': 'dIUSDC', 'method': 'setLendingPoolDataProvider', 'params':{'_address':contracts['lendingPoolDataProvider']}},
+        #     {'contract': 'dIUSDC', 'method': 'setLendingPool', 'params':{'_address':contracts['lendingPool']}},
+        #     {'contract': 'dIUSDC', 'method': 'setLiquidation', 'params':{'_address':contracts['liquidationManager']}}]
+
+        # self._get_transaction(settings_diusdc)
+
     def _add_reserves_to_lendingPoolCore(self):
         print(
             "------------------------------- ADDING RESERVES TO LENDING POOL CORE ----------------------------------------------------")
 
         contracts = self.contracts
-        # params_iusdc ={"_reserve": {"reserveAddress":contracts['iusdc'],"oTokenAddress":contracts['oIUSDC'],"totalBorrows":"0","lastUpdateTimestamp": "0","liquidityRate":"0","borrowRate":"0","liquidityCumulativeIndex":f"1{'0'*18}","borrowCumulativeIndex":f"1{'0'*18}","baseLTVasCollateral":"500000000000000000","liquidationThreshold":"650000000000000000","liquidationBonus":"100000000000000000","decimals":"6","borrowingEnabled": "1","usageAsCollateralEnabled":"1","isFreezed":"0","isActive":"1"} }
-        params_usds = {
-            "_reserve": {"reserveAddress": contracts['usds'], "oTokenAddress": contracts['oUSDs'], "totalBorrows": "0",
-                         "lastUpdateTimestamp": "0", "liquidityRate": "0", "borrowRate": "0",
-                         "liquidityCumulativeIndex": f"1{'0' * 18}", "borrowCumulativeIndex": f"1{'0' * 18}",
-                         "baseLTVasCollateral": "500000000000000000", "liquidationThreshold": "650000000000000000",
-                         "liquidationBonus": "100000000000000000", "decimals": "18", "borrowingEnabled": "1",
-                         "usageAsCollateralEnabled": "1", "isFreezed": "0", "isActive": "1"}}
+        # params_iusdc ={
+        #     "_reserve": {
+        #         "reserveAddress":contracts['iusdc'],
+        #         "oTokenAddress":contracts['oIUSDC'],
+        #         "dTokenAddress": contracts['dIUSDC'],
+        #         "lastUpdateTimestamp": "0",
+        #         "liquidityRate":"0",
+        #         "borrowRate":"0",
+        #         "liquidityCumulativeIndex":f"1{'0'*18}",
+        #         "borrowCumulativeIndex":f"1{'0'*18}",
+        #         "baseLTVasCollateral":"500000000000000000",
+        #         "liquidationThreshold":"650000000000000000",
+        #         "liquidationBonus":"100000000000000000",
+        #         "decimals":"6",
+        #         "borrowingEnabled": "1",
+        #         "usageAsCollateralEnabled":"1",
+        #         "isFreezed":"0",
+        #         "isActive":"1"
+        #     } 
+        # }
+
+        params_usds ={
+            "_reserve": {
+                "reserveAddress":contracts['usds'],
+                "oTokenAddress":contracts['oUSDS'],
+                "dTokenAddress": contracts['dUSDS'],
+                "lastUpdateTimestamp": "0",
+                "liquidityRate":"0",
+                "borrowRate":"0",
+                "liquidityCumulativeIndex":f"1{'0'*18}",
+                "borrowCumulativeIndex":f"1{'0'*18}",
+                "baseLTVasCollateral":"500000000000000000",
+                "liquidationThreshold":"650000000000000000",
+                "liquidationBonus":"100000000000000000",
+                "decimals":"18",
+                "borrowingEnabled": "1",
+                "usageAsCollateralEnabled":"1",
+                "isFreezed":"0",
+                "isActive":"1"
+            } 
+        }
+
         params_icx = {
-            "_reserve": {"reserveAddress": contracts['sicx'], "oTokenAddress": contracts['oICX'], "totalBorrows": "0",
-                         "lastUpdateTimestamp": "0", "liquidityRate": "0", "borrowRate": "0",
-                         "liquidityCumulativeIndex": f"1{'0' * 18}", "borrowCumulativeIndex": f"1{'0' * 18}",
-                         "baseLTVasCollateral": "500000000000000000", "liquidationThreshold": "650000000000000000",
-                         "liquidationBonus": "100000000000000000", "decimals": "18", "borrowingEnabled": "1",
-                         "usageAsCollateralEnabled": "1", "isFreezed": "0", "isActive": "1"}}
+            "_reserve": {
+                "reserveAddress":contracts['sicx'],
+                "oTokenAddress":contracts['oICX'],
+                "dTokenAddress": contracts['dICX'],
+                "lastUpdateTimestamp": "0",
+                "liquidityRate":"0",
+                "borrowRate":"0",
+                "liquidityCumulativeIndex":f"1{'0'*18}",
+                "borrowCumulativeIndex":f"1{'0'*18}",
+                "baseLTVasCollateral":"500000000000000000",
+                "liquidationThreshold":"650000000000000000",
+                "liquidationBonus":"100000000000000000",
+                "decimals":"18",
+                "borrowingEnabled": "1",
+                "usageAsCollateralEnabled":"1",
+                "isFreezed":"0",
+                "isActive":"1"
+            } 
+        }
 
         settings = [
             # {'contract': 'lendingPoolCore',

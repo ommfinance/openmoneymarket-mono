@@ -99,7 +99,7 @@ class OmmUtils(OMMTestBase):
 
 		tx_result = self.send_tx(
 			from_=_from,
-			to=self.contracts["oUSDs"],
+			to=self.contracts["oUSDS"],
 			method="redeem",
 			params=params
 			)
@@ -109,7 +109,6 @@ class OmmUtils(OMMTestBase):
 
 		repay_data = {'method': 'repay', 'params': {'amount': _repayAmount}}
 		data = json.dumps(repay_data).encode('utf-8')
-		print(self.contracts['lendingPool'])
 
 		params = {"_to": self.contracts['lendingPool'],
 				"_value": _repayAmount, 

@@ -1,4 +1,4 @@
-##Open Money Market Pool primary SCOREs
+## Open Money Market Pool primary SCOREs
 
 1. LendingPool
 
@@ -57,7 +57,7 @@ T_BEARS_URL=http://18.237.205.52:9000/ python3 -m unittest tests.config.register
 
 - To run individual test
 ```shell
-python3 -m unittest tests.integration_test.test_integrate_icx_cases.ICXTest
+python3 -m unittest tests.integration_test.test_integrate_001_basic_cases.OMMBaseTestCases.test_01_icx_cases
 ```
 
 
