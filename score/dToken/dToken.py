@@ -3,6 +3,11 @@ from .Math import *
 from .utils.checks import *
 
 
+class SupplyDetails(TypedDict):
+    principalUserBalance: int
+    principalTotalSupply: int
+
+
 class LendingPoolCoreInterface(InterfaceScore):
     @interface
     def getNormalizedDebt(self, _reserve: Address) -> int:
@@ -112,8 +117,6 @@ class DToken(IconScoreBase, TokenStandard):
     def BurnOnLiquidation(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
         pass
 
-    
-
     @external(readonly=True)
     def name(self) -> str:
         """
@@ -208,7 +211,8 @@ class DToken(IconScoreBase, TokenStandard):
         previousPrincipalBalance = self.principalBalanceOf(_user)
         if previousUserIndex != 0:
             balanceInExa = exaDiv(
-                exaMul(convertToExa(previousPrincipalBalance, decimals),core.getReserveBorrowCumulativeIndex(self.getReserve())),previousUserIndex)
+                exaMul(convertToExa(previousPrincipalBalance, decimals),
+                       core.getReserveBorrowCumulativeIndex(self.getReserve())), previousUserIndex)
             balance = convertExaToOther(balanceInExa, decimals)
         else:
             balance = previousPrincipalBalance
@@ -244,6 +248,13 @@ class DToken(IconScoreBase, TokenStandard):
         return self._totalSupply.get()
 
     @external(readonly=True)
+    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
+        return {
+            'principalUserBalance': self.principalBalanceOf(_user),
+            'principalTotalSupply': self.principalTotalSupply()
+        }
+
+    @external(readonly=True)
     def totalSupply(self) -> int:
         """
         Returns the total number of tokens in existence
@@ -271,6 +282,7 @@ class DToken(IconScoreBase, TokenStandard):
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
         self._mint(_user, _amount)
+
         self.MintOnBorrow(_user, _amount, balanceIncrease, index)
 
     @only_lending_pool_core

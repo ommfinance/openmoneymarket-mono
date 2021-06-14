@@ -4,6 +4,11 @@ from .utils.checks import *
 HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 10 ** 18
 
 
+class SupplyDetails(TypedDict):
+    principalUserBalance: int
+    principalTotalSupply: int
+
+
 # An interface to LendingPoolCore
 class CoreInterface(InterfaceScore):
     @interface
@@ -52,6 +57,10 @@ class oTokenInterface(InterfaceScore):
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         pass
 
+    @interface
+    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
+        pass
+
 
 # An interface to oToken
 class dTokenInterface(InterfaceScore):
@@ -66,6 +75,11 @@ class dTokenInterface(InterfaceScore):
     @interface
     def principalBalanceOf(self, _user: Address) -> int:
         pass
+
+    @interface
+    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
+        pass
+
 
 # An interface to LendingPool
 class LendingPoolInterface(InterfaceScore):
@@ -600,3 +614,8 @@ class LendingPoolDataProvider(IconScoreBase):
     def getRealTimeDebt(self, _reserve: Address, _user: Address) -> int:
         userReserveData = self.getUserReserveData(_reserve, _user)
         return userReserveData['currentBorrowBalance'] + userReserveData['originationFee']
+
+    @external(readonly=True)
+    def getReservePrincipalSupply(self, _reserveToken: Address, _user: Address) -> SupplyDetails:
+        token = create_interface_score(_reserveToken,oTokenInterface)
+        return token.getPrincipalSupply(_user)
