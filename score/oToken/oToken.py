@@ -3,9 +3,18 @@ from .Math import *
 from .utils.checks import *
 
 
+class SupplyDetails(TypedDict):
+    principalUserBalance: int
+    principalTotalSupply: int
+
+
 class LendingPoolCoreInterface(InterfaceScore):
     @interface
     def getNormalizedIncome(self, _reserve: Address) -> int:
+        pass
+
+    @interface
+    def getReserveLiquidityCumulativeIndex(self, _reserve: Address) -> int:
         pass
 
 
@@ -147,11 +156,26 @@ class OToken(IconScoreBase, TokenStandard):
         return self._decimals.get()
 
     @external(readonly=True)
+    def principalTotalSupply(self) -> int:
+        return self._totalSupply.get()
+
+    @external(readonly=True)
     def totalSupply(self) -> int:
         """
         Returns the total number of tokens in existence
+
         """
-        return self._totalSupply.get()
+        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
+        borrowIndex = core.getReserveLiquidityCumulativeIndex(self._reserveAddress.get())
+        principalTotalSupply = self.principalTotalSupply()
+        if borrowIndex == 0:
+            return self._totalSupply.get()
+        else:
+            decimals = self._decimals.get()
+            balance = exaDiv(
+                exaMul(convertToExa(principalTotalSupply, decimals), core.getNormalizedIncome(self.getReserve())),
+                borrowIndex)
+            return convertExaToOther(balance, decimals)
 
     @only_owner
     @external
@@ -249,6 +273,13 @@ class OToken(IconScoreBase, TokenStandard):
     def isTransferAllowed(self, _user: Address, _amount: int) -> bool:
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
         return dataProvider.balanceDecreaseAllowed(self.getReserve(), _user, _amount)
+
+    @external(readonly=True)
+    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
+        return {
+            'principalUserBalance': self.principalBalanceOf(_user),
+            'principalTotalSupply': self.principalTotalSupply()
+        }
 
     @external
     def redeem(self, _amount: int, _waitForUnstaking: bool = False) -> None:
