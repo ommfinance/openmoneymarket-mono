@@ -18,6 +18,12 @@ class LendingPoolCoreInterface(InterfaceScore):
         pass
 
 
+class DistributionManager(InterfaceScore):
+    @interface
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
+        pass
+
+
 class DataProviderInterface(InterfaceScore):
     @interface
     def balanceDecreaseAllowed(self, _underlyingAssetAddress: Address, _user: Address, _amount: int):
@@ -54,6 +60,7 @@ class OToken(IconScoreBase, TokenStandard):
     _LENDING_POOL = 'lending_pool'
     _LIQUIDATION = 'liquidation'
     _USER_INDEXES = 'user_indexes'
+    _DISTRIBUTION_MANAGER = 'distribution_manager'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -72,6 +79,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._lendingPoolAddress = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
+        self._distributionManager = VarDB(self._DISTRIBUTION_MANAGER, db, value_type=Address)
 
     def on_install(self, _name: str, _symbol: str, _decimals: int = 18) -> None:
         """
@@ -222,6 +230,15 @@ class OToken(IconScoreBase, TokenStandard):
     def getLendingPool(self) -> Address:
         return self._lendingPoolAddress.get()
 
+    @only_owner
+    @external
+    def setDistributionManager(self, _address: Address):
+        self._distributionManager.set(_address)
+
+    @external(readonly=True)
+    def getDistributionManager(self) -> Address:
+        return self._distributionManager.get()
+
     @external(readonly=True)
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         return self._userIndexes[_user]
@@ -289,6 +306,7 @@ class OToken(IconScoreBase, TokenStandard):
         :param _amount: The amount of oToken.
 
         """
+        beforeTotalSupply = self.getPrincipalSupply()
         if _amount <= 0 and _amount != -1:
             revert(f'{TAG}: '
                    f'Amount: {_amount} to redeem needs to be greater than zero')
@@ -315,6 +333,8 @@ class OToken(IconScoreBase, TokenStandard):
         pool = self.create_interface_score(self.getLendingPool(), LendingPoolInterface)
         pool.redeemUnderlying(self.getReserve(), self.msg.sender, amountToRedeem, currentBalance - amountToRedeem,
                               _waitForUnstaking)
+        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards.handleAction(self.msg.sender, cumulated['previousPrincipalBalance'], beforeTotalSupply)
         self.Redeem(self.msg.sender, amountToRedeem, balanceIncrease, index)
 
     def _resetDataOnZeroBalanceInternal(self, _user: Address) -> None:
@@ -323,27 +343,35 @@ class OToken(IconScoreBase, TokenStandard):
     @only_lending_pool
     @external
     def mintOnDeposit(self, _user: Address, _amount: int) -> None:
+        beforeTotalSupply = self.getPrincipalSupply()
         cumulated = self._cumulateBalanceInternal(_user)
 
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
+
         self._mint(_user, _amount)
+        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards.handleAction(_user, cumulated['previousPrincipalBalance'], beforeTotalSupply)
         self.MintOnDeposit(_user, _amount, balanceIncrease, index)
 
     @only_liquidation
     @external
     def burnOnLiquidation(self, _user: Address, _value: int) -> None:
+        beforeTotalSupply = self.getPrincipalSupply()
         cumulated = self._cumulateBalanceInternal(_user)
         currentBalance = cumulated['principalBalance']
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
         self._burn(_user, _value)
+        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards.handleAction(_user, cumulated['previousPrincipalBalance'], beforeTotalSupply)
         if currentBalance - _value == 0:
             self._resetDataOnZeroBalanceInternal(_user)
             index = 0
         self.BurnOnLiquidation(_user, _value, balanceIncrease, index)
 
-    def _executeTransfer(self, _from: Address, _to: Address, _value: int):
+    def _executeTransfer(self, _from: Address, _to: Address, _value: int) -> dict:
+        beforeTotalSupply = self.getPrincipalSupply()
         fromCumulated = self._cumulateBalanceInternal(_from)
         toCumulated = self._cumulateBalanceInternal(_to)
         fromBalance = fromCumulated['principalBalance']
@@ -356,6 +384,16 @@ class OToken(IconScoreBase, TokenStandard):
             self._resetDataOnZeroBalanceInternal(_from)
 
         self.BalanceTransfer(_from, _to, _value, fromBalanceIncrease, toBalanceIncrease, fromIndex, toIndex)
+        return {
+            'fromPreviousPrincipalBalance': fromCumulated['previousPrincipalBalance'],
+            'toPreviousPrincipalBalance': toCumulated['previousPrincipalBalance'],
+            'beforeTotalSupply': beforeTotalSupply
+        }
+
+    def _callRewards(self, _fromPrevious: int, _toPrevious: int, _totalPrevious, _from: Address, _to: Address):
+        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards.handleAction(_from, _fromPrevious, _totalPrevious)
+        rewards.handleAction(_to, _toPrevious, _totalPrevious)
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
@@ -391,9 +429,11 @@ class OToken(IconScoreBase, TokenStandard):
             revert(f"{TAG}: "
                    f"Transfer error:Transfer cannot be allowed")
 
-        self._executeTransfer(_from, _to, _value)
+        previousBalances = self._executeTransfer(_from, _to, _value)
         self._balances[_from] -= _value
         self._balances[_to] += _value
+        self._callRewards(previousBalances['fromPreviousPrincipalBalance'],
+                          previousBalances['toPreviousPrincipalBalance'], previousBalances['beforeTotalSupply'])
 
         if _to.is_contract:
             '''
