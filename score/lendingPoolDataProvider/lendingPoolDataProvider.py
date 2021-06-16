@@ -616,6 +616,6 @@ class LendingPoolDataProvider(IconScoreBase):
         return userReserveData['currentBorrowBalance'] + userReserveData['originationFee']
 
     @external(readonly=True)
-    def getReservePrincipalSupply(self, _asset: Address, _user: Address) -> SupplyDetails:
+    def getAssetPrincipalSupply(self, _asset: Address, _user: Address) -> SupplyDetails:
         token = create_interface_score(_asset,oTokenInterface)
         return token.getPrincipalSupply(_user)
