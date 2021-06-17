@@ -3,6 +3,7 @@ from .utils.checks import *
 
 BATCH_SIZE = 100
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
+IUSDC_PRECISION = 6
 
 
 # An interface to LendingPool
@@ -380,13 +381,13 @@ class Rewards(IconScoreBase):
         elif not self._precompute['ommICX']:
             self.State("precompute ommICX")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            self._totalAmount['ommICX'] = data_source.getTotalValue("OMM/sICX", day)
+            self._totalAmount['ommICX'] = data_source.getTotalValue("OMM2/sICX", day)
             self._precompute['ommICX'] = True
 
         elif not self._distComplete['ommICX'] and self._check('ommICX'):
             self.State("distribute ommICX")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            data_batch = data_source.getDataBatch("OMM/sICX", day, BATCH_SIZE, self._offset["OMMSICX"])
+            data_batch = data_source.getDataBatch("OMM2/sICX", day, BATCH_SIZE, self._offset["OMMSICX"])
             self._offset["OMMSICX"] += BATCH_SIZE
 
             if data_batch:
@@ -412,15 +413,15 @@ class Rewards(IconScoreBase):
         elif not self._precompute['ommUSDS']:
             self.State("precompute ommUSDS")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            self._totalAmount['ommUSDS'] = data_source.getTotalValue("OMM/IUSDC", day)
-            self._totalAmount['ommUSDS'] += data_source.getTotalValue("OMM/USDS", day)
+            self._totalAmount['ommUSDS'] = convertToExa(data_source.getTotalValue("OMM2/IUSDC", day), IUSDC_PRECISION)
+            self._totalAmount['ommUSDS'] += data_source.getTotalValue("OMM2/USDS", day)
             self._precompute['ommUSDS'] = True
 
         elif not self._distComplete['ommUSDS'] and self._check('ommUSDS'):
             self.State("distribute ommUSDS")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            data_batch1 = data_source.getDataBatch("OMM/IUSDC", day, BATCH_SIZE, self._offset["OMMUSDS"])
-            data_batch2 = data_source.getDataBatch("OMM/USDS", day, BATCH_SIZE, self._offset["OMMUSDS"])
+            data_batch1 = data_source.getDataBatch("OMM2/IUSDC", day, BATCH_SIZE, self._offset["OMMUSDS"])
+            data_batch2 = data_source.getDataBatch("OMM2/USDS", day, BATCH_SIZE, self._offset["OMMUSDS"])
             self._offset["OMMUSDS"] += BATCH_SIZE
 
             if data_batch1 or data_batch2:
@@ -430,10 +431,10 @@ class Rewards(IconScoreBase):
                 for user in data_batch1:
                     if tokenDistTracker <= 0:
                         break
-                    tokenAmount = exaMul(exaDiv(data_batch1[user], totalAmount), tokenDistTracker)
+                    tokenAmount = exaMul(exaDiv(convertToExa(data_batch1[user], IUSDC_PRECISION), totalAmount), tokenDistTracker)
                     self._tokenValue[Address.from_string(user)]['ommUSDS'] += tokenAmount
                     self.Distribution("ommIUSDC", Address.from_string(user), tokenAmount)
-                    totalAmount -= data_batch1[user]
+                    totalAmount -= convertToExa(data_batch1[user], IUSDC_PRECISION)
                     tokenDistTracker -= tokenAmount
 
                 for user in data_batch2:
