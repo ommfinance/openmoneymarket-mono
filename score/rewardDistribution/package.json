@@ -1,5 +1,5 @@
 {
     "version": "0.0.1",
-    "main_module": "rewardDistribution",
-    "main_score": "RewardDistributionManager"
+    "main_module": "rewardDistributionController",
+    "main_score": "RewardDistributionController"
 }
