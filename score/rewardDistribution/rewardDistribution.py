@@ -31,11 +31,7 @@ class RewardDistributionManager(IconScoreBase):
         self._userIndex = DictDB(self.USER_INDEX, db, value_type=int, depth=2)
         self._assets = ArrayDB(self.ASSETS, db, value_type=Address)
 
-    def on_install(self) -> None:
-        super().on_install()
 
-    def on_update(self) -> None:
-        super().on_update()
 
     @eventlog(indexed=1)
     def AssetIndexUpdated(self, _asset: Address, _index: int) -> None:
