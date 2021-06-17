@@ -652,7 +652,6 @@ class LendingPoolCore(IconScoreBase):
         }
 
     def calculateInterestRates(self, _reserve: Address, _availableLiquidity: int, _totalBorrows: int) -> dict:
-        print("AVA, TOT",_availableLiquidity, _totalBorrows)
         constants = self.getReserveConstants(_reserve)
         rate = {}
         if _totalBorrows == 0 and _availableLiquidity == 0:
