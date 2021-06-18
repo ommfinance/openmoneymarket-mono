@@ -1,5 +1,6 @@
 from iconservice import *
 from .Math import *
+from .utils.checks import *
 
 TAG = 'RewardDistributionManager'
 
@@ -45,7 +46,19 @@ class RewardDistributionManager(IconScoreBase):
     def AssetConfigUpdated(self, _asset: Address, _emissionPerSecond: int) -> None:
         pass
 
-    @external
+    @external(readonly=True)
+    def getAssetEmission(self) -> dict:
+        return {
+            str(asset): self._emissionPerSecond[asset]
+            for asset in self._assets
+        }
+
+    @external(readonly=True)
+    def getAssets(self) -> list:
+        return [i for i in self._assets]
+
+    @only_owner
+    @external   
     def configureAssetEmission(self, _assetConfig: List[AssetConfig]) -> None:
 
         for config in _assetConfig:

@@ -253,8 +253,8 @@ class RewardDistributionController(RewardDistributionManager):
         userAssetList = []
         for asset in self._assets:
             supply = dataProvider.getAssetPrincipalSupply(asset, _user)
-            userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['userPrincipalBalance'],
-                                                'totalBalance': supply['totalBalance']}
+            userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
+                                                'totalBalance': supply['principalTotalSupply']}
             userAssetList.append(userAssetDetails)
 
         unclaimedRewards += self._getUnclaimedRewards(_user, userAssetList)
@@ -289,8 +289,8 @@ class RewardDistributionController(RewardDistributionManager):
         userAssetList = []
         for asset in self._assets:
             supply = dataProvider.getAssetPrincipalSupply(asset, user)
-            userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['userPrincipalBalance'],
-                                                'totalBalance': supply['totalBalance']}
+            userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
+                                                'totalBalance': supply['principalTotalSupply']}
             userAssetList.append(userAssetDetails)
 
         accruedRewards = self._claimRewards(user, userAssetList)

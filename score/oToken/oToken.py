@@ -306,7 +306,7 @@ class OToken(IconScoreBase, TokenStandard):
         :param _amount: The amount of oToken.
 
         """
-        beforeTotalSupply = self.getPrincipalSupply()
+        beforeTotalSupply = self.principalTotalSupply()
         if _amount <= 0 and _amount != -1:
             revert(f'{TAG}: '
                    f'Amount: {_amount} to redeem needs to be greater than zero')
@@ -343,7 +343,7 @@ class OToken(IconScoreBase, TokenStandard):
     @only_lending_pool
     @external
     def mintOnDeposit(self, _user: Address, _amount: int) -> None:
-        beforeTotalSupply = self.getPrincipalSupply()
+        beforeTotalSupply = self.principalTotalSupply()
         cumulated = self._cumulateBalanceInternal(_user)
 
         balanceIncrease = cumulated['balanceIncrease']
@@ -357,7 +357,7 @@ class OToken(IconScoreBase, TokenStandard):
     @only_liquidation
     @external
     def burnOnLiquidation(self, _user: Address, _value: int) -> None:
-        beforeTotalSupply = self.getPrincipalSupply()
+        beforeTotalSupply = self.principalTotalSupply()
         cumulated = self._cumulateBalanceInternal(_user)
         currentBalance = cumulated['principalBalance']
         balanceIncrease = cumulated['balanceIncrease']
@@ -371,7 +371,7 @@ class OToken(IconScoreBase, TokenStandard):
         self.BurnOnLiquidation(_user, _value, balanceIncrease, index)
 
     def _executeTransfer(self, _from: Address, _to: Address, _value: int) -> dict:
-        beforeTotalSupply = self.getPrincipalSupply()
+        beforeTotalSupply = self.principalTotalSupply()
         fromCumulated = self._cumulateBalanceInternal(_from)
         toCumulated = self._cumulateBalanceInternal(_to)
         fromBalance = fromCumulated['principalBalance']
