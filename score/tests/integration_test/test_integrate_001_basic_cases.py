@@ -38,6 +38,23 @@ class OMMBaseTestCases(OmmUtils):
 	def test_03_multi_reserve_cases(self):
 		self._execute(BOTH_CASES)
 
+	def _usds_to_sicx(self, amount):
+
+		icx_usd = _int(self.call_tx(
+			to=self.contracts["priceOracle"],
+			method="get_reference_data",
+			params={'_base': 'ICX', '_quote': 'USD'}
+		))
+
+		sicx_rate = _int(self.call_tx(
+			to=self.contracts['staking'],
+			method="getTodayRate"
+		))
+
+		sicx = exaDiv(exaDiv(amount, icx_usd), sicx_rate)
+
+		return sicx
+
 	def initialize_user(self, name):
 		self.users = {}
 		user = KeyWallet.create()
@@ -407,6 +424,11 @@ class OMMBaseTestCases(OmmUtils):
 			_int(sicx_user_reserve_data_before ['borrowRate'])
 		)
 
+		self.assertEqual(
+			_int(sicx_user_reserve_data_after['userBorrowCumulativeIndex']),
+			_int(sicx_reserve_data_after['borrowCumulativeIndex']),
+			)
+
 		self.assertGreater(
 			_int(sicx_user_reserve_data_after['userBorrowCumulativeIndex']),
 			_int(sicx_user_reserve_data_before ['userBorrowCumulativeIndex'])
@@ -482,6 +504,28 @@ class OMMBaseTestCases(OmmUtils):
 
 		amount = self.amount
 
+		if amount == -1:
+			amt_to_redeem = _int(sicx_user_reserve_data_after.get('currentOTokenBalanceUSD'))
+			amount = self._usds_to_sicx(amt_to_redeem)
+			self.assertEqual(_int(sicx_user_reserve_data_after.get('currentOTokenBalance')), 0 )
+			self.assertEqual(_int(sicx_user_reserve_data_after.get('userLiquidityCumulativeIndex')), 0 )
+			self.assertEqual(_int(user_account_data_after['currentLiquidationThreshold']),0)
+			self.assertEqual(_int(oicx_balance_after), 0)
+		else:
+			# oICX should increase by redeem amount
+			self.assertGreaterEqual(
+				_int(oicx_balance_after) + amount,
+				_int(oicx_balance_before)
+			)
+
+			self.assertEqual(_int(sicx_user_reserve_data_after.get('userLiquidityCumulativeIndex')), 0 )
+		
+		# sICX should decrease by redeem amount
+		self.assertGreaterEqual(
+			_int(sicx_balance_after),
+			_int(sicx_balance_before) + amount
+		)
+
 		self.assertEqual(
 				_int(sicx_user_reserve_data_before['principalBorrowBalance']),
 				_int(sicx_user_reserve_data_after['principalBorrowBalance'])
@@ -494,7 +538,7 @@ class OMMBaseTestCases(OmmUtils):
 
 		expected_rates = self._get_rates(
 				_int(sicx_reserve_data_after['totalBorrows']), 
-				_int(sicx_reserve_data_before['totalLiquidity']), 
+				_int(sicx_reserve_data_after['totalLiquidity']), 
 				self.contracts['sicx'])
 
 		self.assertEqual(
@@ -502,16 +546,15 @@ class OMMBaseTestCases(OmmUtils):
 				_int(sicx_reserve_data_after['totalBorrows'])
 				)
 
-		# -> CHECK LATER <-
-		# self.assertEqual(
-		# 		_int(sicx_reserve_data_after['borrowRate']), 
-		# 		expected_rates['borrow_rate']
-		# 		)
+		self.assertEqual(
+				_int(sicx_reserve_data_after['borrowRate']), 
+				expected_rates['borrow_rate']
+				)
 
-		# self.assertEqual(
-		# 		_int(sicx_reserve_data_after['liquidityRate']), 
-		# 		expected_rates['liquidity_rate']
-		# 		)
+		self.assertEqual(
+				_int(sicx_reserve_data_after['liquidityRate']), 
+				expected_rates['liquidity_rate']
+				)
 
 		self.assertGreaterEqual(
 				_int(user_account_data_before['availableBorrowsUSD']), 
@@ -523,24 +566,6 @@ class OMMBaseTestCases(OmmUtils):
 				_int(user_account_data_before['totalCollateralBalanceUSD']), 
 				_int(user_account_data_after['totalCollateralBalanceUSD'])
 				)
-
-			# sICX should decrease by redeem amount
-		self.assertGreaterEqual(
-			  _int(sicx_balance_after),
-			  _int(sicx_balance_before) + amount
-			  )
-
-			# oICX should increase by redeem amount
-		self.assertGreaterEqual(
-			  _int(oicx_balance_after) + amount,
-			  _int(oicx_balance_before)
-			  )
-
-			# icx balance should decrease
-		self.assertGreaterEqual(
-			  icx_balance_before,
-			  icx_balance_after - amount
-			  )
 		
 	def _repay_icx_checks(self):
 		sicx_reserve_data_before = self.values["before"]["reserve"]["sicx"]
@@ -558,6 +583,9 @@ class OMMBaseTestCases(OmmUtils):
 		icx_balance_before = self.values["before"][self.user]['balances']['icx']
 		icx_balance_after = self.values["after"][self.user]['balances']['icx']
 
+		sicx_balance_before = self.values["before"][self.user]['balances']['sicx']
+		sicx_balance_after = self.values["after"][self.user]['balances']['sicx']
+
 		amount = self.amount
 
 		self.assertGreaterEqual(
@@ -567,6 +595,25 @@ class OMMBaseTestCases(OmmUtils):
 		self.assertEqual(
 				_int(sicx_user_reserve_data_before['principalOTokenBalance']), 
 				_int(sicx_user_reserve_data_after['principalOTokenBalance'])
+				)
+
+		if user_account_data_after.get("totalBorrowBalanceUSD") == "0x0":
+			amt_to_return = amount - self._usds_to_sicx(_int(user_account_data_before.get("totalBorrowBalanceUSD")))
+			
+			self.assertAlmostEqual(
+				_dec(sicx_balance_after) - _by18(amt_to_return),
+				_dec(sicx_balance_before) - _by18(amount),
+				places = 0
+				)
+
+			self.assertEqual(
+				_int(sicx_user_reserve_data_after.get('userBorrowCumulativeIndex')),
+				0)
+
+		else:
+			self.assertEqual(
+				_int(sicx_user_reserve_data_after['userBorrowCumulativeIndex']),
+				_int(sicx_reserve_data_after['borrowCumulativeIndex']),
 				)
 
 		expected_rates = self._get_rates(
@@ -723,12 +770,17 @@ class OMMBaseTestCases(OmmUtils):
 
 		expected_rates = self._get_rates(
 				_int(usds_reserve_data_after['totalBorrows']), 
-				_int(usds_reserve_data_before['totalLiquidity']), 
+				_int(usds_reserve_data_after['totalLiquidity']), 
 				self.contracts['usds'])
 
 		self.assertGreaterEqual(
 			_int(ousds_balance_after),
 			_int(ousds_balance_before))
+
+		self.assertEqual(
+			_int(usds_user_reserve_data_after['userBorrowCumulativeIndex']),
+			_int(usds_reserve_data_after['borrowCumulativeIndex']),
+			)
 
 		self.assertAlmostEqual(
 			_dec(usds_reserve_data_before['availableLiquidity']), 
@@ -779,24 +831,34 @@ class OMMBaseTestCases(OmmUtils):
 
 		amount = self.amount
 
-		self.assertEqual(_int(usds_balance_after), _int(usds_balance_before) + amount)
-		self.assertGreaterEqual(_int(ousds_balance_after) + amount, _int(ousds_balance_before))
+		if amount == -1:
+			self.assertEqual(_int(usds_user_reserve_data_after.get('currentOTokenBalance')), 0 )
+			self.assertEqual(_int(usds_user_reserve_data_after.get('userLiquidityCumulativeIndex')), 0 )
+			self.assertEqual(_int(user_account_data_after['currentLiquidationThreshold']),0)
 
-		expected_rates = self._get_rates(
-				_int(usds_reserve_data_after['totalBorrows']), 
-				_int(usds_reserve_data_after['totalLiquidity']), 
-				self.contracts['usds'])
+		else:
+			self.assertEqual(_int(usds_balance_after), _int(usds_balance_before) + amount)
+			self.assertGreaterEqual(_int(ousds_balance_after) + amount, _int(ousds_balance_before))
+
+			self.assertEqual(
+			_int(user_account_data_after['currentLiquidationThreshold']),
+			_int(user_account_data_before['currentLiquidationThreshold']))
+
+			self.assertAlmostEqual(
+				_dec(usds_user_reserve_data_before['principalOTokenBalance']),
+				_dec(usds_user_reserve_data_after['principalOTokenBalance'])+amount/10**18,
+				2
+				)
 
 		self.assertEqual(
 			_int(usds_user_reserve_data_before['principalBorrowBalance']),
 			_int(usds_user_reserve_data_after['principalBorrowBalance'])
 			)
 
-		self.assertAlmostEqual(
-			_dec(usds_user_reserve_data_before['principalOTokenBalance']),
-			_dec(usds_user_reserve_data_after['principalOTokenBalance'])+amount/10**18,
-			2
-			)
+		expected_rates = self._get_rates(
+				_int(usds_reserve_data_after['totalBorrows']), 
+				_int(usds_reserve_data_after['totalLiquidity']), 
+				self.contracts['usds'])
 
 		# RATES
 		self.assertEqual(
@@ -814,10 +876,6 @@ class OMMBaseTestCases(OmmUtils):
 		self.assertGreaterEqual(
 			_int(user_account_data_before['healthFactor']),
 			_int(user_account_data_after['healthFactor']))
-
-		self.assertGreaterEqual(
-			_int(user_account_data_after['currentLiquidationThreshold']),
-			_int(user_account_data_before['currentLiquidationThreshold']))
 		
 	def _repay_usds_checks(self):
 		usds_reserve_data_before = self.values["before"]["reserve"]["usds"]
@@ -847,8 +905,18 @@ class OMMBaseTestCases(OmmUtils):
 				places = 0
 				)
 
+			self.assertEqual(
+				_int(usds_user_reserve_data_after.get('userBorrowCumulativeIndex')),
+				0)
+		else:
+			self.assertEqual(
+				_int(usds_user_reserve_data_after['userBorrowCumulativeIndex']),
+				_int(usds_reserve_data_after['borrowCumulativeIndex']),
+			)
+
 		self.assertGreaterEqual(_int(usds_balance_after), _int(usds_balance_before) - amount)
-		self.assertGreaterEqual(_int(ousds_balance_after), _int(ousds_balance_before))
+
+		self.assertAlmostEqual(_dec(ousds_balance_before), _dec(ousds_balance_after), 3)
 
 		expected_rates = self._get_rates(
 			_int(usds_reserve_data_after['totalBorrows']), 

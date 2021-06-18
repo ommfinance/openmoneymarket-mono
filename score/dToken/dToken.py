@@ -24,6 +24,12 @@ class DataProviderInterface(InterfaceScore):
         pass
 
 
+class DistributionManager(InterfaceScore):
+    @interface
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
+        pass
+
+
 class LendingPoolInterface(InterfaceScore):
     @interface
     def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int):
@@ -51,6 +57,7 @@ class DToken(IconScoreBase, TokenStandard):
     _LENDING_POOL = 'lending_pool'
     _LIQUIDATION = 'liquidation'
     _USER_INDEXES = 'user_indexes'
+    _DISTRIBUTION_MANAGER = 'distribution_manager'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -69,6 +76,7 @@ class DToken(IconScoreBase, TokenStandard):
         self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
+        self._distributionManager = VarDB(self._DISTRIBUTION_MANAGER, db, value_type=Address)
 
     def on_install(self, _name: str, _symbol: str, _decimals: int = 18) -> None:
         """
@@ -151,6 +159,15 @@ class DToken(IconScoreBase, TokenStandard):
     @external(readonly=True)
     def getLendingPoolCore(self) -> Address:
         return self._lendingPoolCore.get()
+
+    @only_owner
+    @external
+    def setDistributionManager(self, _address: Address):
+        self._distributionManager.set(_address)
+
+    @external(readonly=True)
+    def getDistributionManager(self) -> Address:
+        return self._distributionManager.get()
 
     @only_owner
     @external
@@ -275,32 +292,46 @@ class DToken(IconScoreBase, TokenStandard):
     def _resetDataOnZeroBalanceInternal(self, _user: Address) -> None:
         self._userIndexes[_user] = 0
 
+    def _mintInterestAndUpdateIndex(self, _user: Address, _balanceIncrease: int):
+        if _balanceIncrease > 0:
+            self._mint(_user, _balanceIncrease)
+        core = self.create_interface_score(self._lendingPoolCore.get(), LendingPoolCoreInterface)
+        userIndex = core.getReserveBorrowCumulativeIndex(self.getReserve())
+        self._userIndexes[_user] = userIndex
+
     @only_lending_pool_core
     @external
-    def mintOnBorrow(self, _user: Address, _amount: int):
-        cumulated = self._cumulateBalanceInternal(_user)
-        balanceIncrease = cumulated['balanceIncrease']
-        index = cumulated['index']
+    def mintOnBorrow(self, _user: Address, _amount: int,_balanceIncrease:int):
+        beforeTotalSupply = self.principalTotalSupply()
+        beforeUserSupply = self.principalBalanceOf(_user)
+        self._mintInterestAndUpdateIndex(_user,_balanceIncrease)
         self._mint(_user, _amount)
-
-        self.MintOnBorrow(_user, _amount, balanceIncrease, index)
+        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards.handleAction(_user,beforeUserSupply, beforeTotalSupply)
+        self.MintOnBorrow(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
     @only_lending_pool_core
     @external
-    def burnOnRepay(self, _user: Address, _amount: int):
-        cumulated = self._cumulateBalanceInternal(self.msg.sender)
-        currentBalance = cumulated['principalBalance']
+    def burnOnRepay(self, _user: Address, _amount: int,_balanceIncrease:int):
+        beforeTotalSupply = self.principalTotalSupply()
+        beforeUserSupply = self.principalBalanceOf(_user)
+        self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'loanRepaid')
-        if currentBalance - _amount == 0:
+        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards.handleAction(_user, beforeUserSupply, beforeTotalSupply)
+        if self.principalBalanceOf(_user)== 0:
             self._resetDataOnZeroBalanceInternal(_user)
 
     @only_lending_pool_core
     @external
-    def burnOnLiquidation(self, _user: Address, _amount: int) -> None:
-        cumulated = self._cumulateBalanceInternal(_user)
-        currentBalance = cumulated['principalBalance']
+    def burnOnLiquidation(self, _user: Address, _amount: int,_balanceIncrease:int) -> None:
+        beforeTotalSupply = self.principalTotalSupply()
+        beforeUserSupply = self.principalBalanceOf(_user)
+        self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'userLiquidated')
-        if currentBalance - _amount == 0:
+        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards.handleAction(_user, beforeUserSupply, beforeTotalSupply)
+        if self.principalBalanceOf(_user)== 0:
             self._resetDataOnZeroBalanceInternal(_user)
 
     @external
@@ -348,9 +379,13 @@ class DToken(IconScoreBase, TokenStandard):
         """
         if data is None:
             data = b'burn'
+        totalSupply = self._totalSupply.get()
         if amount <= 0:
             revert(f'{TAG}: ',
                    f'Invalid value: {amount} to burn')
+        if amount > totalSupply:
+            revert(f'{TAG}:'
+                   f'{amount} is greater than total supply :{totalSupply}')
 
         self._totalSupply.set(self._totalSupply.get() - amount)
         self._balances[account] -= amount

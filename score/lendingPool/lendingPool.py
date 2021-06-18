@@ -21,6 +21,12 @@ class ReserveInterface(InterfaceScore):
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
 
+# An interface to reserves
+class RewardInterface(InterfaceScore):
+    @interface
+    def distribute(self):
+        pass
+
 
 # An interface for sicx
 class StakingInterface(InterfaceScore):
@@ -149,6 +155,7 @@ class LendingPool(IconScoreBase):
         self._stakingAddress = VarDB(self.STAKING_ADDRESS, db, value_type=Address)
         self._liquidationManagerAddress = VarDB(self.LIQUIDATION_MANAGER_ADDRESS, db, value_type=Address)
         self._originationFeePercent = VarDB(self.ORIGINATION_FEE_PERCENT, db, value_type=int)
+        self._rewardAddress = VarDB(self.REWARDS_DISTRIBUTION, db, value_type=Address)
         
     def on_install(self) -> None:
         super().on_install()
@@ -254,6 +261,15 @@ class LendingPool(IconScoreBase):
     def getDaoFund(self) -> Address:
         return self._daoFund.get()
 
+    @only_owner
+    @external
+    def setRewardManager(self, _address: Address) -> None:
+        self._rewardAddress.set(_address)
+
+    @external(readonly=True)
+    def getRewardManager(self) -> Address:
+        return self._rewardAddress.get()
+
     @external(readonly=True)
     def getBorrowWallets(self, _index: int) -> list:
         return self._get_array_items(self._borrowWallets, _index)
@@ -296,9 +312,8 @@ class LendingPool(IconScoreBase):
         reserve = self.create_interface_score(_reserve, ReserveInterface)
 
         staking = self.create_interface_score(self.getStaking(), StakingInterface)
-        # if self.getRewardsDistributionBool():
-        #     reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        #     reward.distribute()
+        reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
+        reward.distribute()
         reserveData = core.getReserveData(_reserve)
         oTokenAddress = reserveData['oTokenAddress']
 
@@ -338,9 +353,8 @@ class LendingPool(IconScoreBase):
         if reserveAvailableLiquidity < _amount:
             revert(f'{TAG}: Amount {_amount} is more than available liquidity {reserveAvailableLiquidity}')
 
-        # if self.getRewardsDistributionBool():
-        #     reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        #     reward.distribute()
+        reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
+        reward.distribute()
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
         if _waitForUnstaking:
@@ -380,9 +394,8 @@ class LendingPool(IconScoreBase):
 
         self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in the reserve")
 
-        # if self.getRewardsDistributionBool():
-        #     reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        #     reward.distribute()
+        reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
+        reward.distribute()
         availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
 
         self._require(availableLiquidity >= _amount, "Borrow error:Not enough available liquidity in the reserve")
@@ -428,9 +441,9 @@ class LendingPool(IconScoreBase):
         userBasicReserveData: dict = core.getUserBasicReserveData(_reserve, _sender)
 
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
-        # if self.getRewardsDistributionBool():
-        #     reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
-        #     reward.distribute()
+
+        reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
+        reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
         returnAmount = 0
