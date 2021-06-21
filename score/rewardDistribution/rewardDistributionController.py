@@ -302,7 +302,7 @@ class RewardDistributionController(RewardDistributionManager):
             return 0
 
         amountToClaim = unclaimedRewards if (_amount > unclaimedRewards) else _amount
-        self._usersUnclaimedRewards[user] -= unclaimedRewards - amountToClaim
+        self._usersUnclaimedRewards[user] = unclaimedRewards - amountToClaim
         ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
         ommToken.transfer(user, amountToClaim)
 
