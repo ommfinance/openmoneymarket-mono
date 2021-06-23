@@ -1,5 +1,6 @@
 from iconservice import *
 from .Math import *
+from .utils.checks import *
 
 TAG = 'RewardDistributionManager'
 
@@ -31,11 +32,7 @@ class RewardDistributionManager(IconScoreBase):
         self._userIndex = DictDB(self.USER_INDEX, db, value_type=int, depth=2)
         self._assets = ArrayDB(self.ASSETS, db, value_type=Address)
 
-    def on_install(self) -> None:
-        super().on_install()
 
-    def on_update(self) -> None:
-        super().on_update()
 
     @eventlog(indexed=1)
     def AssetIndexUpdated(self, _asset: Address, _index: int) -> None:
@@ -49,7 +46,19 @@ class RewardDistributionManager(IconScoreBase):
     def AssetConfigUpdated(self, _asset: Address, _emissionPerSecond: int) -> None:
         pass
 
-    @external
+    @external(readonly=True)
+    def getAssetEmission(self) -> dict:
+        return {
+            str(asset): self._emissionPerSecond[asset]
+            for asset in self._assets
+        }
+
+    @external(readonly=True)
+    def getAssets(self) -> list:
+        return [i for i in self._assets]
+
+    @only_owner
+    @external   
     def configureAssetEmission(self, _assetConfig: List[AssetConfig]) -> None:
 
         for config in _assetConfig:
@@ -59,6 +68,8 @@ class RewardDistributionManager(IconScoreBase):
             self._updateAssetStateInternal(asset, totalBalance)
             self._emissionPerSecond[asset] = emissionPerSecond
             self.AssetConfigUpdated(asset, emissionPerSecond)
+            if asset not in self._assets:
+                self._assets.put(asset)
 
     def _updateAssetStateInternal(self, _asset: Address, _totalBalance: int) -> int:
         oldIndex = self._assetIndex[_asset]
@@ -84,7 +95,7 @@ class RewardDistributionManager(IconScoreBase):
 
         if userIndex != newIndex:
             if _userBalance != 0:
-                accruedRewards = self._getRewards(_userBalance, newIndex, userIndex)
+                accruedRewards = RewardDistributionManager._getRewards(_userBalance, newIndex, userIndex)
             self._userIndex[_user][_asset] = newIndex
             self.UserIndexUpdated(_user, _asset, newIndex)
 
@@ -115,7 +126,7 @@ class RewardDistributionManager(IconScoreBase):
             assetIndex = self._getAssetIndex(self._assetIndex[asset], self._emissionPerSecond[asset],
                                              self._lastUpdateTimestamp[asset], totalBalance)
 
-            accruedRewards += self._getRewards(userBalance, assetIndex, self._userIndex[_user])
+            accruedRewards += RewardDistributionManager._getRewards(userBalance, assetIndex, self._userIndex[_user][asset])
 
         return accruedRewards
 
