@@ -309,7 +309,7 @@ class DToken(IconScoreBase, TokenStandard):
         self._mintInterestAndUpdateIndex(_user,_balanceIncrease)
         self._mint(_user, _amount)
         rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
-        decimals = self._decimals()
+        decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         self.MintOnBorrow(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
@@ -321,7 +321,7 @@ class DToken(IconScoreBase, TokenStandard):
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'loanRepaid')
         rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
-        decimals = self._decimals()
+        decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user)== 0:
             self._resetDataOnZeroBalanceInternal(_user)
@@ -334,7 +334,7 @@ class DToken(IconScoreBase, TokenStandard):
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'userLiquidated')
         rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
-        decimals = self._decimals()
+        decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user)== 0:
             self._resetDataOnZeroBalanceInternal(_user)

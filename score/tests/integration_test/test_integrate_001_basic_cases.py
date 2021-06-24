@@ -517,9 +517,7 @@ class OMMBaseTestCases(OmmUtils):
 				_int(oicx_balance_after) + amount,
 				_int(oicx_balance_before)
 			)
-
-			self.assertEqual(_int(sicx_user_reserve_data_after.get('userLiquidityCumulativeIndex')), 0 )
-		
+			
 		# sICX should decrease by redeem amount
 		self.assertGreaterEqual(
 			_int(sicx_balance_after),
