@@ -124,7 +124,7 @@ class RewardDistributionController(RewardDistributionManager):
         pass
 
     @eventlog
-    def RewardsClaimed(self, _user: Address, _rewards: int) -> None:
+    def RewardsClaimed(self, _user: Address, _rewards: int,_msg:str) -> None:
         pass
 
     @external(readonly=True)
@@ -246,7 +246,7 @@ class RewardDistributionController(RewardDistributionManager):
             self.RewardsAccrued(_user, accruedRewards)
 
     @external(readonly=True)
-    def getRewardsBalance(self, _user: Address) -> dict:
+    def getRewards(self, _user: Address) -> dict:
         unclaimedRewards = self._usersUnclaimedRewards[_user]
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
 
@@ -260,9 +260,9 @@ class RewardDistributionController(RewardDistributionManager):
         unclaimedRewards += self._getUnclaimedRewards(_user, userAssetList)
 
         response = {}
-        ommRewards = 0
+        ommRewards = unclaimedRewards
         liquidityRewards = 0
-        total = 0
+        total = unclaimedRewards
         recipientSet = {"daoFund", "worker"}
         for recipient in self._recipients:
             tokenAmount = self._tokenValue[_user][recipient]
@@ -281,8 +281,11 @@ class RewardDistributionController(RewardDistributionManager):
         return response
 
     @external
-    def claimRewards(self, _amount: int) -> int:
+    def claimRewards(self) -> int:
         user = self.msg.sender
+
+        self._claim_liquidity_token(user)
+
         unclaimedRewards = self._usersUnclaimedRewards[user]
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
 
@@ -301,22 +304,22 @@ class RewardDistributionController(RewardDistributionManager):
         if unclaimedRewards == 0:
             return 0
 
-        amountToClaim = unclaimedRewards if (_amount > unclaimedRewards) else _amount
-        self._usersUnclaimedRewards[user] -= unclaimedRewards - amountToClaim
+        self._usersUnclaimedRewards[user] = 0
         ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
-        ommToken.transfer(user, amountToClaim)
+        ommToken.transfer(user, unclaimedRewards)
 
-        self.RewardsClaimed(user, amountToClaim)
+        self.RewardsClaimed(user, unclaimedRewards,'borrowDepositRewards')
 
+    def _claim_liquidity_token(self, user):
         total_token = 0
         for recipient in self._recipients:
             total_token += self._tokenValue[user][recipient]
             self._tokenValue[user][recipient] = 0
-
         if total_token:
             ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
             ommToken.transfer(user, total_token)
-            self.RewardsClaimed(user, amountToClaim)
+            self.RewardsClaimed(user, total_token, 'liquidityAndWorkerTokenRewards')
+
 
     @external
     def distribute(self) -> None:
