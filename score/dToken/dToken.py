@@ -6,6 +6,7 @@ from .utils.checks import *
 class SupplyDetails(TypedDict):
     principalUserBalance: int
     principalTotalSupply: int
+    decimals: int
 
 
 class LendingPoolCoreInterface(InterfaceScore):
@@ -268,7 +269,8 @@ class DToken(IconScoreBase, TokenStandard):
     def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
         return {
             'principalUserBalance': self.principalBalanceOf(_user),
-            'principalTotalSupply': self.principalTotalSupply()
+            'principalTotalSupply': self.principalTotalSupply(),
+            'decimals': self.decimals()
         }
 
     @external(readonly=True)
@@ -307,7 +309,8 @@ class DToken(IconScoreBase, TokenStandard):
         self._mintInterestAndUpdateIndex(_user,_balanceIncrease)
         self._mint(_user, _amount)
         rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
-        rewards.handleAction(_user,beforeUserSupply, beforeTotalSupply)
+        decimals = self._decimals()
+        rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         self.MintOnBorrow(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
     @only_lending_pool_core
@@ -318,7 +321,8 @@ class DToken(IconScoreBase, TokenStandard):
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'loanRepaid')
         rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
-        rewards.handleAction(_user, beforeUserSupply, beforeTotalSupply)
+        decimals = self._decimals()
+        rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user)== 0:
             self._resetDataOnZeroBalanceInternal(_user)
 
@@ -330,7 +334,8 @@ class DToken(IconScoreBase, TokenStandard):
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'userLiquidated')
         rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
-        rewards.handleAction(_user, beforeUserSupply, beforeTotalSupply)
+        decimals = self._decimals()
+        rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user)== 0:
             self._resetDataOnZeroBalanceInternal(_user)
 
