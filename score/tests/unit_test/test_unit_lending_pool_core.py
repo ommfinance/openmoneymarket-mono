@@ -38,7 +38,7 @@ class TestLendingPoolCore(ScoreTestCase):
         self.initialize_accounts(account_info)
         self.set_msg(self.test_account3, 3)
 
-        self._reserve = LendingPoolCoreTest.sample_reserve("9876")
+        self._reserve = TestLendingPoolCore.sample_reserve("9876")
 
         # set admin use
         self.set_msg(self._owner, 1)
@@ -78,7 +78,7 @@ class TestLendingPoolCore(ScoreTestCase):
         result = self.lending_pool_core.getReserves()
         self.assertEqual(1, len(result))
 
-        _reserve = LendingPoolCoreTest.sample_reserve()
+        _reserve = TestLendingPoolCore.sample_reserve()
         _reserve_address = _reserve.get("reserveAddress")
         try:
             self.lending_pool_core.addReserveData(_reserve)
