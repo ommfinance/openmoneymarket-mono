@@ -7,6 +7,7 @@ HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 10 ** 18
 class SupplyDetails(TypedDict):
     principalUserBalance: int
     principalTotalSupply: int
+    decimals: int
 
 
 # An interface to LendingPoolCore
@@ -618,4 +619,8 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def getAssetPrincipalSupply(self, _asset: Address, _user: Address) -> SupplyDetails:
         token = create_interface_score(_asset,oTokenInterface)
-        return token.getPrincipalSupply(_user)
+        supply = token.getPrincipalSupply(_user)
+        decimals = supply['decimals']
+        supply['principalUserBalance'] = convertToExa(supply['principalUserBalance'], decimals)
+        supply['principalTotalSupply'] = convertToExa(supply['principalTotalSupply'], decimals)
+        return supply
