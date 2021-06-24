@@ -336,13 +336,13 @@ class RewardDistributionController(RewardDistributionManager):
         if not self._precompute['ommICX']:
             self.State("precompute ommICX")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            self._totalAmount['ommICX'] = data_source.getTotalValue("OMM2/sICX", day)
+            self._totalAmount['ommICX'] = data_source.getTotalValue("OMM/sICX", day)
             self._precompute['ommICX'] = True
 
         elif not self._distComplete['ommICX'] and self._check('ommICX'):
             self.State("distribute ommICX")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            data_batch = data_source.getDataBatch("OMM2/sICX", day, BATCH_SIZE, self._offset["OMMSICX"])
+            data_batch = data_source.getDataBatch("OMM/sICX", day, BATCH_SIZE, self._offset["OMMSICX"])
             self._offset["OMMSICX"] += BATCH_SIZE
 
             if data_batch:
@@ -361,22 +361,22 @@ class RewardDistributionController(RewardDistributionManager):
                 self._totalAmount['ommICX'] = totalAmount
                 self._tokenDistTracker['ommICX'] = tokenDistTracker
 
-            else:
+            if len(data_batch) <  BATCH_SIZE:
                 self._distComplete['ommICX'] = True
                 self._offset["OMMSICX"] = 0
 
         elif not self._precompute['dex']:
             self.State("precompute dex")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            self._totalAmount['dex'] = convertToExa(data_source.getTotalValue("OMM2/IUSDC", day), IUSDC_PRECISION)
-            self._totalAmount['dex'] += data_source.getTotalValue("OMM2/USDS", day)
+            self._totalAmount['dex'] = convertToExa(data_source.getTotalValue("OMM/IUSDC", day), IUSDC_PRECISION)
+            self._totalAmount['dex'] += data_source.getTotalValue("OMM/USDS", day)
             self._precompute['dex'] = True
 
         elif not self._distComplete['dex'] and self._check('dex'):
             self.State("distribute dex")
             data_source = self.create_interface_score(self._lpTokenAddress.get(), DataSourceInterface)
-            data_batch1 = data_source.getDataBatch("OMM2/IUSDC", day, BATCH_SIZE, self._offset["dex"])
-            data_batch2 = data_source.getDataBatch("OMM2/USDS", day, BATCH_SIZE, self._offset["dex"])
+            data_batch1 = data_source.getDataBatch("OMM/IUSDC", day, BATCH_SIZE, self._offset["dex"])
+            data_batch2 = data_source.getDataBatch("OMM/USDS", day, BATCH_SIZE, self._offset["dex"])
             self._offset["dex"] += BATCH_SIZE
 
             if data_batch1 or data_batch2:
@@ -397,17 +397,17 @@ class RewardDistributionController(RewardDistributionManager):
                     if tokenDistTracker <= 0:
                         break
                     tokenAmount = exaMul(exaDiv(data_batch2[user], totalAmount), tokenDistTracker)
-                    self._tokenValue[Address.from_string(user)]['ommUSDS'] += tokenAmount
+                    self._tokenValue[Address.from_string(user)]['dex'] += tokenAmount
                     self.Distribution("ommUSDS", Address.from_string(user), tokenAmount)
                     totalAmount -= data_batch2[user]
                     tokenDistTracker -= tokenAmount
 
-                self._totalAmount['ommUSDS'] = totalAmount
-                self._tokenDistTracker['ommUSDS'] = tokenDistTracker
+                self._totalAmount['dex'] = totalAmount
+                self._tokenDistTracker['dex'] = tokenDistTracker
 
-            else:
-                self._distComplete['ommUSDS'] = True
-                self._offset["OMMUSDS"] = 0
+            if len(data_batch1) <  BATCH_SIZE and len(data_batch2) <  BATCH_SIZE :
+                self._distComplete['dex'] = True
+                self._offset["dex"] = 0
 
         elif not self._distComplete['worker']:
             self.State("distribute worker")
@@ -447,7 +447,7 @@ class RewardDistributionController(RewardDistributionManager):
         ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
         ommToken.mint(tokenDistributionPerDay)
 
-        for value in ('ommICX', 'ommUSDS'):
+        for value in ('ommICX', 'dex'):
             self._precompute[value] = False
             self._totalAmount[value] = 0
             self._distComplete[value] = False
