@@ -3,10 +3,14 @@ from unittest import mock
 from iconservice import Address, IconScoreException
 from tbears.libs.scoretest.score_test_case import ScoreTestCase
 
-from lendingPoolCore.Math import SECONDS_PER_YEAR, exaMul, exaDiv
+from lendingPoolCore.Math import SECONDS_PER_YEAR
 from lendingPoolCore.lendingPoolCore import LendingPoolCore
 
 EXA = 10 ** 18
+
+"""
+https://docs.google.com/spreadsheets/d/18o_RJ4z_zSVwU8yRuzEuG9fhRHSfRoZcOEHONuEBn_g/edit?usp=sharing
+"""
 
 
 class TestLendingPoolCore(ScoreTestCase):
@@ -60,13 +64,13 @@ class TestLendingPoolCore(ScoreTestCase):
             "oTokenAddress": Address.from_string(f"cx{(address + str(2)) * 8}"),
             "dTokenAddress": Address.from_string(f"cx{(address + str(3)) * 8}"),
             "lastUpdateTimestamp": 0,
-            "liquidityRate": int(0.05 * EXA),
-            "borrowRate": int(2 * EXA),
+            "liquidityRate": 5 * EXA // 100,
+            "borrowRate": 2 * EXA // 10,
             "liquidityCumulativeIndex": 1 * EXA,
             "borrowCumulativeIndex": 1 * EXA,
-            "baseLTVasCollateral": int(0.5 * EXA),
-            "liquidationThreshold": int(0.65 * EXA),
-            "liquidationBonus": int(0.1 * EXA),
+            "baseLTVasCollateral": 5 * EXA // 10,
+            "liquidationThreshold": 65 * EXA // 100,
+            "liquidationBonus": 1 * EXA // 10,
             "decimals": 18,
             "borrowingEnabled": True,
             "usageAsCollateralEnabled": True,
@@ -119,26 +123,26 @@ class TestLendingPoolCore(ScoreTestCase):
 
         _totalSupply = 100 * EXA
         _totalBorrow = 10 * EXA
-        self.patch_internal_method(_reserve_address, "balanceOf", lambda _address: 100 * EXA)
+        self.patch_internal_method(_reserve_address, "balanceOf", lambda _address: _totalBorrow)
         self.patch_internal_method(_reserve.get("dTokenAddress"), "principalTotalSupply", lambda: _totalBorrow)
 
-        time_elapsed = SECONDS_PER_YEAR * 10 ** 6 / 10
+        time_elapsed = SECONDS_PER_YEAR * 10 ** 6 // 100
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
             actual_result = self.lending_pool_core.getNormalizedIncome(_reserve_address)
-            self.assertEqual(1 * EXA + 1 * EXA // 10, actual_result)
+            self.assertEqual(10005 * EXA // 10000, actual_result)
 
-        time_elapsed = SECONDS_PER_YEAR * 10 ** 6
+        time_elapsed = SECONDS_PER_YEAR * 10 ** 6 // 500
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
             actual_result = self.lending_pool_core.getNormalizedIncome(_reserve_address)
-            self.assertEqual(2.0, actual_result / EXA)
+            self.assertEqual(10001 * EXA // 10000, actual_result)
 
-        time_elapsed = SECONDS_PER_YEAR * 10 ** 6 / 4
+        time_elapsed = SECONDS_PER_YEAR * 10 ** 6 // 4
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
             actual_result = self.lending_pool_core.getNormalizedIncome(_reserve_address)
-            self.assertEqual(1.25, actual_result / EXA)
+            self.assertEqual(10125 * EXA // 10000, actual_result)
 
     def test_normalized_debt(self):
         _reserve = self._reserve
@@ -147,28 +151,28 @@ class TestLendingPoolCore(ScoreTestCase):
         # set normal user
         self.set_msg(self.test_account4, 1)
 
-        _totalSupply = 100 * EXA
-        _totalBorrow = 10 * EXA
-        self.patch_internal_method(_reserve_address, "balanceOf", lambda _address: 100 * EXA)
+        _totalSupply = 500 * EXA
+        _totalBorrow = 150 * EXA
+        self.patch_internal_method(_reserve_address, "balanceOf", lambda _address: _totalSupply)
         self.patch_internal_method(_reserve.get("dTokenAddress"), "principalTotalSupply", lambda: _totalBorrow)
 
-        time_elapsed = SECONDS_PER_YEAR * 10 ** 6
+        time_elapsed = SECONDS_PER_YEAR * 10 ** 6 // 500
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
             actual_result = self.lending_pool_core.getNormalizedDebt(_reserve_address)
-            self.assertEqual(1.1, actual_result / EXA)
+            self.assertAlmostEqual(1.00040008, actual_result / EXA, 7)
 
-        time_elapsed = SECONDS_PER_YEAR * 10 ** 6
+        time_elapsed = SECONDS_PER_YEAR * 10 ** 6 // 100
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
             actual_result = self.lending_pool_core.getNormalizedDebt(_reserve_address)
-            self.assertEqual(2.0, actual_result / EXA)
+            self.assertAlmostEqual(1.002002001, actual_result / EXA, 7)
 
         time_elapsed = SECONDS_PER_YEAR * 10 ** 6 / 4
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
             actual_result = self.lending_pool_core.getNormalizedDebt(_reserve_address)
-            self.assertEqual(1.25, actual_result / EXA)
+            self.assertAlmostEqual(1.051271095, actual_result / EXA, 7)
 
     def test_update_state_on_deposit_non_lending_pool(self):
         _reserve = self._reserve
@@ -188,46 +192,66 @@ class TestLendingPoolCore(ScoreTestCase):
 
         _user_address = self.test_account2
 
-        _totalSupply = 100 * EXA
-        _totalBorrow = 10 * EXA
-        self.patch_internal_method(_reserve_address, "balanceOf", lambda _address: 100 * EXA)
+        _totalSupply = 1200 * EXA
+        _totalBorrow = 750 * EXA
+        self.patch_internal_method(_reserve_address, "balanceOf", lambda _address: _totalSupply)
         self.patch_internal_method(_reserve.get("dTokenAddress"), "principalTotalSupply", lambda: _totalBorrow)
 
         # # set lending pool user
         self.set_msg(self.mock_lending_pool, 1)
 
-        time_elapsed = SECONDS_PER_YEAR * 10 ** 6
+        time_elapsed = SECONDS_PER_YEAR * 10 ** 6 // 100
 
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
-            _new_deposit = 100 * EXA
+            _new_deposit = 200 * EXA
             self.lending_pool_core.updateStateOnDeposit(_reserve_address, _user_address, _new_deposit, True)
+
+            self.lending_pool_core.ReserveUpdated.assert_called_once()
+            # self.lending_pool_core.ReserveUpdated.assert_called_with(_reserve=_reserve_address,_liquidityCumulativeIndex=10005*EXA//10000)
+
+            # self.lending_pool_core.ReserveUpdated.assert_called_once(_reserve_address, 0.01449296917, 0.0461627907, 1.0005,
+            #                                              1.002002001)
+
             actual_result = self.lending_pool_core.getReserveData(_reserve_address)
             self.assertEqual(time_elapsed, actual_result["lastUpdateTimestamp"])
 
-            _baseRate = self._constant["baseBorrowRate"]
-            _slopeRate1 = self._constant["slopeRate1"]
-            _utilizationRate = exaDiv(_totalBorrow, (_totalSupply + _new_deposit+_totalBorrow))
-            _optimalUtilizationRate = self._constant["optimalUtilizationRate"]
+            self.assertAlmostEqual(0.0461627907, actual_result["borrowRate"] / EXA, 8)
 
-            _borrowRate = _baseRate + exaMul(exaDiv(_utilizationRate, _optimalUtilizationRate), _slopeRate1)
+            self.assertAlmostEqual(0.01449296917, actual_result["liquidityRate"] / EXA, 8)
 
-            self.assertEqual(_borrowRate, actual_result["borrowRate"])
+            self.assertAlmostEqual(1.0005, actual_result["liquidityCumulativeIndex"] / EXA, 8)
+            self.assertAlmostEqual(1.002002001, actual_result["borrowCumulativeIndex"] / EXA, 8)
 
-            _liquidityRate = exaMul(exaMul(_borrowRate, _utilizationRate), 9 * EXA // 10)
+    def test_update_state_on_redeem(self):
+        _reserve = self._reserve
+        _reserve_address = _reserve.get("reserveAddress")
 
-            self.assertEqual(_liquidityRate, actual_result["liquidityRate"])
-            _liquidityCumulativeIndex = exaMul(exaMul(_liquidityRate, exaDiv(time_elapsed, SECONDS_PER_YEAR)) + 1 * EXA,
-                                               _reserve.get("liquidityCumulativeIndex"))
+        _user_address = self.test_account2
 
-            self.assertEqual(_liquidityCumulativeIndex, actual_result["liquidityCumulativeIndex"])
-            # self.assertEqual(time_elapsed, actual_result["borrowCumulativeIndex"])
+        _totalSupply = 1750 * EXA
+        _totalBorrow = 1220 * EXA
+        self.patch_internal_method(_reserve_address, "balanceOf", lambda _address: _totalSupply)
+        self.patch_internal_method(_reserve.get("dTokenAddress"), "principalTotalSupply", lambda: _totalBorrow)
 
-            # expected_result = {
-            #     "lastUpdateTimestamp": 31536000000000, "liquidityRate": 1010204081632653,
-            #     "borrowRate": 23571428571428571, "liquidityCumulativeIndex": 1050000000000000000,
-            #     "borrowCumulativeIndex": 7389055630191899950, "baseLTVasCollateral": 500000000000000000,
-            #     "liquidationThreshold": 650000000000000000, "liquidationBonus": 100000000000000000,
-            #     "decimals": 18, "borrowingEnabled": True, "usageAsCollateralEnabled": True,
-            #     "isFreezed": False, "isActive": True, "totalLiquidity": 110000000000000000000,
-            #     "availableLiquidity": 100000000000000000000, "totalBorrows": 10000000000000000000}
+        # # set lending pool user
+        self.set_msg(self.mock_lending_pool, 1)
+
+        time_elapsed = SECONDS_PER_YEAR * 10 ** 6 // 600
+
+        with mock.patch.object(self.lending_pool_core, "now",
+                               return_value=time_elapsed):
+            redeem_amount = 1450 * EXA
+            self.lending_pool_core.updateStateOnRedeem(_reserve_address, _user_address, redeem_amount, True)
+
+            self.lending_pool_core.ReserveUpdated.assert_called_once()
+
+            actual_result = self.lending_pool_core.getReserveData(_reserve_address)
+            self.assertEqual(time_elapsed, actual_result["lastUpdateTimestamp"])
+
+            self.assertAlmostEqual(0.09315789474, actual_result["borrowRate"] / EXA, 8)
+
+            self.assertAlmostEqual(0.06729432133, actual_result["liquidityRate"] / EXA, 8)
+
+            self.assertAlmostEqual(1.000083333, actual_result["liquidityCumulativeIndex"] / EXA, 8)
+            self.assertAlmostEqual(1.000333389, actual_result["borrowCumulativeIndex"] / EXA, 8)
