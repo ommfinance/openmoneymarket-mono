@@ -85,7 +85,7 @@ def convertExaToOther(_amount: int, _decimals: int) -> int:
 class OMMTestBase(TestUtils):
     DIR = ROOT
 
-    CONTRACTS = ['addressProvider', 'daoFund', 'delegation', 'lendingPool',
+    CONTRACTS = ['addressProvider', 'daoFund', 'delegation', 'lendingPool', 'feeProvider',
                  'lendingPoolCore', 'lendingPoolDataProvider', 'liquidationManager',
                  'ommToken', 'priceOracle', 'rewardDistribution', 'governance', 'worker_token']
     OTOKENS = ['oUSDS', 'oICX']
@@ -382,6 +382,7 @@ class OMMTestBase(TestUtils):
         self._config_governance()
         self._add_reserves_to_lendingPoolCore()
         self._config_staking()
+        self._config_fee_provider()
         self._config_debt_tokens()
 
     def _config_lendingPool(self):
@@ -402,18 +403,23 @@ class OMMTestBase(TestUtils):
              'params': {'_address': contracts['oICX']}},
             {'contract': 'lendingPool', 'method': 'setRewardManager',
              'params': {'_address': contracts['rewardDistribution']}},
-            {'contract': 'lendingPool', 'method': 'setDaoFund',  #
-             'params': {'_address': contracts['daoFund']}},
-            # {'contract': 'lendingPool', 'method': 'setSnapshot',  #
-            #  'params': {'_address': contracts['snapshot']}},
+            {'contract': 'lendingPool', 'method': 'setFeeProvider',  #
+             'params': {'_address': contracts['feeProvider']}},
             {'contract': 'lendingPool', 'method': 'setSICX',
              'params': {'_address': contracts['sicx']}},
-            {'contract': 'lendingPool', 'method': 'setLoanOriginationFeePercentage',
-             'params': {'_percentage': 10 ** 15}},  # added later
-            # {'contract': 'lendingPool', 'method': 'toggleRewardsDistribution',
-            #  'params': {} }
         ]
         self._get_transaction(settings_lendingPool)
+
+    def _config_fee_provider(self):
+        print(
+            "-------------------------------Configuring FEE PROVIDER----------------------------------------------------")
+
+        contracts = self.contracts
+        settings_feeProvider = [
+            {'contract': 'feeProvider', 'method': 'setLoanOriginationFeePercentage',
+             'params': {'_percentage': 10 ** 15}}]
+        self._get_transaction(settings_feeProvider)
+
 
     def _config_lendingPoolDataProvider(self):
         print(
@@ -436,7 +442,9 @@ class OMMTestBase(TestUtils):
             {'contract': 'lendingPoolDataProvider', 'method': 'setLiquidationManager',
             'params': {'_address': contracts['liquidationManager']}},
             {'contract': 'lendingPoolDataProvider', 'method': 'setStaking',
-            'params': {'_address': contracts['staking']}}
+            'params': {'_address': contracts['staking']}},
+            {'contract': 'lendingPoolDataProvider', 'method': 'setFeeProvider',
+            'params': {'_address': contracts['feeProvider']}}
         ]
         self._get_transaction(settings_lendinPoolDataProvider)
 
@@ -590,7 +598,7 @@ class OMMTestBase(TestUtils):
             {'contract': 'liquidationManager', 'method': 'setLendingPoolCore',
             'params': {'_address': contracts['lendingPoolCore']}},
             {'contract': 'liquidationManager', 'method': 'setFeeProvider',
-            'params': {'_address': contracts['daoFund']}},
+            'params': {'_address': contracts['feeProvider']}},
             {'contract': 'liquidationManager', 'method': 'setPriceOracle',
             'params': {'_address': contracts['priceOracle']}},
             {'contract': 'liquidationManager', 'method': 'setStaking',
