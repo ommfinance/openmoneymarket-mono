@@ -10,6 +10,17 @@ class SupplyDetails(TypedDict):
     decimals: int
 
 
+# An interface to fee provider
+class FeeProviderInterface(InterfaceScore):
+    @interface
+    def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
+        pass
+
+    @interface
+    def getLoanOriginationFeePercentage(self) -> int:
+        pass
+
+
 # An interface to LendingPoolCore
 class CoreInterface(InterfaceScore):
     @interface
@@ -118,6 +129,7 @@ class LendingPoolDataProvider(IconScoreBase):
     _PRICE_ORACLE = 'priceOracle'
     _LIQUIDATION_MANAGER = 'liquidationManager'
     _STAKING = 'staking'
+    _FEE_PROVIDER = 'feeProvider'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -127,6 +139,7 @@ class LendingPoolDataProvider(IconScoreBase):
         self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
         self._liquidationManager = VarDB(self._LIQUIDATION_MANAGER, db, value_type=Address)
         self._staking = VarDB(self._STAKING, db, value_type=Address)
+        self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -159,6 +172,11 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @only_owner
     @external
+    def setFeeProvider(self, _address: Address) -> None:
+        self._feeProvider.set(_address)
+
+    @only_owner
+    @external
     def setPriceOracle(self, _address: Address) -> None:
         self._priceOracle.set(_address)
 
@@ -178,6 +196,10 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def getPriceOracle(self) -> Address:
         return self._priceOracle.get()
+
+    @external(readonly=True)
+    def getFeeProvider(self) -> Address:
+        return self._feeProvider.get()
 
     @only_owner
     @external
@@ -608,8 +630,8 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @external(readonly=True)
     def getLoanOriginationFeePercentage(self) -> int:
-        lendingPool = self.create_interface_score(self._lendingPool.get(), LendingPoolInterface)
-        return lendingPool.getLoanOriginationFeePercentage()
+        feeProvider = self.create_interface_score(self._feeProvider.get(), FeeProviderInterface)
+        return feeProvider.getLoanOriginationFeePercentage()
 
     @external(readonly=True)
     def getRealTimeDebt(self, _reserve: Address, _user: Address) -> int:
@@ -618,7 +640,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @external(readonly=True)
     def getAssetPrincipalSupply(self, _asset: Address, _user: Address) -> SupplyDetails:
-        token = create_interface_score(_asset,oTokenInterface)
+        token = create_interface_score(_asset, oTokenInterface)
         supply = token.getPrincipalSupply(_user)
         decimals = supply['decimals']
         supply['principalUserBalance'] = convertToExa(supply['principalUserBalance'], decimals)
