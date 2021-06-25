@@ -114,11 +114,10 @@ class StakingInterface(InterfaceScore):
 
 class LendingPoolCore(IconScoreBase):
     _ID = 'id'
-    _RESERVE_LIST = '_reserveList'
+    _RESERVE_LIST = 'reserveList'
     _LENDING_POOL = 'lendingPool'
     _CONSTANTS = 'constants'
     _DAOFUND = 'daoFund'
-    _PRICE_ORACLE = 'priceOracle'
     _STAKING = 'staking'
     _DELEGATION = 'delegation'
     _LIQUIDATION = 'liquidation'
