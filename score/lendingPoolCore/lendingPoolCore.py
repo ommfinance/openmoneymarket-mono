@@ -71,7 +71,7 @@ class DTokenInterface(InterfaceScore):
         pass
 
     @interface
-    def mintOnBorrow(self, _user: Address, _amount: int,_balanceIncrease:int):
+    def mintOnBorrow(self, _user: Address, _amount: int, _balanceIncrease: int):
         pass
 
     @interface
@@ -83,11 +83,11 @@ class DTokenInterface(InterfaceScore):
         pass
 
     @interface
-    def burnOnRepay(self, _user: Address, _amount: int,_balanceIncrease:int):
+    def burnOnRepay(self, _user: Address, _amount: int, _balanceIncrease: int):
         pass
 
     @interface
-    def burnOnLiquidation(self, _user: Address, _amount: int,_balanceIncrease:int) -> None:
+    def burnOnLiquidation(self, _user: Address, _amount: int, _balanceIncrease: int) -> None:
         pass
 
 
@@ -503,9 +503,11 @@ class LendingPoolCore(IconScoreBase):
             reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
         self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
         self.updateCumulativeIndexes(_reserve)
-        dToken.mintOnBorrow(_user, _amountBorrowed,balanceIncrease)
+        dToken.mintOnBorrow(_user, _amountBorrowed, balanceIncrease)
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
+
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountBorrowed)
+
         currentBorrowRate = self.getCurrentBorrowRate(_reserve)
 
         return {
@@ -521,9 +523,9 @@ class LendingPoolCore(IconScoreBase):
         dToken = self.create_interface_score(self.getReserveData(_reserve)['dTokenAddress'], DTokenInterface)
         if _balanceIncrease > 0:
             reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
-        self.DaoFundTransfer(_balanceIncrease // 10, _reserve, self.tx.origin)
+            self.DaoFundTransfer(_balanceIncrease // 10, _reserve, self.tx.origin)
         self.updateCumulativeIndexes(_reserve)
-        dToken.burnOnRepay(_user, _paybackAmountMinusFees,_balanceIncrease)
+        dToken.burnOnRepay(_user, _paybackAmountMinusFees, _balanceIncrease)
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
                                             _balanceIncrease, _repaidWholeLoan)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, _paybackAmountMinusFees, 0)
@@ -548,13 +550,13 @@ class LendingPoolCore(IconScoreBase):
 
     @external(readonly=True)
     def getReserveOTokenAddress(self, _reserve: Address) -> Address:
-        reserveData = self.getReserveData(_reserve)
-        return reserveData['oTokenAddress']
+        prefix = self.reservePrefix(_reserve)
+        return self.reserve[prefix].oTokenAddress.get()
 
     @external(readonly=True)
     def getReserveDTokenAddress(self, _reserve: Address) -> Address:
-        reserveData = self.getReserveData(_reserve)
-        return reserveData['dTokenAddress']
+        prefix = self.reservePrefix(_reserve)
+        return self.reserve[prefix].dTokenAddress.get()
 
     @only_liquidation_manager
     @external
@@ -563,6 +565,8 @@ class LendingPoolCore(IconScoreBase):
                                  _liquidatedCollateralForFee: int, _balanceIncrease: int):
         reserve = self.create_interface_score(_principalReserve, ReserveInterface)
         reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
+        self.DaoFundTransfer(_balanceIncrease // 10, _principalReserve, self.tx.origin)
+
         self.updatePrincipalReserveStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate,
                                                               _balanceIncrease)
 
@@ -576,9 +580,9 @@ class LendingPoolCore(IconScoreBase):
     def updatePrincipalReserveStateOnLiquidationInternal(self, _principalReserve: Address, _user: Address,
                                                          _amountToLiquidate: int, _balanceIncrease: int) -> None:
         self.updateCumulativeIndexes(_principalReserve)
-        reserveData = self.getReserveData(_principalReserve)
-        dToken = self.create_interface_score(reserveData['dTokenAddress'], DTokenInterface)
-        dToken.burnOnLiquidation(_user, _amountToLiquidate,_balanceIncrease)
+        dTokenAddress = self.getReserveDTokenAddress(_principalReserve)
+        dToken = self.create_interface_score(dTokenAddress, DTokenInterface)
+        dToken.burnOnLiquidation(_user, _amountToLiquidate, _balanceIncrease)
         # self.updateTotalBorrows(_principalReserve, reserveData['totalBorrows'] + _balanceIncrease - _amountToLiquidate)
 
     def updateCollateralReserveStateOnLiquidationInternal(self, _collateralReserve: Address) -> None:
@@ -650,6 +654,7 @@ class LendingPoolCore(IconScoreBase):
             "compoundedBorrowBalance": compoundedBorrowBalance,
             "borrowBalanceIncrease": borrowBalanceIncrease
         }
+
 
     def calculateInterestRates(self, _reserve: Address, _availableLiquidity: int, _totalBorrows: int) -> dict:
         constants = self.getReserveConstants(_reserve)
