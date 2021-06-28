@@ -302,8 +302,8 @@ class Delegation(IconScoreBase):
                     below_threshold_prep_indexes.append(index)
 
                 prep_delegations.append(votes_percentage)
-        if dust_votes >= 0:
-            prep_delegations[max_votes_prep_index]['_votes_in_per'] += dust_votes
-            for items in sorted(below_threshold_prep_indexes, reverse=True):
-                del prep_delegations[items]
+            if dust_votes >= 0:
+                prep_delegations[max_votes_prep_index]['_votes_in_per'] += dust_votes
+                for items in sorted(below_threshold_prep_indexes, reverse=True):
+                    del prep_delegations[items]
         return prep_delegations
