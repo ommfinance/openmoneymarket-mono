@@ -23,6 +23,10 @@ class FeeProvider(IconScoreBase):
         self._originationFeePercent.set(_percentage)
 
     @external(readonly=True)
+    def name(self) -> str:
+        return "OmmDaoFeeManager"
+
+    @external(readonly=True)
     def calculateOriginationFee(self, _amount: int) -> int:
         return exaMul(_amount, self.getLoanOriginationFeePercentage())
 
