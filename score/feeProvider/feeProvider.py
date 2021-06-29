@@ -24,7 +24,7 @@ class FeeProvider(IconScoreBase):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmDaoFeeManager"
+        return f"Omm{TAG}"
 
     @external(readonly=True)
     def calculateOriginationFee(self, _amount: int) -> int:
