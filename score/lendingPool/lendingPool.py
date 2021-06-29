@@ -464,7 +464,7 @@ class LendingPool(IconScoreBase):
                                 borrowData['compoundedBorrowBalance'] == paybackAmountMinusFees)
 
         if userBasicReserveData['originationFee'] > 0:
-            # transfer to daoFund
+            # fee transfer to feeProvider
             reserve.transfer(self._feeProvider.get(), userBasicReserveData['originationFee'])
 
         reserve.transfer(lendingPoolCoreAddress, paybackAmountMinusFees)
