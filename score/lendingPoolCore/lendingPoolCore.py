@@ -117,7 +117,7 @@ class LendingPoolCore(IconScoreBase):
     _RESERVE_LIST = 'reserveList'
     _LENDING_POOL = 'lendingPool'
     _CONSTANTS = 'constants'
-    _DAOFUND = 'daoFund'
+    _FEE_PROVIDER = 'feeProvider'
     _STAKING = 'staking'
     _DELEGATION = 'delegation'
     _LIQUIDATION = 'liquidation'
@@ -128,7 +128,7 @@ class LendingPoolCore(IconScoreBase):
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
         self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
-        self._daoFund = VarDB(self._DAOFUND, db, value_type=Address)
+        self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
         self._staking = VarDB(self._STAKING, db, value_type=Address)
         self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
         self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
@@ -147,7 +147,7 @@ class LendingPoolCore(IconScoreBase):
         pass
 
     @eventlog(indexed=3)
-    def DaoFundTransfer(self, _amount: int, _reserve: Address, _initiatiator: Address):
+    def InterestTransfer(self, _amount: int, _reserve: Address, _initiatiator: Address):
         pass
 
     @external(readonly=True)
@@ -200,13 +200,13 @@ class LendingPoolCore(IconScoreBase):
         return self._delegation.get()
 
     @external(readonly=True)
-    def getDaoFund(self) -> Address:
-        return self._daoFund.get()
+    def getFeeProvider(self) -> Address:
+        return self._feeProvider.get()
 
     @only_owner
     @external
-    def setDaoFund(self, _address: Address):
-        self._daoFund.set(_address)
+    def setFeeProvider(self, _address: Address):
+        self._feeProvider.set(_address)
 
     def reservePrefix(self, _reserve: Address) -> bytes:
         return b'|'.join([RESERVE_DB_PREFIX, self._id.get().encode(), str(_reserve).encode()])
@@ -499,8 +499,8 @@ class LendingPoolCore(IconScoreBase):
         dToken = self.create_interface_score(self.getReserveDTokenAddress(_reserve), DTokenInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         if balanceIncrease > 0:
-            reserve.transfer(self._daoFund.get(), balanceIncrease // 10)
-        self.DaoFundTransfer(balanceIncrease // 10, _reserve, self.tx.origin)
+            reserve.transfer(self._feeProvider.get(), balanceIncrease // 10)
+            self.InterestTransfer(balanceIncrease // 10, _reserve, _user)
         self.updateCumulativeIndexes(_reserve)
         dToken.mintOnBorrow(_user, _amountBorrowed, balanceIncrease)
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
@@ -521,8 +521,8 @@ class LendingPoolCore(IconScoreBase):
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         dToken = self.create_interface_score(self.getReserveData(_reserve)['dTokenAddress'], DTokenInterface)
         if _balanceIncrease > 0:
-            reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
-            self.DaoFundTransfer(_balanceIncrease // 10, _reserve, self.tx.origin)
+            reserve.transfer(self._feeProvider.get(), _balanceIncrease // 10)
+            self.InterestTransfer(_balanceIncrease // 10, _reserve,_user)
         self.updateCumulativeIndexes(_reserve)
         dToken.burnOnRepay(_user, _paybackAmountMinusFees, _balanceIncrease)
         self.updateUserStateOnRepayInternal(_reserve, _user, _paybackAmountMinusFees, _originationFeeRepaid,
@@ -563,8 +563,9 @@ class LendingPoolCore(IconScoreBase):
                                  _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,
                                  _liquidatedCollateralForFee: int, _balanceIncrease: int):
         reserve = self.create_interface_score(_principalReserve, ReserveInterface)
-        reserve.transfer(self._daoFund.get(), _balanceIncrease // 10)
-        self.DaoFundTransfer(_balanceIncrease // 10, _principalReserve, self.tx.origin)
+        if _balanceIncrease > 0:
+            reserve.transfer(self._feeProvider.get(), _balanceIncrease // 10)
+            self.InterestTransfer(_balanceIncrease // 10, _principalReserve, _user)
 
         self.updatePrincipalReserveStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate,
                                                               _balanceIncrease)

@@ -1,7 +1,7 @@
 from .Math import *
 from .utils.checks import *
 
-BATCH_SIZE = 100
+BATCH_SIZE = 50
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 IUSDC_PRECISION = 6
 

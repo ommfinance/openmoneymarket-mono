@@ -1,7 +1,7 @@
 from .utils.checks import *
 from .utils.Math import *
 
-BATCH_SIZE = 100
+BATCH_SIZE = 50
 
 
 # An interface to fee provider
@@ -464,7 +464,7 @@ class LendingPool(IconScoreBase):
                                 borrowData['compoundedBorrowBalance'] == paybackAmountMinusFees)
 
         if userBasicReserveData['originationFee'] > 0:
-            # transfer to daoFund
+            # fee transfer to feeProvider
             reserve.transfer(self._feeProvider.get(), userBasicReserveData['originationFee'])
 
         reserve.transfer(lendingPoolCoreAddress, paybackAmountMinusFees)
