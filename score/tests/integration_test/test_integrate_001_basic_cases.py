@@ -714,10 +714,11 @@ class OMMBaseTestCases(OmmUtils):
 		)
 
 		# since someone has already borrowed usdb, on depositing more usdb, the borrow rate should decrease
-		self.assertGreaterEqual(
-			_int(usds_user_reserve_data_before["borrowRate"]),
-			_int(usds_user_reserve_data_after["borrowRate"])
-		)
+		if _int(usds_user_reserve_data_before["borrowRate"]) != 0:
+			self.assertGreaterEqual(
+				_int(usds_user_reserve_data_before["borrowRate"]),
+				_int(usds_user_reserve_data_after["borrowRate"])
+			)
 
 		# no changes in borrow balances
 		self.assertAlmostEqual(

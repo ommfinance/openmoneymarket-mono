@@ -644,8 +644,8 @@ class OMMTestBase(TestUtils):
         settings_lendingPoolCore = [
             {'contract': 'lendingPoolCore', 'method': 'setLendingPool',
             'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'lendingPoolCore', 'method': 'setDaoFund',
-            'params': {'_address': contracts['daoFund']}},
+            {'contract': 'lendingPoolCore', 'method': 'setFeeProvider',
+            'params': {'_address': contracts['feeProvider']}},
             # {'contract': 'lendingPoolCore', 'method': 'setPriceOracle',
             #  'params': {'_address': contracts['priceOracle']}},
             {'contract': 'lendingPoolCore', 'method': 'setLiquidationManager',
