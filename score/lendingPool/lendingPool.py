@@ -295,19 +295,22 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to be deposited
         :return:
         """
+        # checking for active and unfreezed reserve,deposit is allowed only for active and unfreezed reserve
+        lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
+        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
+        reserveData = core.getReserveData(_reserve)
+        self._require(reserveData['isActive'], "Reserve is not active,deposit unsuccessful")
+        self._require(not reserveData['isFreezed'], "Reserve is frozen,deposit unsuccessful")
+
         if not self._depositIndex[_sender]:
             # add new entry
             self._depositWallets.put(_sender)
             self._depositIndex[_sender] = len(self._depositWallets)
 
-        lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
-        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
-
         staking = self.create_interface_score(self.getStaking(), StakingInterface)
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         reward.distribute()
-        reserveData = core.getReserveData(_reserve)
         oTokenAddress = reserveData['oTokenAddress']
 
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
@@ -323,7 +326,6 @@ class LendingPool(IconScoreBase):
 
         self.Deposit(_reserve, _sender, _amount, self.now())
 
-    # only active
     @external
     def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int,
                          _waitForUnstaking: bool = False):
@@ -337,8 +339,10 @@ class LendingPool(IconScoreBase):
         :return:
         """
 
+        # checking for active reserve,redeem  is allowed only for active reserves
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserveData = core.getReserveData(_reserve)
+        self._require(reserveData['isActive'], "Reserve is not active,withdraw unsuccessful")
         if self.msg.sender != reserveData['oTokenAddress']:
             revert(f'{TAG}: {self.msg.sender} is unauthorized to call, only otoken can invoke the method')
 
@@ -368,7 +372,6 @@ class LendingPool(IconScoreBase):
         if not _condition:
             revert(f'{TAG}: {_message}')
 
-    # only active and unfreezed
     @external
     def borrow(self, _reserve: Address, _amount: int):
         """
@@ -377,16 +380,19 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to be borrowed
         :return:
         """
+        # checking for active and unfreezed reserve,borrow is allowed only for active and unfreezed reserve
+        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
+        reserveData = core.getReserveData(_reserve)
+        self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
+        self._require(not reserveData['isFreezed'], "Reserve is frozen,borrow unsuccessful")
+
+        self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in the reserve")
         if not self._borrowIndex[self.msg.sender]:
             # add new entry
             self._borrowWallets.put(self.msg.sender)
             self._borrowIndex[self.msg.sender] = len(self._borrowWallets)
 
-        core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         dataProvider = self.create_interface_score(self._dataProvider.get(), DataProviderInterface)
-
-        self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in the reserve")
-
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
         reward.distribute()
         availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
@@ -420,7 +426,6 @@ class LendingPool(IconScoreBase):
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
                     borrowData['balanceIncrease'], self.now())
 
-    # only active
     def _repay(self, _reserve: Address, _amount: int, _sender: Address):
         """
         repays a borrow on the specific reserve, for the specified amount (or for the whole amount, if -1 is send as params for _amount).
@@ -428,12 +433,18 @@ class LendingPool(IconScoreBase):
         :param _amount:the amount to repay,should be -1 if the user wants to repay everything
         :return:
         """
+
+        # checking for an inactive reserve,repay is allowed for only active reserve
         lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
+        reserveData = core.getReserveData(_reserve)
+        self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
+
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         borrowData: dict = core.getUserBorrowBalances(_reserve, _sender)
         userBasicReserveData: dict = core.getUserBasicReserveData(_reserve, _sender)
-
+        reserveData = core.getReserveData(_reserve)
+        self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
@@ -486,7 +497,14 @@ class LendingPool(IconScoreBase):
         :param _sender:
         :return:
         """
+        # checking for an inactive reserve,liquidation is allowed only if both reserves are active
         lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
+        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
+        reserveData = core.getReserveData(_reserve)
+        collateralData = core.getReserveData(_collateral)
+        self._require(reserveData['isActive'], "Reserve is not active,liquidation unsuccessful")
+        self._require(collateralData['isActive'], "Reserve is not active,liquidation unsuccessful")
+
         liquidationManager = self.create_interface_score(self.getLiquidationManager(),
                                                          LiquidationManagerInterface)
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
@@ -496,9 +514,6 @@ class LendingPool(IconScoreBase):
         principalCurrency.transfer(lendingPoolCoreAddress, liquidation['actualAmountToLiquidate'])
         if _purchaseAmount > liquidation['actualAmountToLiquidate']:
             principalCurrency.transfer(_sender, _purchaseAmount - liquidation['actualAmountToLiquidate'])
-
-        # self._updateSnapshot(_reserve, _user)
-        # self._updateSnapshot(_collateral)
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
