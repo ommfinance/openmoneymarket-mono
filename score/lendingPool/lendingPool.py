@@ -438,13 +438,11 @@ class LendingPool(IconScoreBase):
         lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserveData = core.getReserveData(_reserve)
-        self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
+        self._require(reserveData['isActive'], "Reserve is not active,repay unsuccessful")
 
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         borrowData: dict = core.getUserBorrowBalances(_reserve, _sender)
         userBasicReserveData: dict = core.getUserBasicReserveData(_reserve, _sender)
-        reserveData = core.getReserveData(_reserve)
-        self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
 
         reward = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
@@ -502,8 +500,8 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserveData = core.getReserveData(_reserve)
         collateralData = core.getReserveData(_collateral)
-        self._require(reserveData['isActive'], "Reserve is not active,liquidation unsuccessful")
-        self._require(collateralData['isActive'], "Reserve is not active,liquidation unsuccessful")
+        self._require(reserveData['isActive'], "Borrow reserve is not active,liquidation unsuccessful")
+        self._require(collateralData['isActive'], "Collateral reserve is not active,liquidation unsuccessful")
 
         liquidationManager = self.create_interface_score(self.getLiquidationManager(),
                                                          LiquidationManagerInterface)
