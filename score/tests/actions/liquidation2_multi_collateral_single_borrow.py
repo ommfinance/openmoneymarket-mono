@@ -16,37 +16,37 @@ ACTIONS = {
         {
             "_step": Steps.DEPOSIT_ICX,
             "user": "borrower",
-            "amount": 50 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 1
         },
         {
             "_step": Steps.DEPOSIT_USDS,
             "user": "borrower",
-            "amount": 50 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 1
         },
         {
             "_step": Steps.DEPOSIT_ICX,
             "user": "liquidator",
-            "amount": 500 * EXA,
+            "amount": 5 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.DEPOSIT_USDS,
             "user": "liquidator",
-            "amount": 500 * EXA,
+            "amount": 5 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_ICX,
             "user": "liquidator",
-            "amount": 300 * EXA,
+            "amount": 3 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_USDS,
             "user": "borrower",
-            "amount": 50 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 1
         },
         {

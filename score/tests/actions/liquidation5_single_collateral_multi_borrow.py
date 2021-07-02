@@ -17,19 +17,19 @@ ACTIONS = {
         {
             "_step": Steps.DEPOSIT_ICX,
             "user": "borrower",
-            "amount": 1000 * EXA,
+            "amount": 10 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_USDS,
             "user": "borrower",
-            "amount": 300 * EXA,
+            "amount": 3 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_ICX,
             "user": "borrower",
-            "amount": 190 * EXA, 
+            "amount": 19 * EXA//10,
             "expectedResult": 1
         },
         {

@@ -4,6 +4,7 @@ from unittest.mock import Mock, call
 
 from iconservice import Address, IconScoreException, AddressPrefix
 from tbears.libs.scoretest.patch.score_patcher import ScorePatcher, get_interface_score
+from typing import List
 from typing_extensions import TypedDict
 
 from rewardDistribution.Math import exaDiv, exaMul
@@ -47,16 +48,18 @@ class TestRewardDistributionController(ScoreTestCase):
         super().setUp()
         self._owner = self.test_account1
         self.score = self.get_score_instance(RewardDistributionController, self._owner)
-        self.mock_lending_pool_core = Address.from_string(f"cx{'1231' * 10}")
+        self.mock_lending_pool_data_provider = Address.from_string(f"cx{'1231' * 10}")
         self.mock_omm_token = Address.from_string(f"cx{'1232' * 10}")
         self.mock_worker_token = Address.from_string(f"cx{'1233' * 10}")
         self.mock_lp_token = Address.from_string(f"cx{'1235' * 10}")
         self.mock_dao_fund = Address.from_string(f"cx{'1235' * 10}")
 
         self.set_msg(self._owner, 1)
-        self.score.setLendingPoolDataProvider(self.mock_lending_pool_core)
+        self.score.setLendingPoolDataProvider(self.mock_lending_pool_data_provider)
+
         self.score.setOmm(self.mock_omm_token)
         self.score.setWorkerToken(self.mock_worker_token)
+
         self.score.setLpToken(self.mock_lp_token)
         self.score.setDaoFund(self.mock_dao_fund)
         self.set_msg(self.test_account2, 1)
@@ -67,9 +70,9 @@ class TestRewardDistributionController(ScoreTestCase):
                         self.test_account4: 10 ** 21}
         ScoreTestCase.initialize_accounts(account_info)
 
-    def _setup_asset_emission(self, account: Address, config: AssetConfig):
+    def _setup_asset_emission(self, account: Address, config: List[AssetConfig]):
         self.set_msg(account, 1)
-        self.score.configureAssetEmission([config])
+        self.score.configureAssetEmission(config)
         self.set_msg(self.test_account2, 1)
 
     def _setup_distribution_percentage(self, account: Address, config: DistributionPercentage):
@@ -89,7 +92,7 @@ class TestRewardDistributionController(ScoreTestCase):
         """
         try:
 
-            self._setup_asset_emission(self.test_account2, ASSET_CONFIG)
+            self._setup_asset_emission(self.test_account2, [ASSET_CONFIG])
         except IconScoreException as err:
             self.assertIn("SenderNotScoreOwnerError", str(err))
         else:
@@ -102,14 +105,14 @@ class TestRewardDistributionController(ScoreTestCase):
         _mock_time_elapsed = 20 * TIME
         ASSET_CONFIG["totalBalance"] = 100 * EXA
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, ASSET_CONFIG)
+            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
             self.score.AssetConfigUpdated.assert_called_with(ASSET_ADDRESS, ASSET_CONFIG["emissionPerSecond"])
 
         _lastUpdateTimestamp = _mock_time_elapsed
         _mock_time_elapsed = 40 * TIME
 
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, ASSET_CONFIG)
+            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
 
             _new_asset_index = exaDiv(
                 ASSET_CONFIG['emissionPerSecond'] * (_mock_time_elapsed - _lastUpdateTimestamp) // TIME,
@@ -157,7 +160,7 @@ class TestRewardDistributionController(ScoreTestCase):
 
         _mock_time_elapsed = 0 * TIME
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, _asset_config)
+            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
         _last_updated_timestamp = _mock_time_elapsed
 
         _user2_balance = 0
@@ -330,7 +333,7 @@ class TestRewardDistributionController(ScoreTestCase):
         """
         Should return 0 as reward balance if asset emission is not configureAssetEmission
         """
-        self.register_interface_score(self.mock_lending_pool_core)
+        self.register_interface_score(self.mock_lending_pool_data_provider)
 
         actual_result = self.score.getRewards(self.test_account2)
         expected_result = {'daoFund': 0,
@@ -353,7 +356,7 @@ class TestRewardDistributionController(ScoreTestCase):
 
         _mock_time_elapsed = 0 * TIME
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, ASSET_CONFIG)
+            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
         _last_updated_timestamp = _mock_time_elapsed
 
         _mock_time_elapsed = 400 * TIME
@@ -400,7 +403,7 @@ class TestRewardDistributionController(ScoreTestCase):
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_core, "getAssetPrincipalSupply",
+        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
                                    lambda asset, _address: _supply)
 
         _mock_time_elapsed = 600 * TIME
@@ -439,7 +442,7 @@ class TestRewardDistributionController(ScoreTestCase):
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_core, "getAssetPrincipalSupply",
+        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
                                    lambda asset, _address: _supply)
 
         actual_result = self._call_get_rewards_balance(_user_1, _mock_time_elapsed, _supply)
@@ -456,7 +459,7 @@ class TestRewardDistributionController(ScoreTestCase):
             'principalUserBalance': _user2_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_core, "getAssetPrincipalSupply",
+        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
                                    lambda asset, _address: _supply)
         actual_result = self._call_get_rewards_balance(_user_2, _mock_time_elapsed, _supply)
         _expected_result = {'daoFund': 80 * EXA,
@@ -497,7 +500,7 @@ class TestRewardDistributionController(ScoreTestCase):
 
         _mock_time_elapsed = 0 * TIME
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, ASSET_CONFIG)
+            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
         _last_updated_timestamp = _mock_time_elapsed
 
         _mock_time_elapsed = 100 * TIME
@@ -526,7 +529,7 @@ class TestRewardDistributionController(ScoreTestCase):
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_core, "getAssetPrincipalSupply",
+        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
                                    lambda asset, _address: _supply)
 
         _mock_time_elapsed = 500 * TIME
@@ -587,7 +590,7 @@ class TestRewardDistributionController(ScoreTestCase):
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_core, "getAssetPrincipalSupply",
+        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
                                    lambda asset, _address: _supply)
 
         actual_result = self._call_get_rewards_balance(_user_1, _mock_time_elapsed, _supply)
@@ -605,7 +608,7 @@ class TestRewardDistributionController(ScoreTestCase):
             'principalUserBalance': _user2_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_core, "getAssetPrincipalSupply",
+        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
                                    lambda asset, _address: _supply)
         actual_result = self._call_get_rewards_balance(_user_2, _mock_time_elapsed, _supply)
         self.assertEqual(9100 * EXA, actual_result.get("depositBorrowRewards"))
@@ -623,9 +626,118 @@ class TestRewardDistributionController(ScoreTestCase):
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
             actual_result = self.score.getRewards(_user)
 
-            self.assert_internal_call(self.mock_lending_pool_core, "getAssetPrincipalSupply", ASSET_CONFIG["asset"],
+            self.assert_internal_call(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
+                                      ASSET_CONFIG["asset"],
                                       _user)
             return actual_result
+
+    def test_claim_rewards(self):
+        ## given
+
+        _user1 = self.test_account2
+
+        _user_1_rewards = {
+            "worker": 0,
+            "dex": 0,
+            "ommICX": 0,
+            "daoFund": 0,
+        }
+
+        self.score._tokenValue = {
+            _user1: _user_1_rewards,
+        }
+        self.register_interface_score(self.mock_omm_token)
+        EMISSION_PER_DAY = 400000
+        SECONDS_PER_DAY = 86400
+
+        OICX_EMISSION = int(EMISSION_PER_DAY * 0.2 * 0.9 * 10 ** 18 // SECONDS_PER_DAY)
+        OUSDS_EMISSION = int(EMISSION_PER_DAY * 0.4 * 0.5 * 10 ** 18 // SECONDS_PER_DAY)
+
+        _mock_time_elapsed = 0 * TIME
+        _oicx_address = create_address(AddressPrefix.CONTRACT);
+        _ousds_address = create_address(AddressPrefix.CONTRACT);
+
+        _oicx_config = {
+            "asset": _oicx_address,
+            "emissionPerSecond": OICX_EMISSION,
+            "totalBalance": 0
+        }
+        _ousds_config = {
+            "asset": _ousds_address,
+            "emissionPerSecond": OUSDS_EMISSION,
+            "totalBalance": 0
+        }
+        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
+            self._setup_asset_emission(self._owner, [_oicx_config, _ousds_config])
+        _last_updated_timestamp = _mock_time_elapsed
+
+        _mock_time_elapsed = 0
+        _oicx_user1_balance = 0
+        _oicx_total_supply = 0
+
+        _user = {
+            "address": _user1,
+            "balance": _oicx_user1_balance * EXA,
+        }
+        _asset = {
+            "config": _oicx_config,
+            "balance": _oicx_total_supply * EXA
+        }
+        _time = {
+            "last_timestamp": _last_updated_timestamp,
+            "mock_time_elapsed": _mock_time_elapsed
+        }
+        _current_index = self._call_handle_action(_user, _asset, _time, 0)
+        _oicx_user1_balance += 10 * EXA
+        _oicx_total_supply += 10 * EXA
+
+        _ousds_user1_balance = 0
+        _ousds_total_supply = 0
+
+        _user = {
+            "address": _user1,
+            "balance": _ousds_user1_balance * EXA,
+        }
+        _asset = {
+            "config": _ousds_config,
+            "balance": _ousds_total_supply * EXA
+        }
+        _time = {
+            "last_timestamp": _last_updated_timestamp,
+            "mock_time_elapsed": _mock_time_elapsed
+        }
+        _current_index = self._call_handle_action(_user, _asset, _time, 0)
+        _ousds_user1_balance += 10 * EXA
+        _ousds_total_supply += 10 * EXA
+
+        _last_updated_timestamp = _mock_time_elapsed
+
+        _mock_time_elapsed = 347 * TIME
+
+        def side_effect(asset, _address):
+            if asset == _oicx_address:
+                return {
+                    'principalUserBalance': _oicx_user1_balance,
+                    'principalTotalSupply': _oicx_total_supply
+                }
+            elif asset == _ousds_address:
+                return {
+                    'principalUserBalance': _ousds_user1_balance,
+                    'principalTotalSupply': _ousds_total_supply
+                }
+
+        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
+                                   side_effect)
+
+        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
+            actual_result = self.score.getRewards(_user1)
+
+            print(actual_result)
+            ##610462962962962964612
+            print(actual_result["depositBorrowRewards"])
+            print(610462962962962964612)
+            print(actual_result["depositBorrowRewards"] - 610462962962962964612)
+            # self.assertDictEqual(_expected_result, actual_result)
 
     def test_claim_rewards_case1(self):
         """
@@ -658,7 +770,7 @@ class TestRewardDistributionController(ScoreTestCase):
 
         _mock_time_elapsed = 0 * TIME
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, ASSET_CONFIG)
+            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
         _last_updated_timestamp = _mock_time_elapsed
 
         _mock_time_elapsed = 100 * TIME
@@ -688,7 +800,7 @@ class TestRewardDistributionController(ScoreTestCase):
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_core, "getAssetPrincipalSupply",
+        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
                                    lambda asset, _address: _supply)
 
         actual_result = self._call_get_rewards_balance(_user1, _mock_time_elapsed, _supply)
@@ -711,7 +823,7 @@ class TestRewardDistributionController(ScoreTestCase):
             ]
 
             self.score.RewardsClaimed.assert_has_calls(_calls)
-            self.assert_internal_call(self.mock_lending_pool_core, "getAssetPrincipalSupply", ASSET_ADDRESS,
+            self.assert_internal_call(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply", ASSET_ADDRESS,
                                       _user1)
 
         mock_omm_token_score.transfer.reset_mock()
@@ -725,7 +837,7 @@ class TestRewardDistributionController(ScoreTestCase):
             self.score.claimRewards()
             self.assert_internal_call(self.mock_omm_token, "transfer", _user1, 4000 * EXA)
             self.score.RewardsClaimed.assert_called_with(_user1, 4000 * EXA, "borrowDepositRewards")
-            self.assert_internal_call(self.mock_lending_pool_core, "getAssetPrincipalSupply", ASSET_ADDRESS,
+            self.assert_internal_call(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply", ASSET_ADDRESS,
                                       _user1)
 
         self.assertEqual(0, self.score._usersUnclaimedRewards[_user1])

@@ -58,8 +58,8 @@ class OMMBaseTestCases(OmmUtils):
 	def initialize_user(self, name):
 		self.users = {}
 		user = KeyWallet.create()
-		self.send_icx(self.deployer_wallet, user.get_address(), 1000 * EXA)
-		tx = self._transferUSDS(self.deployer_wallet, user.get_address(), 5000 * EXA)
+		self.send_icx(self.deployer_wallet, user.get_address(), 50 * EXA)
+		tx = self._transferUSDS(self.deployer_wallet, user.get_address(), 50 * EXA)
 		self.assertEqual(tx['status'], 1)
 		# self._transferSICX(self.deployer_wallet, user.get_address(), 1000 * EXA)
 		self.users[name] = user

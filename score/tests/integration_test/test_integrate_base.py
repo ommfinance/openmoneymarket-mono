@@ -23,12 +23,16 @@ HELPER_CONTRACTS=os.path.abspath(os.path.join(ROOT,'tests/config/helper-contract
 load_dotenv(ENV_PATH)
 
 score_configuration_path=os.environ.get("SCORE_ADDRESS_PATH")
+keystore_file = os.environ.get("KEYSTORE_FILE")
+KEYSTORE_PASS = os.environ.get("KEYSTORE_PASS")
 # print("score_configuration_path",score_configuration_path)
 SCORE_ADDRESS_PATH = os.path.join(score_configuration_path)
+KEYSTORE_FILE = os.path.join(keystore_file)
 
 # print("SCORE_ADDRESS_PATH",SCORE_ADDRESS_PATH)
 
 T_BEARS_URL = os.environ.get("T_BEARS_URL")
+NID = int(os.environ.get("NID"),base=16)
 SCORE_ADDRESS = "scoreAddress"
 EMISSION_PER_ASSET = (400000 * 10 ** 18 ) // (4 * 86400)
 TIMESTAMP = 1622560500000000
@@ -93,12 +97,14 @@ class OMMTestBase(TestUtils):
 
     def setUp(self):
         self._wallet_setup()
+        self.icon_service=IconService(HTTPProvider(T_BEARS_URL, 3))
         super().setUp(
             network_only=True,
-            icon_service=IconService(HTTPProvider(T_BEARS_URL, 3)),  # aws tbears
-            nid=3,
+            icon_service=self.icon_service,  # aws tbears
+            nid=NID,
             tx_result_wait=5
         )
+        print(f"balanace------setup------${self.icon_service.get_balance(self.deployer_wallet.get_address())}")
         self.contracts = {}
         self._deploy_contracts()
         with open(SCORE_ADDRESS_PATH, "r") as file:
@@ -107,6 +113,10 @@ class OMMTestBase(TestUtils):
             self._update_contract(contract)
         # self._update_token_contract("dToken", "dICX")
         # self._update_token_contract("dToken", "dUSDS")
+
+    def tearDown(self):
+        print(f"balanace-----teardown-------${self.icon_service.get_balance(self.deployer_wallet.get_address())}")
+
 
     def _deploy_contracts(self):
         if os.path.exists(SCORE_ADDRESS_PATH) is False:
@@ -118,26 +128,9 @@ class OMMTestBase(TestUtils):
 
 
     def _wallet_setup(self):
-        self.icx_factor = 10 ** 18
-        self.btest_wallet: 'KeyWallet' = self._wallet_array[5]
-        self.staking_wallet: 'KeyWallet' = self._wallet_array[6]
-        self.user1: 'KeyWallet' = self._wallet_array[7]
-        self.user2: 'KeyWallet' = self._wallet_array[8]
+        # self.deployer_wallet: 'KeyWallet' = self._test1
+        self.deployer_wallet: 'KeyWallet' = KeyWallet.load(KEYSTORE_FILE, KEYSTORE_PASS)
 
-        self.deployer_wallet: 'KeyWallet' = self._test1
-
-        self.genesis_accounts = [
-            Account("test1", Address.from_string(
-                self._test1.get_address()), 800_000_000 * self.icx_factor),
-            Account("btest_wallet", Address.from_string(
-                self.btest_wallet.get_address()), 1_000_000 * self.icx_factor),
-            Account("staking_wallet", Address.from_string(self.staking_wallet.get_address()),
-                    1_000_000 * self.icx_factor),
-            Account("user1", Address.from_string(
-                self.user1.get_address()), 1_000_000 * self.icx_factor),
-            Account("user2", Address.from_string(
-                self.user2.get_address()), 1_000_000 * self.icx_factor),
-        ]
 
     def _deploy_all(self):
         txns = []
@@ -268,6 +261,7 @@ class OMMTestBase(TestUtils):
         self.assertEqual(True, tx_hash['status'])
         self.assertTrue('scoreAddress' in tx_result)
         staking_score = tx_result['scoreAddress']
+        print("staking_score",staking_score)
         self.contracts.update({"staking": staking_score})
 
         deploy_bridge = self.build_deploy_tx(
@@ -879,11 +873,11 @@ class OMMTestBase(TestUtils):
     def _supply_liquidity(self):
 
         # deposit USDS
-        depositData = {'method': 'deposit', 'params': {'amount': 5000 * 10 ** 18}}
+        depositData = {'method': 'deposit', 'params': {'amount': 50 * 10 ** 18}}
 
         data = json.dumps(depositData).encode('utf-8')
         params = {"_to": self.contracts['lendingPool'],
-                "_value": 5000*EXA,
+                "_value": 50*EXA,
                 "_data": data}
         tx_result = self.send_tx(
             from_=self.deployer_wallet,
@@ -894,11 +888,11 @@ class OMMTestBase(TestUtils):
         self.assertEqual(tx_result['status'], 1)
 
         # deposit ICX
-        params = {"_amount": 10000 * 10 ** 18}
+        params = {"_amount": 10 * 10 ** 18}
         tx_result = self.send_tx(
             from_=self.deployer_wallet,
             to=self.contracts["lendingPool"], 
-            value=10000 * 10 ** 18,
+            value=100 * 10 ** 18,
             method="deposit",
             params=params
             )

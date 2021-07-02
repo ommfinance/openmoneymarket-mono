@@ -1,7 +1,10 @@
+from time import sleep
 from typing import Union, List
 
+from checkscore.repeater import retry
 from iconsdk.builder.call_builder import CallBuilder
 from iconsdk.builder.transaction_builder import TransactionBuilder, DeployTransactionBuilder, CallTransactionBuilder
+from iconsdk.exception import JSONRPCException
 from iconsdk.icon_service import IconService
 from iconsdk.libs.in_memory_zip import gen_deploy_data_content
 from iconsdk.signed_transaction import SignedTransaction
@@ -154,3 +157,27 @@ class TestUtils(IconIntegrateTestBase):
         # print(f"-------------------The output is: : ")
         # pprint(response)
         return response
+
+    def process_transaction(self, request: SignedTransaction,
+                            network: IconService = None,
+                            block_confirm_interval: int = -1) -> dict:
+        if block_confirm_interval == -1:
+            block_confirm_interval = self._block_confirm_interval
+
+        tx_hash: str = network.send_transaction(request)
+        sleep(block_confirm_interval + 0.1)
+        # Get transaction result
+        tx_result: dict = self.get_tx_result(tx_hash)
+
+
+        return tx_result
+
+    @retry(JSONRPCException, tries=10, delay=2, back_off=2)
+    def get_tx_result(self, _tx_hash):
+        try:
+            print("_tx_hash",_tx_hash)
+            tx_result = self.icon_service.get_transaction_result(_tx_hash)
+            return tx_result
+        except JSONRPCException as err:
+            print(err)
+            raise err

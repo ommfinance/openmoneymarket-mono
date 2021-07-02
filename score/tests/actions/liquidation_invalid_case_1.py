@@ -9,19 +9,19 @@ ACTIONS = {
         {
             "_step": Steps.DEPOSIT_USDS,
             "user": "borrower",
-            "amount": 500 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 1
         },
         {
             "_step": Steps.DEPOSIT_USDS,
             "user": "liquidator",
-            "amount": 500 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_USDS,
             "user": "borrower",
-            "amount": 250 * EXA,
+            "amount": 25 * EXA//100,
             "expectedResult": 1
         },
         {

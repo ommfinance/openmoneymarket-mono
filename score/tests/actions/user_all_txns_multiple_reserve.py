@@ -7,7 +7,7 @@ ACTIONS = {
         {
             "_step": Steps.BORROW_USDS,
             "user": "user1",
-            "amount": 50 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 0,
             "remarks": "User cannot borrow unless he has some deposit",
             "revertMessage": "Borrow error:The user does not have any collateral"
@@ -15,19 +15,19 @@ ACTIONS = {
         {
             "_step": Steps.DEPOSIT_ICX,
             "user": "user1",
-            "amount": 100 * EXA,
+            "amount": 1 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_USDS,
             "user": "user1",
-            "amount": 50 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 1
         },
         {
             "_step": Steps.REDEEM_USDS,
             "user": "user1",
-            "amount": 20 * EXA,
+            "amount": 2 * EXA//10,
             "expectedResult": 0,
             "remarks": "Trying to redeem the asset which is not deposited by user",
             "revertMessage": "Redeem error:User cannot redeem more than the available balance"
@@ -35,7 +35,7 @@ ACTIONS = {
         {
            "_step": Steps.REDEEM_ICX,
             "user": "user1",
-            "amount": 50 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 0,
             "remarks": "Trying to redeem the asset which will drop health factor of user below 1",
             "revertMessage": "Redeem error:Transfer cannot be allowed"
@@ -43,13 +43,13 @@ ACTIONS = {
         {
             "_step": Steps.REDEEM_ICX,
             "user": "user1",
-            "amount": 15 * EXA,
+            "amount": 15 * EXA//100,
             "expectedResult": 1
         },
         {
             "_step": Steps.REPAY_ICX,
             "user": "user1",
-            "amount": 10 * EXA,
+            "amount": 1 * EXA//10,
             "expectedResult": 0,
             "remarks": "Trying to repay loan which is not taken by the user",
             "revertMessage": "The user does not have any borrow pending"
@@ -57,7 +57,7 @@ ACTIONS = {
         {
             "_step": Steps.REPAY_USDS,
             "user": "user1",
-            "amount": 10 * EXA,
+            "amount": 1 * EXA//10,
             "expectedResult": 1
         }
     ]

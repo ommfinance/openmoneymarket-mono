@@ -18,21 +18,21 @@ ACTIONS = {
             "action": "deposit",
             "reserve": "usds",
             "user": "borrower",
-            "amount": 1000 * EXA,
+            "amount": 1 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.DEPOSIT_ICX,
             "reserve": "icx",
             "user": "liquidator",
-            "amount": 3100 * EXA,
+            "amount": 31 * EXA//10,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_ICX,
             "reserve": "sicx",
             "user": "liquidator",
-            "amount": 1500 * EXA,
+            "amount": 15 * EXA//10,
             "expectedResult": 1
         },
         {
@@ -40,7 +40,7 @@ ACTIONS = {
             "action": "borrow",
             "reserve": "icx",
             "user": "borrower",
-            "amount": 500 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 1
         },
         {

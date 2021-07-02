@@ -7,7 +7,7 @@ ACTIONS = {
         {
             "_step": Steps.BORROW_ICX,
             "user": "user1",
-            "amount": 50 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 0,
             "remarks": "User cannot borrow unless he has some deposit",
             "revertMessage": "Borrow error:The user does not have any collateral"
@@ -15,19 +15,19 @@ ACTIONS = {
         {
             "_step": Steps.DEPOSIT_ICX,
             "user": "user1",
-            "amount": 100 * EXA,
+            "amount": 1 * EXA,
             "expectedResult": 1
         },
         {
             "_step": Steps.BORROW_ICX,
             "user": "user1",
-            "amount": 50 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 1
         },
         {
             "_step": Steps.REDEEM_ICX,
             "user": "user1",
-            "amount": 25 * EXA,
+            "amount": 25 * EXA//100,
             "expectedResult": 0,
             "remarks": "Trying to redeem the asset which will drop health factor of user below 1",
             "revertMessage": "Redeem error:Transfer cannot be allowed"
@@ -35,19 +35,19 @@ ACTIONS = {
         {
             "_step": Steps.REDEEM_ICX,
             "user": "user1",
-            "amount": 10 * EXA,
+            "amount": 1 * EXA//10,
             "expectedResult": 1
         },
         {
             "_step": Steps.REPAY_ICX,
             "user": "user1",
-            "amount": 10 * EXA,
+            "amount": 1 * EXA//10,
             "expectedResult": 1
         },
         {            
             "_step": Steps.REPAY_ICX,
             "user": "user1",
-            "amount": 50 * EXA,
+            "amount": 5 * EXA//10,
             "expectedResult": 1,
             "remarks": "User tries to pay more than his loan,user should get the extra amount back to his wallet"
         }
