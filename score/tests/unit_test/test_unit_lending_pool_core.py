@@ -18,7 +18,8 @@ class TestLendingPoolCore(ScoreTestCase):
     def setUp(self):
         super().setUp()
         self.mock_staking = Address.from_string(f"cx{'1231' * 10}")
-        self.mock_dao_fund = Address.from_string(f"cx{'1232' * 10}")
+        self.mock_fee_provider = Address.from_string(f"cx{'1232' * 10}")
+        self.mock_governance = Address.from_string(f"cx{'a232' * 10}")
         self.mock_lending_pool = Address.from_string(f"cx{'1233' * 10}")
         self.mock_delegation = Address.from_string(f"cx{'1234' * 10}")
         self.mock_liquidation_manager = Address.from_string(f"cx{'1235' * 10}")
@@ -28,9 +29,10 @@ class TestLendingPoolCore(ScoreTestCase):
 
         self.set_msg(self._owner, 1)
         lending_pool_core.setStaking(self.mock_staking)
-        lending_pool_core.setDaoFund(self.mock_dao_fund)
+        lending_pool_core.setFeeProvider(self.mock_fee_provider)
         lending_pool_core.setLiquidationManager(self.mock_liquidation_manager)
         lending_pool_core.setLendingPool(self.mock_lending_pool)
+        lending_pool_core.setGovernance(self.mock_governance)
         lending_pool_core.setDelegation(self.mock_delegation)
 
         self.lending_pool_core = lending_pool_core
@@ -46,7 +48,7 @@ class TestLendingPoolCore(ScoreTestCase):
         self._reserve = TestLendingPoolCore.sample_reserve("9876")
 
         # set admin use
-        self.set_msg(self._owner, 1)
+        self.set_msg(self.mock_governance, 1)
         self.lending_pool_core.addReserveData(self._reserve)
         self._constant = {
             "reserve": self._reserve.get("reserveAddress"),
@@ -88,12 +90,12 @@ class TestLendingPoolCore(ScoreTestCase):
         try:
             self.lending_pool_core.addReserveData(_reserve)
         except IconScoreException as err:
-            self.assertIn("SenderNotScoreOwnerError", str(err))
+            self.assertIn("SenderNotAuthorized", str(err))
         else:
             raise IconScoreException("Unauthorized method call", 900)
 
         # set admin use
-        self.set_msg(self._owner, 1)
+        self.set_msg(self.mock_governance, 1)
         self.lending_pool_core.addReserveData(_reserve)
 
         # set normal user
@@ -317,8 +319,8 @@ class TestLendingPoolCore(ScoreTestCase):
             self.lending_pool_core.ReserveUpdated.assert_called_once()
 
             mock_reserve_score = get_interface_score(_reserve_address)
-            mock_reserve_score.transfer.assert_called_with(self.mock_dao_fund, _user_interest // 10)
-            self.lending_pool_core.DaoFundTransfer(_user_interest // 10, _reserve_address, None)
+            mock_reserve_score.transfer.assert_called_with(self.mock_fee_provider, _user_interest // 10)
+            self.lending_pool_core.InterestTransfer(_user_interest // 10, _reserve_address, None)
 
             mock_d_token_score = get_interface_score(_d_token_address)
 
@@ -328,7 +330,7 @@ class TestLendingPoolCore(ScoreTestCase):
 
             mock_d_token_score.mintOnBorrow.aseert_called_with(_user_address, _user_current_borrow, _user_interest)
 
-            self.assert_internal_call(_reserve_address, "transfer", self.mock_dao_fund, _user_interest // 10)
+            self.assert_internal_call(_reserve_address, "transfer", self.mock_fee_provider, _user_interest // 10)
 
             actual_result = self.lending_pool_core.getReserveData(_reserve_address)
 
@@ -353,7 +355,7 @@ class TestLendingPoolCore(ScoreTestCase):
         else:
             raise
 
-    def test_update_state_on_repay(self):
+    def test_update_state_on_repay(self):# fail
         _reserve = self._reserve
         _reserve_address = _reserve.get("reserveAddress")
         _d_token_address = _reserve.get("dTokenAddress")
@@ -391,8 +393,8 @@ class TestLendingPoolCore(ScoreTestCase):
             self.lending_pool_core.ReserveUpdated.assert_called_once()
 
             mock_reserve_score = get_interface_score(_reserve_address)
-            mock_reserve_score.transfer.assert_called_with(self.mock_dao_fund, borrow_balance_increase // 10)
-            self.lending_pool_core.DaoFundTransfer(borrow_balance_increase // 10, _reserve_address, None)
+            mock_reserve_score.transfer.assert_called_with(self.mock_fee_provider, borrow_balance_increase // 10)
+            self.lending_pool_core.InterestTransfer(borrow_balance_increase // 10, _reserve_address, None)
 
             mock_d_token_score = get_interface_score(_d_token_address)
 
@@ -401,7 +403,7 @@ class TestLendingPoolCore(ScoreTestCase):
             # mock_d_token_score.principalBalanceOf.assert_called_with(_user_address)
             mock_d_token_score.burnOnRepay.aseert_called_with(_user_address, repay_amount, borrow_balance_increase)
 
-            self.assert_internal_call(_reserve_address, "transfer", self.mock_dao_fund, borrow_balance_increase // 10)
+            self.assert_internal_call(_reserve_address, "transfer", self.mock_fee_provider, borrow_balance_increase // 10)
 
             actual_result = self.lending_pool_core.getReserveData(_reserve_address)
 
@@ -416,7 +418,7 @@ class TestLendingPoolCore(ScoreTestCase):
 
     def test_update_state_on_liquidation(self):
         _collateral_reserve = TestLendingPoolCore.sample_reserve(address="8456", value=1.6)
-        self.set_msg(self._owner, 1)
+        self.set_msg(self.mock_governance, 1)
         self.lending_pool_core.addReserveData(_collateral_reserve)
 
         _collateral_reserve_address = _collateral_reserve.get("reserveAddress")
@@ -477,12 +479,12 @@ class TestLendingPoolCore(ScoreTestCase):
             _collateral_actual_result = self.lending_pool_core.getReserveData(_collateral_reserve_address)
 
             mock_principal_reserve_score = get_interface_score(_principal_reserve_address)
-            mock_principal_reserve_score.transfer.assert_called_with(self.mock_dao_fund, borrow_balance_increase // 10)
+            mock_principal_reserve_score.transfer.assert_called_with(self.mock_fee_provider, borrow_balance_increase // 10)
 
             mock_collateral_reserve_score = get_interface_score(_collateral_reserve_address)
             self.assertTrue(mock_collateral_reserve_score.transfer.assert_not_called)
 
-            self.lending_pool_core.DaoFundTransfer(borrow_balance_increase // 10, _principal_reserve_address, None)
+            self.lending_pool_core.InterestTransfer(borrow_balance_increase // 10, _principal_reserve_address, None)
 
             self.assert_internal_call(_principal_d_token_address, "burnOnLiquidation", _user_address,
                                       _amount_to_liquidate,
