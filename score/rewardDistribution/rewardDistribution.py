@@ -32,8 +32,6 @@ class RewardDistributionManager(IconScoreBase):
         self._userIndex = DictDB(self.USER_INDEX, db, value_type=int, depth=2)
         self._assets = ArrayDB(self.ASSETS, db, value_type=Address)
 
-
-
     @eventlog(indexed=1)
     def AssetIndexUpdated(self, _asset: Address, _index: int) -> None:
         pass
@@ -75,7 +73,9 @@ class RewardDistributionManager(IconScoreBase):
         oldIndex = self._assetIndex[_asset]
         lastUpdateTimestamp = self._lastUpdateTimestamp[_asset]
 
-        if self.now() == lastUpdateTimestamp:
+        currentTime = self.now() // 10 ** 6
+
+        if currentTime == lastUpdateTimestamp:
             return oldIndex
 
         newIndex = self._getAssetIndex(oldIndex, self._emissionPerSecond[_asset], lastUpdateTimestamp, _totalBalance)
@@ -83,7 +83,7 @@ class RewardDistributionManager(IconScoreBase):
             self._assetIndex[_asset] = newIndex
             self.AssetIndexUpdated(_asset, newIndex)
 
-        self._lastUpdateTimestamp[_asset] = self.now()
+        self._lastUpdateTimestamp[_asset] = currentTime
         return newIndex
 
     def _updateUserReserveInternal(self, _user: Address, _asset: Address, _userBalance: int,
@@ -103,10 +103,11 @@ class RewardDistributionManager(IconScoreBase):
 
     def _getAssetIndex(self, _currentIndex: int, _emissionPerSecond: int, _lastUpdateTimestamp: int,
                        _totalBalance: int) -> int:
-        if _emissionPerSecond == 0 or _totalBalance == 0 or _lastUpdateTimestamp == self.now():
+        currentTime = self.now() // 10 ** 6
+        if _emissionPerSecond == 0 or _totalBalance == 0 or _lastUpdateTimestamp == currentTime:
             return _currentIndex
         else:
-            timeDelta = (self.now() - _lastUpdateTimestamp) // 10 ** 6
+            timeDelta = currentTime - _lastUpdateTimestamp 
             return exaDiv(_emissionPerSecond * timeDelta, _totalBalance) + _currentIndex
 
     def _claimRewards(self, _user: Address, assetInputs: List[UserAssetInput]) -> int:
