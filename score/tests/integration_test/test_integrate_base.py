@@ -368,19 +368,19 @@ class OMMTestBase(TestUtils):
         self._config_lendingPoolDataProvider()
         self._config_oToken()
         self._config_priceOracleRef()
-        self._config_addressProvider()
-        self._config_lendingPoolCoreSettings()
+        self._config_addressProvider()        
         self._config_oICX()
         # self._config_oIUSDC()
         self._config_liquidationManager()
         self._config_delegation()
-        self._config_ommToken()
         self._config_lendingPoolCore()
         # self._config_priceOracle()
         # self._config_snapshot()
         self._config_rewards()
         self._config_governance()
+        self._config_lendingPoolCoreSettings()
         self._add_reserves_to_lendingPoolCore()
+        self._config_ommToken()
         self._config_staking()
         self._config_fee_provider()
         self._config_debt_tokens()
@@ -525,18 +525,21 @@ class OMMTestBase(TestUtils):
         self._get_transaction(setting_addressProvider)
 
     def _config_lendingPoolCoreSettings(self):
+        '''
+        Done via governance now.
+        '''
         print(
-            "-------------------------------Configuring LENDING POOL CORE RESERVE SETTINGS ----------------------------------------------------")
+            "-------------------------------Configuring LENDING POOL CORE RESERVE SETTINGS VIA GOVERNANCE ----------------------------------------------------")
 
         contracts = self.contracts
-        settings_reserves = [{'contract': 'lendingPoolCore',
+        settings_reserves = [{'contract': 'governance',
                               'method': 'setReserveConstants',
                               'params': {"_constants": [{"reserve": contracts['usds'],
                                                          "optimalUtilizationRate": f"8{'0' * 17}",
                                                          "baseBorrowRate": f"2{'0' * 16}",
                                                          "slopeRate1": f"6{'0' * 16}",
                                                          "slopeRate2": f"1{'0' * 18}"}]}},
-                             {'contract': 'lendingPoolCore',
+                             {'contract': 'governance',
                               'method': 'setReserveConstants',
                               'params': {"_constants": [{"reserve": contracts['sicx'],
                                                          "optimalUtilizationRate": f"8{'0' * 17}",
@@ -652,6 +655,8 @@ class OMMTestBase(TestUtils):
             'params': {'_address': contracts['liquidationManager']}},
             {'contract': 'lendingPoolCore', 'method': 'setDelegation',
             'params': {'_address': contracts['delegation']}},
+            {'contract': 'lendingPoolCore', 'method': 'setGovernance',
+            'params': {'_address': contracts['governance']}},
             {'contract': 'lendingPoolCore', 'method': 'setStaking',
             'params': {'_address': contracts['staking']}},
             {'contract': 'lendingPoolCore', 'method': 'set_id', 'params': {'_value': '1'}}
@@ -719,7 +724,9 @@ class OMMTestBase(TestUtils):
             {'contract': 'rewardDistribution', 'method': 'setDaoFund',
              'params': {'_address': contracts['daoFund']}},
             {'contract': 'rewardDistribution', 'method': 'setLpToken',
-             'params': {'_address': contracts['lpToken']}}
+             'params': {'_address': contracts['lpToken']}},
+            {'contract': 'rewardDistribution', 'method': 'setGovernance',
+             'params': {'_address': contracts['governance']}}
         ]
 
         self._get_transaction(settings_rewards)
@@ -732,6 +739,8 @@ class OMMTestBase(TestUtils):
         settings_governance = [
             # {'contract': 'governance', 'method': 'setSnapshot',
             #  'params': {'_address': contracts['snapshot']}},
+            {'contract': 'governance', 'method': 'setLendingPoolCore',
+             'params':{'_address':contracts['lendingPoolCore']}},
             {'contract': 'governance', 'method': 'setRewards',
              'params': {'_address': contracts['rewardDistribution']}},
             {'contract': 'governance', 'method': 'setStartTimestamp',
@@ -800,7 +809,7 @@ class OMMTestBase(TestUtils):
 
     def _add_reserves_to_lendingPoolCore(self):
         print(
-            "------------------------------- ADDING RESERVES TO LENDING POOL CORE ----------------------------------------------------")
+            "------------------------------- ADDING RESERVES TO LENDING POOL CORE VIA GOVERNANCE ----------------------------------------------------")
 
         contracts = self.contracts
         # params_iusdc ={
@@ -867,12 +876,12 @@ class OMMTestBase(TestUtils):
         }
 
         settings = [
-            # {'contract': 'lendingPoolCore',
+            # {'contract': 'governance',
             #  'method': 'addReserveData', 'params': params_iusdc},
-            {'contract': 'lendingPoolCore',
-             'method': 'addReserveData', 'params': params_usds},
-            {'contract': 'lendingPoolCore',
-             'method': 'addReserveData', 'params': params_icx}
+            {'contract': 'governance',
+             'method': 'initializeReserve', 'params': params_usds},
+            {'contract': 'governance',
+             'method': 'initializeReserve', 'params': params_icx}
         ]
         self._get_transaction(settings)
 

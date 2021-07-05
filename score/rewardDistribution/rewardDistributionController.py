@@ -85,6 +85,7 @@ class RewardDistributionController(RewardDistributionManager):
         self._ommTokenAddress = VarDB(self.OMM_TOKEN_ADDRESS, db, value_type=Address)
         self._workerTokenAddress = VarDB('workerTokenAddress', db, value_type=Address)
         self._lpTokenAddress = VarDB('lpTokenAddress', db, value_type=Address)
+        self._governanceAddress = VarDB('governanceAddress', db, value_type=Address)
         self._daoFundAddress = VarDB('daoFundAddress', db, value_type=Address)
         self._timestampAtStart = VarDB('timestampAtStart', db, value_type=int)
         self._recipients = ArrayDB('recipients', db, value_type=str)
@@ -172,7 +173,7 @@ class RewardDistributionController(RewardDistributionManager):
             for recipient in self._recipients
         }
 
-    @only_admin
+    @only_governance
     @external
     def setStartTimestamp(self, _timestamp: int):
         self._timestampAtStart.set(_timestamp)
@@ -189,6 +190,15 @@ class RewardDistributionController(RewardDistributionManager):
     @external(readonly=True)
     def getAdmin(self) -> Address:
         return self._admin.get()
+
+    @only_owner
+    @external
+    def setGovernance(self, _address: Address):
+        self._governanceAddress.set(_address)
+
+    @external(readonly=True)
+    def getGovernance(self) -> Address:
+        return self._governanceAddress.get()
 
     @only_owner
     @external
