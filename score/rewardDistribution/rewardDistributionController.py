@@ -101,6 +101,8 @@ class RewardDistributionController(RewardDistributionManager):
         self._offset = DictDB('offset', db, value_type=int)
         self._admin = VarDB('admin', db, value_type=Address)
 
+        self._lendingPool = VarDB('lendingPool', db, value_type=Address)
+
     def on_install(self) -> None:
         super().on_install()
         self._recipients.put('worker')
@@ -125,7 +127,7 @@ class RewardDistributionController(RewardDistributionManager):
         pass
 
     @eventlog
-    def RewardsClaimed(self, _user: Address, _rewards: int,_msg:str) -> None:
+    def RewardsClaimed(self, _user: Address, _rewards: int, _msg: str) -> None:
         pass
 
     @external(readonly=True)
@@ -139,6 +141,14 @@ class RewardDistributionController(RewardDistributionManager):
     @external(readonly=True)
     def getLendingPoolDataProvider(self) -> Address:
         return self._dataProviderAddress.get()
+
+    @external
+    def setLendingPool(self, _address: Address):
+        self._lendingPool.set(_address)
+
+    @external(readonly=True)
+    def getLendingPool(self) -> Address:
+        return self._lendingPool.get()
 
     @external
     def setOmm(self, _address: Address):
@@ -290,35 +300,35 @@ class RewardDistributionController(RewardDistributionManager):
 
         return response
 
+    @only_lendingPool
     @external
-    def claimRewards(self) -> int:
-        user = self.msg.sender
+    def claimRewards(self, _user: Address) -> int:
 
-        self._claim_liquidity_token(user)
+        self._claim_liquidity_token(_user)
 
-        unclaimedRewards = self._usersUnclaimedRewards[user]
+        unclaimedRewards = self._usersUnclaimedRewards[_user]
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
 
         userAssetList = []
         for asset in self._assets:
-            supply = dataProvider.getAssetPrincipalSupply(asset, user)
+            supply = dataProvider.getAssetPrincipalSupply(asset, _user)
             userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
                                                 'totalBalance': supply['principalTotalSupply']}
             userAssetList.append(userAssetDetails)
 
-        accruedRewards = self._claimRewards(user, userAssetList)
+        accruedRewards = self._claimRewards(_user, userAssetList)
         if accruedRewards != 0:
             unclaimedRewards += accruedRewards
-            self.RewardsAccrued(user, accruedRewards)
+            self.RewardsAccrued(_user, accruedRewards)
 
         if unclaimedRewards == 0:
             return 0
 
-        self._usersUnclaimedRewards[user] = 0
+        self._usersUnclaimedRewards[_user] = 0
         ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
-        ommToken.transfer(user, unclaimedRewards)
+        ommToken.transfer(_user, unclaimedRewards)
 
-        self.RewardsClaimed(user, unclaimedRewards,'borrowDepositRewards')
+        self.RewardsClaimed(_user, unclaimedRewards, 'borrowDepositRewards')
 
     def _claim_liquidity_token(self, user):
         total_token = 0
@@ -330,7 +340,6 @@ class RewardDistributionController(RewardDistributionManager):
             ommToken.transfer(user, total_token)
             self.RewardsClaimed(user, total_token, 'liquidityAndWorkerTokenRewards')
 
-
     @external
     def distribute(self) -> None:
         worker = self.create_interface_score(self._workerTokenAddress.get(), WorkerTokenInterface)
@@ -339,7 +348,7 @@ class RewardDistributionController(RewardDistributionManager):
 
         if self._distComplete['daoFund']:
             self._initialize()
-        
+
         if day >= self.getDay():
             return
 
@@ -371,7 +380,7 @@ class RewardDistributionController(RewardDistributionManager):
                 self._totalAmount['ommICX'] = totalAmount
                 self._tokenDistTracker['ommICX'] = tokenDistTracker
 
-            if len(data_batch) <  BATCH_SIZE:
+            if len(data_batch) < BATCH_SIZE:
                 self._distComplete['ommICX'] = True
                 self._offset["OMMSICX"] = 0
 
@@ -415,7 +424,7 @@ class RewardDistributionController(RewardDistributionManager):
                 self._totalAmount['dex'] = totalAmount
                 self._tokenDistTracker['dex'] = tokenDistTracker
 
-            if len(data_batch1) <  BATCH_SIZE and len(data_batch2) <  BATCH_SIZE :
+            if len(data_batch1) < BATCH_SIZE and len(data_batch2) < BATCH_SIZE:
                 self._distComplete['dex'] = True
                 self._offset["dex"] = 0
 

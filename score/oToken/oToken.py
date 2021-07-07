@@ -300,8 +300,9 @@ class OToken(IconScoreBase, TokenStandard):
             'decimals': self.decimals()
         }
 
+    @only_lending_pool
     @external
-    def redeem(self, _amount: int, _waitForUnstaking: bool = False) -> None:
+    def redeem(self, _user:Address,_amount: int) -> dict:
         """
         Redeems certain amount of tokens to get the equivalent amount of underlying asset.
 
@@ -313,7 +314,7 @@ class OToken(IconScoreBase, TokenStandard):
             revert(f'{TAG}: '
                    f'Amount: {_amount} to redeem needs to be greater than zero')
 
-        cumulated = self._cumulateBalanceInternal(self.msg.sender)
+        cumulated = self._cumulateBalanceInternal(_user)
         currentBalance = cumulated['principalBalance']
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
@@ -323,25 +324,30 @@ class OToken(IconScoreBase, TokenStandard):
         if amountToRedeem > currentBalance:
             revert(f'{TAG}: '
                    f'Redeem amount: {amountToRedeem} is more than user balance {currentBalance} ')
-        if not self.isTransferAllowed(self.msg.sender, amountToRedeem):
+        if not self.isTransferAllowed(_user, amountToRedeem):
             revert(f'{TAG}: '
                    f'Transfer of amount {amountToRedeem} to the user is not allowed')
-        self._burn(self.msg.sender, amountToRedeem)
+        self._burn(_user, amountToRedeem)
 
         if currentBalance - amountToRedeem == 0:
-            self._resetDataOnZeroBalanceInternal(self.msg.sender)
+            self._resetDataOnZeroBalanceInternal(_user)
             index = 0
 
-        pool = self.create_interface_score(self.getLendingPool(), LendingPoolInterface)
-        pool.redeemUnderlying(self.getReserve(), self.msg.sender, amountToRedeem, currentBalance - amountToRedeem,
-                              _waitForUnstaking)
+        # pool = self.create_interface_score(self.getLendingPool(), LendingPoolInterface)
         rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(
-            self.msg.sender, 
-            convertToExa(cumulated['previousPrincipalBalance'], decimals), 
+            _user,
+            convertToExa(cumulated['previousPrincipalBalance'], decimals),
             convertToExa(beforeTotalSupply, decimals))
-        self.Redeem(self.msg.sender, amountToRedeem, balanceIncrease, index)
+        self.Redeem(_user, amountToRedeem, balanceIncrease, index)
+        return {
+            'reserve':self.getReserve(),
+            'amountToRedeem':amountToRedeem,
+            'oTokenRemaining':currentBalance-amountToRedeem
+        }
+        # pool.redeemUnderlying(self.getReserve(), _user, amountToRedeem, currentBalance - amountToRedeem,_waitForUnstaking)
+
 
     def _resetDataOnZeroBalanceInternal(self, _user: Address) -> None:
         self._userIndexes[_user] = 0
