@@ -1,7 +1,6 @@
 from .utils.Math import convertToExa, exaMul
 from .utils.checks import *
 
-OMM_TOKEN_PREFIX = "OMM/"
 
 SUPPORTED_TOKENS = ["USDS", "USDB", "IUSDC"]
 
@@ -61,8 +60,8 @@ class PriceOracle(IconScoreBase):
         self._price = DictDB(self._PRICE, db, value_type=int, depth=2)
         self._bandOracle = VarDB(self._BAND_ORACLE, db, value_type=Address)
         self._oraclePriceBool = VarDB(self._ORACLE_PRICE_BOOL, db, value_type=bool)
-        self._data_source = VarDB(self._DATA_SOURCE, db, value_type=Address)
-        self._address_provider = VarDB(self._ADDRESS_PROVIDER, db, value_type=Address)
+        self._dataSource = VarDB(self._DATA_SOURCE, db, value_type=Address)
+        self._addressProvider = VarDB(self._ADDRESS_PROVIDER, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -76,8 +75,8 @@ class PriceOracle(IconScoreBase):
 
     @external
     @only_owner
-    def setOraclePriceBool(self, value: bool):
-        self._oraclePriceBool.set(value)
+    def setOraclePriceBool(self, _value: bool):
+        self._oraclePriceBool.set(_value)
 
     @external(readonly=True)
     def getOraclePriceBool(self) -> bool:
@@ -88,24 +87,27 @@ class PriceOracle(IconScoreBase):
     def setBandOracle(self, _address: Address):
         self._bandOracle.set(_address)
 
+    @external(readonly=True)
     def getBandOracle(self) -> Address:
         return self._bandOracle.get()
 
-    @external()
+    @external
     @only_owner
     def setDataSource(self, _address: Address):
-        self._data_source.set(_address)
+        self._dataSource.set(_address)
 
+    @external(readonly=True)
     def getDataSource(self) -> Address:
-        return self._data_source.get()
+        return self._dataSource.get()
 
-    @external()
+    @external
     @only_owner
     def setAddressProvider(self, _address: Address):
-        self._address_provider.set(_address)
+        self._addressProvider.set(_address)
 
+    @external(readonly=True)
     def getAddressProvider(self) -> Address:
-        return self._address_provider.get()
+        return self._addressProvider.get()
 
     @only_owner
     @external
@@ -118,11 +120,11 @@ class PriceOracle(IconScoreBase):
             price = oracle.get_reference_data(_base, _quote)
             return price['rate']
         elif self._oraclePriceBool.get() and _base in SUPPORTED_TOKENS:
-            return 1 * 1 ** 18
+            return 1 * 10 ** 18
         else:
             return self._price[_base][_quote]
 
-    def _get_omm_price(self, _quote) -> int:
+    def _get_omm_price(self, _base: str, _quote: str) -> int:
         lp_token = self.create_interface_score(self.getDataSource(), DataSourceInterface)
         address_provider = self.create_interface_score(self.getAddressProvider(), AddressProviderInterface)
         reserve_addresses = address_provider.getReserveAddresses()
@@ -132,7 +134,7 @@ class PriceOracle(IconScoreBase):
             name = token["name"]
             price_oracle_key = token["priceOracleKey"]
 
-            _price = lp_token.getPriceByName(f"{OMM_TOKEN_PREFIX}{name}")
+            _price = lp_token.getPriceByName(f"{_base}/{name}")
 
             _interface = self.create_interface_score(reserve_addresses[name], TokenInterface)
             _decimals = _interface.decimals()
@@ -144,7 +146,7 @@ class PriceOracle(IconScoreBase):
 
     @external(readonly=True)
     def get_reference_data(self, _base: str, _quote) -> int:
-        if _base == 'OMM':
-            return self._get_omm_price(_quote)
+        if 'OMM' in _base:
+            return self._get_omm_price(_base, _quote)
         else:
             return self._get_price(_base, _quote)
