@@ -94,7 +94,7 @@ class RewardDistributionController(RewardDistributionManager):
         self._distComplete = DictDB('distComplete', db, value_type=bool)
         self._distIndex = DictDB('distIndex', db, value_type=int)
         self._tokenDistTracker = DictDB('tokenDistTracker', db, value_type=int)
-        self._distPercentage = DictDB('distPercentage', db, value_type=int)
+        self._distPercentage = DictDB('distPercentage', db, value_type=int, depth=2)
         self._offset = DictDB('offset', db, value_type=int)
         self._admin = VarDB('admin', db, value_type=Address)
         self._dex = VarDB(self.DEX, db, value_type=Address)
@@ -151,10 +151,31 @@ class RewardDistributionController(RewardDistributionManager):
     @only_owner
     @external
     def setDistPercentage(self, _ommICX: int, _dex: int, _worker: int, _daoFund: int):
-        self._distPercentage['ommICX'] = _ommICX
-        self._distPercentage['dex'] = _dex
-        self._distPercentage['worker'] = _worker
-        self._distPercentage['daoFund'] = _daoFund
+        currentDay = self.getDay()
+        length = self._distPercentage["length"][0]
+        if length == 0:
+            self._distPercentage['ommICX'][length] = _ommICX
+            self._distPercentage['dex'][length] = _dex
+            self._distPercentage['worker'][length] = _worker
+            self._distPercentage['daoFund'][length] = _daoFund
+            self._distPercentage["ids"][length] = currentDay
+            self._distPercentage["length"][0] += 1
+            return
+        else:
+            lastDay = self._distPercentage["ids"][length - 1]
+
+        if lastDay < currentDay:
+            self._distPercentage["ids"][length] = currentDay
+            self._distPercentage['ommICX'][length] = _ommICX
+            self._distPercentage['dex'][length] = _dex
+            self._distPercentage['worker'][length] = _worker
+            self._distPercentage['daoFund'][length] = _daoFund
+            self._distPercentage["length"][0] += 1
+        else:
+            self._distPercentage['ommICX'][length - 1] = _ommICX
+            self._distPercentage['dex'][length - 1] = _dex
+            self._distPercentage['worker'][length - 1] = _worker
+            self._distPercentage['daoFund'][length - 1] = _daoFund
 
     @only_owner
     @external
@@ -165,6 +186,15 @@ class RewardDistributionController(RewardDistributionManager):
     @external(readonly=True)
     def getRecipients(self) -> list:
         return [item for item in self._recipients]
+
+    @only_owner
+    @external
+    def setPoolId(self, _pool: str, _id: int):
+        self._pool_id[_pool] = _id
+
+    @external(readonly=True)
+    def getPoolId(self, _pool: str) -> int:
+        return self._pool_id[_pool]
 
     @only_owner
     @external
@@ -180,11 +210,25 @@ class RewardDistributionController(RewardDistributionManager):
         return [item for item in self._recipients]
 
     @external(readonly=True)
-    def getDistPercentage(self) -> dict:
-        return {
-            recipient: self._distPercentage[recipient]
-            for recipient in self._recipients
-        }
+    def distPercentageAt(self, _recipient: str, _day: int) -> int:
+        if _day < 0:
+            revert(f"{TAG}: "f"IRC2Snapshot: day:{_day} must be equal to or greater then Zero")
+        low = 0
+        high = self._distPercentage["length"][0]
+
+        while low < high:
+            mid = (low + high) // 2
+            if self._distPercentage["ids"][mid] > _day:
+                high = mid
+            else:
+                low = mid + 1
+
+        if self._distPercentage["ids"][0] == _day:
+            return self._distPercentage[_recipient][0]
+        elif low == 0:
+            return 0
+        else:
+            return self._distPercentage[_recipient][low - 1]
 
     @only_admin
     @external
@@ -358,9 +402,9 @@ class RewardDistributionController(RewardDistributionManager):
         ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
         ommToken.mint(tokenDistributionPerDay)
 
-        for value in ('worker', 'daoFund'):
-            self._distComplete[value] = False
-            self._tokenDistTracker[value] = exaMul(tokenDistributionPerDay, self._distPercentage[value])
+        for recipient in ('worker', 'daoFund'):
+            self._distComplete[recipient] = False
+            self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay, self.distPercentageAt(recipient, day))
 
     @external(readonly=True)
     def tokenDistributionPerDay(self, _day: int) -> int:
@@ -437,7 +481,7 @@ class RewardDistributionController(RewardDistributionManager):
         equivalentReward = 0
         if userLp > 0 and totalLp > 0:
             # TODO snapshot in dist percentage
-            totalReward = exaMul(tokenDistributionPerDay, self._distPercentage['ommICX'])
+            totalReward = exaMul(tokenDistributionPerDay, self.distPercentageAt('ommICX', _day))
             equivalentReward = exaDiv(exaMul(userLp, totalReward), totalLp)
 
         userLp1 = dex.balanceOfAt(_account, self._pool_id['OMM/USDS'], _day)
@@ -448,7 +492,7 @@ class RewardDistributionController(RewardDistributionManager):
         totalLpSum = totalLp1 + totalLp2
 
         if userLpSum > 0 and totalLpSum > 0:
-            totalReward = exaMul(tokenDistributionPerDay, self._distPercentage['dex'])
+            totalReward = exaMul(tokenDistributionPerDay, self.distPercentageAt('dex', _day))
             equivalentReward += exaDiv(exaMul(userLpSum, totalReward), totalLpSum)
 
         return equivalentReward
@@ -457,7 +501,7 @@ class RewardDistributionController(RewardDistributionManager):
         if self._is_claimed(self._daoFundAddress.get(), _day):
             return 0
         tokenDistributionPerDay = self.tokenDistributionPerDay(_day)
-        totalReward = exaMul(tokenDistributionPerDay, self._distPercentage['daoFund'])
+        totalReward = exaMul(tokenDistributionPerDay, self.distPercentageAt('daoFund', _day))
         return totalReward
 
     def _setClaimed(self, _account: Address, _day: int):
@@ -476,12 +520,8 @@ class RewardDistributionController(RewardDistributionManager):
 
     @external
     def claimDexRewards(self, _start: int = 0, _end: int = 0) -> None:
-        """
-        Used to claim all fees generated by the Balanced system. _start and _end is used to take the range of rewards
-        user wants to claim.
-        """
         if not self._rewardsActivate.get():
-            revert(f"Balanced Dividends: Claim has not been activated")
+            revert(f"OMM Rewards: Claim has not been activated")
 
         start, end = self._checkStartEnd(_start, _end)
         account = self.msg.sender
@@ -502,12 +542,9 @@ class RewardDistributionController(RewardDistributionManager):
 
     @external
     def claimDaoFundRewards(self, _start: int = 0, _end: int = 0) -> None:
-        """
-        Used to claim all fees generated by the Balanced system. _start and _end is used to take the range of rewards
-        user wants to claim.
-        """
+
         if not self._rewardsActivate.get():
-            revert(f"Balanced Dividends: Claim has not been activated")
+            revert(f"OMM Rewards: Claim has not been activated")
 
         start, end = self._checkStartEnd(_start, _end)
         account = self._daoFundAddress.get()
