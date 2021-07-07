@@ -101,7 +101,7 @@ class AddressProvider(IconScoreBase):
         self._set_address(self.REWARDS, _address)
 
     @external
-    def getCollateralAddresses(self) -> dict:
+    def getReserveAddresses(self) -> dict:
         return {
             "USDS": self._get_address(self.USDs),
             "sICX": self._get_address(self.sICX),

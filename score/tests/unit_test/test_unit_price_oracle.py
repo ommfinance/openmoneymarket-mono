@@ -25,25 +25,25 @@ class TestPriceOracle(ScoreTestCase):
 
     def test_get_reference_data_for_omm(self):
         self.set_msg(self._owner)
-        # self.score.toggleOraclePriceBool()
+        self.score.setOraclePriceBool(False)
 
         self.score.set_reference_data("USDB", "USD", 15 * EXA // 10)
-        self.score.set_reference_data("IUSDC", "USD", 12 * EXA // 10)
+        self.score.set_reference_data("USDS", "USD", 15 * EXA // 10)
+        self.score.set_reference_data("USDC", "USD", 12 * EXA // 10)
+        self.score.set_reference_data("ICX", "USD", 5 * EXA // 10)
         self.set_msg(None)
 
-        self.patch_internal_method(self.mock_band_oracle, "get_reference_data",
-                                   lambda _base, _quote: {"rate": 5 * EXA // 10})
 
-        _collateral_address = {
+        _reserve_address = {
             "USDS": Address.from_string(f"cx{'9841' * 10}"),
             "sICX": Address.from_string(f"cx{'9842' * 10}"),
             "IUSDC": Address.from_string(f"cx{'9843' * 10}")
         }
 
-        self.patch_internal_method(self.mock_address_provider, "getCollateralAddresses", lambda: _collateral_address)
-        self.patch_internal_method(_collateral_address["USDS"], "decimals", lambda: 18)
-        self.patch_internal_method(_collateral_address["sICX"], "decimals", lambda: 18)
-        self.patch_internal_method(_collateral_address["IUSDC"], "decimals", lambda: 6)
+        self.patch_internal_method(self.mock_address_provider, "getReserveAddresses", lambda: _reserve_address)
+        self.patch_internal_method(_reserve_address["USDS"], "decimals", lambda: 18)
+        self.patch_internal_method(_reserve_address["sICX"], "decimals", lambda: 18)
+        self.patch_internal_method(_reserve_address["IUSDC"], "decimals", lambda: 6)
 
         def _price_side_effect(_name):
             if _name == 'OMM/USDS':
@@ -67,4 +67,3 @@ class TestPriceOracle(ScoreTestCase):
 
         self.assertEqual(140625 * EXA // 100000, actual_result)
 
-        self.assert_internal_call(self.mock_band_oracle, "get_reference_data", "ICX", "USD")

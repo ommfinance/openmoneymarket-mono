@@ -3,6 +3,8 @@ from .utils.checks import *
 
 OMM_TOKEN_PREFIX = "OMM/"
 
+SUPPORTED_TOKENS = ["USDS", "USDB", "IUSDC"]
+
 OMM_TOKENS = [
     {
         "name": "USDS",
@@ -31,7 +33,7 @@ class OracleInterface(InterfaceScore):
 
 class AddressProviderInterface(InterfaceScore):
     @interface
-    def getCollateralAddresses(self) -> dict:
+    def getReserveAddresses(self) -> dict:
         pass
 
 
@@ -74,8 +76,8 @@ class PriceOracle(IconScoreBase):
 
     @external
     @only_owner
-    def toggleOraclePriceBool(self):
-        self._oraclePriceBool.set(not self._oraclePriceBool.get())
+    def setOraclePriceBool(self, value: bool):
+        self._oraclePriceBool.set(value)
 
     @external(readonly=True)
     def getOraclePriceBool(self) -> bool:
@@ -111,20 +113,19 @@ class PriceOracle(IconScoreBase):
         self._price[_base][_quote] = _rate
 
     def _get_price(self, _base: str, _quote) -> int:
-        # TODO remove me for main-net deployment
-        if _base == "USDS":
-            _base = "USDB"
-        if self._oraclePriceBool.get() or _base == 'ICX':
+        if self._oraclePriceBool.get() and _base == "ICX":
             oracle = self.create_interface_score(self._bandOracle.get(), OracleInterface)
             price = oracle.get_reference_data(_base, _quote)
             return price['rate']
+        elif self._oraclePriceBool.get() and _base in SUPPORTED_TOKENS:
+            return 1 * 1 ** 18
         else:
             return self._price[_base][_quote]
 
     def _get_omm_price(self, _quote) -> int:
         lp_token = self.create_interface_score(self.getDataSource(), DataSourceInterface)
         address_provider = self.create_interface_score(self.getAddressProvider(), AddressProviderInterface)
-        collateral_addresses = address_provider.getCollateralAddresses()
+        reserve_addresses = address_provider.getReserveAddresses()
 
         _total_price = 0
         for token in OMM_TOKENS:
@@ -133,7 +134,7 @@ class PriceOracle(IconScoreBase):
 
             _price = lp_token.getPriceByName(f"{OMM_TOKEN_PREFIX}{name}")
 
-            _interface = self.create_interface_score(collateral_addresses[name], TokenInterface)
+            _interface = self.create_interface_score(reserve_addresses[name], TokenInterface)
             _decimals = _interface.decimals()
 
             _adjusted_price = token["convert"](lp_token, _price, _decimals)
