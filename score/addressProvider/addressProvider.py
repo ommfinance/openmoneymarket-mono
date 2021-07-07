@@ -105,7 +105,7 @@ class AddressProvider(IconScoreBase):
     def setPriceOracle(self, _address: Address) -> None:
         self._set_address(self.PRICE_ORACLE, _address)
 
-    @external
+    @external(readonly=True)
     def getReserveAddresses(self) -> dict:
         return {
             "USDS": self._get_address(self.USDs),
