@@ -100,6 +100,14 @@ class AddressProvider(IconScoreBase):
     def setRewards(self, _address: Address) -> None:
         self._set_address(self.REWARDS, _address)
 
+    @external
+    def getReserveAddresses(self) -> dict:
+        return {
+            "USDS": self._get_address(self.USDs),
+            "sICX": self._get_address(self.sICX),
+            "IUSDC": self._get_address(self.IUSDC),
+        }
+
     @external(readonly=True)
     def getAllAddresses(self) -> dict:
         return {
