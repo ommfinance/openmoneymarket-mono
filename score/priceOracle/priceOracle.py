@@ -2,7 +2,7 @@ from .utils.Math import convertToExa, exaMul
 from .utils.checks import *
 
 
-SUPPORTED_TOKENS = ["USDS", "USDB"]
+STABLE_TOKENS = ["USDS", "USDB"]
 
 OMM_TOKENS = [
     {
@@ -116,7 +116,7 @@ class PriceOracle(IconScoreBase):
 
     def _get_price(self, _base: str, _quote) -> int:
         if self._oraclePriceBool.get():
-            if _base in SUPPORTED_TOKENS:
+            if _base in STABLE_TOKENS:
                 return 1 * 10 ** 18
             else:
                 oracle = self.create_interface_score(self._bandOracle.get(), OracleInterface)
