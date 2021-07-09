@@ -171,6 +171,7 @@ class LendingPool(IconScoreBase):
     FEE_SHARING_TXN_LIMIT = 'feeSharingTxnLimit'
     BRIDGE_O_TOKEN = 'bridgeOToken'
     OMM_TOKEN = 'omm_token'
+    BRIDGE_FEE_THRESHOLD = "bridgeFeeThreshold"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -189,10 +190,12 @@ class LendingPool(IconScoreBase):
         self._feeSharingUsers = DictDB(self.FEE_SHARING_USERS, db, value_type=int, depth=2)
         self._feeSharingTxnLimit = VarDB(self.FEE_SHARING_TXN_LIMIT, db, value_type=int)
         self._bridgeOtoken = VarDB(self.BRIDGE_O_TOKEN, db, value_type=Address)
+        self._bridgeFeeThreshold = VarDB(self.BRIDGE_FEE_THRESHOLD, db, value_type=int)
         self._ommToken = VarDB(self.OMM_TOKEN, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
+        self._bridgeFeeThreshold.set(0)
 
     def on_update(self) -> None:
         super().on_update()
@@ -291,6 +294,15 @@ class LendingPool(IconScoreBase):
     def getRewardManager(self) -> Address:
         return self._rewardAddress.get()
 
+    @only_owner
+    @external
+    def setBridgeFeeThreshold(self, _amount: int) -> None:
+        self._bridgeFeeThreshold.set(_amount)
+
+    @external(readonly=True)
+    def getBridgeFeeThreshold() -> int:
+        return self._bridgeFeeThreshold.get()
+
     @external(readonly=True)
     def getBorrowWallets(self, _index: int) -> list:
         return self._get_array_items(self._borrowWallets, _index)
@@ -328,13 +340,13 @@ class LendingPool(IconScoreBase):
 
     def _userBridgeDepositStatus(self, _user: Address) -> bool:
         bridgeOtoken = self.create_interface_score(self._bridgeOtoken.get(), OTokenInterface)
-        return bridgeOtoken.balanceOf(_user) > 0
+        return bridgeOtoken.balanceOf(_user) > self._bridgeFeeThreshold.get()
 
     def _enableFeeSharing(self):
         if not self._feeSharingUsers[self.msg.sender]['startHeight']:
             self._feeSharingUsers[self.msg.sender]['startHeight'] = self.block_height
         if self._feeSharingUsers[self.msg.sender]['startHeight'] + TERM_LENGTH > self.block_height:
-            if self._feeSharingUsers[self.msg.sender]['txnCount'] <= self._feeSharingTxnLimit.get():
+            if self._feeSharingUsers[self.msg.sender]['txnCount']  < self._feeSharingTxnLimit.get():
                 self._feeSharingUsers[self.msg.sender]['txnCount'] += 1
                 self.set_fee_sharing_proportion(100)
         else:
