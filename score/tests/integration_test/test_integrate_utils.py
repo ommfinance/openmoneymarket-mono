@@ -1,7 +1,7 @@
 from typing import Union, List
 
 from iconsdk.builder.call_builder import CallBuilder
-from iconsdk.builder.transaction_builder import TransactionBuilder, DeployTransactionBuilder, CallTransactionBuilder
+from iconsdk.builder.transaction_builder import TransactionBuilder, DeployTransactionBuilder, CallTransactionBuilder, DepositTransactionBuilder
 from iconsdk.icon_service import IconService
 from iconsdk.libs.in_memory_zip import gen_deploy_data_content
 from iconsdk.signed_transaction import SignedTransaction
@@ -138,6 +138,19 @@ class TestUtils(IconIntegrateTestBase):
             method=method,
             params=params
         ).build()
+        signed_transaction = SignedTransaction(tx, from_)
+        return signed_transaction
+
+    def deposit_tx(self, from_: KeyWallet, to: str, value: int = 5000000000000000000000) -> SignedTransaction:
+        tx = DepositTransactionBuilder(
+                from_ = from_.get_address(),
+                to = to,
+                nid =3,
+                value =value,
+                step_limit=1000000000,
+                nonce=100,
+                action="add"
+            ).build()
         signed_transaction = SignedTransaction(tx, from_)
         return signed_transaction
 
