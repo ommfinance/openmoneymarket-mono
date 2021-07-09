@@ -366,6 +366,8 @@ class LendingPool(IconScoreBase):
         :return:
         """
         # checking for active and unfreezed reserve,deposit is allowed only for active and unfreezed reserve
+        if self._userBridgeDepositStatus(self.msg.sender):
+            self._enableFeeSharing()
         lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserveData = core.getReserveData(_reserve)
