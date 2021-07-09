@@ -33,12 +33,13 @@ class OmmUtils(OMMTestBase):
 	def _redeemICX(self, _from, _redeemAmount):
 
 		params = {
+			"_oToken": self.contracts["oICX"],
 			"_amount": _redeemAmount,
 		}
 
 		tx_result = self.send_tx(
 			from_=_from,
-			to=self.contracts["oICX"],
+			to=self.contracts["lendingPool"],
 			method="redeem",
 			params=params
 			)
@@ -91,15 +92,29 @@ class OmmUtils(OMMTestBase):
 			)
 		return tx_result
 
+	def _mintUSDS(self, _from, _to):
+		params = {
+			"_to": _to,
+			"_value": 1000 * 10 ** 18
+		}
+		tx_result = self.send_tx(
+			from_=_from,
+			to=self.contracts["usds"],
+			method="mint",
+			params=params
+			)
+		return tx_result
+
 	def _redeemUSDS(self, _from, _redeemAmount):
 
 		params = {
+				"_oToken": self.contracts["oUSDS"],
 				"_amount": _redeemAmount,
 				}
 
 		tx_result = self.send_tx(
 			from_=_from,
-			to=self.contracts["oUSDS"],
+			to=self.contracts["lendingPool"],
 			method="redeem",
 			params=params
 			)
