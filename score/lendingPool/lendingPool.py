@@ -2,6 +2,7 @@ from .utils.checks import *
 from .utils.Math import *
 
 BATCH_SIZE = 50
+TERM_LENGTH = 43120
 
 
 # An interface to fee provider
@@ -21,6 +22,10 @@ class OTokenInterface(InterfaceScore):
     def mintOnDeposit(self, _user: Address, _amount: int) -> None:
         pass
 
+    @interface
+    def redeem(self, _user: Address, _amount: int) -> None:
+        pass
+
 
 # An interface to reserves
 class ReserveInterface(InterfaceScore):
@@ -33,6 +38,10 @@ class ReserveInterface(InterfaceScore):
 class RewardInterface(InterfaceScore):
     @interface
     def distribute(self):
+        pass
+
+    @interface
+    def claimRewards(self, _user: Address) -> int:
         pass
 
 
@@ -132,6 +141,17 @@ class LiquidationManagerInterface(InterfaceScore):
         pass
 
 
+# An interface to omm token
+class OmmTokenInterface(InterfaceScore):
+    @interface
+    def unstake(self, _value: int, _user: Address) -> None:
+        pass
+
+    @interface
+    def stake(self, _value: int, _user: Address) -> None:
+        pass
+
+
 class LendingPool(IconScoreBase):
     LENDING_POOL_CORE = 'lendingPoolCore'
     LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
@@ -147,6 +167,11 @@ class LendingPool(IconScoreBase):
     SNAPSHOT = 'snapshot'
     FEE_PROVIDER = 'feeProvider'
     REWARDS_DISTRIBUTION = 'rewardsDistribution'
+    FEE_SHARING_USERS = 'feeSharingUsers'
+    FEE_SHARING_TXN_LIMIT = 'feeSharingTxnLimit'
+    BRIDGE_O_TOKEN = 'bridgeOToken'
+    OMM_TOKEN = 'omm_token'
+    BRIDGE_FEE_THRESHOLD = "bridgeFeeThreshold"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -162,9 +187,15 @@ class LendingPool(IconScoreBase):
         self._stakingAddress = VarDB(self.STAKING_ADDRESS, db, value_type=Address)
         self._liquidationManagerAddress = VarDB(self.LIQUIDATION_MANAGER_ADDRESS, db, value_type=Address)
         self._rewardAddress = VarDB(self.REWARDS_DISTRIBUTION, db, value_type=Address)
+        self._feeSharingUsers = DictDB(self.FEE_SHARING_USERS, db, value_type=int, depth=2)
+        self._feeSharingTxnLimit = VarDB(self.FEE_SHARING_TXN_LIMIT, db, value_type=int)
+        self._bridgeOtoken = VarDB(self.BRIDGE_O_TOKEN, db, value_type=Address)
+        self._bridgeFeeThreshold = VarDB(self.BRIDGE_FEE_THRESHOLD, db, value_type=int)
+        self._ommToken = VarDB(self.OMM_TOKEN, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
+        self._bridgeFeeThreshold.set(0)
 
     def on_update(self) -> None:
         super().on_update()
@@ -263,6 +294,15 @@ class LendingPool(IconScoreBase):
     def getRewardManager(self) -> Address:
         return self._rewardAddress.get()
 
+    @only_owner
+    @external
+    def setBridgeFeeThreshold(self, _amount: int) -> None:
+        self._bridgeFeeThreshold.set(_amount)
+
+    @external(readonly=True)
+    def getBridgeFeeThreshold() -> int:
+        return self._bridgeFeeThreshold.get()
+
     @external(readonly=True)
     def getBorrowWallets(self, _index: int) -> list:
         return self._get_array_items(self._borrowWallets, _index)
@@ -270,6 +310,49 @@ class LendingPool(IconScoreBase):
     @external(readonly=True)
     def getDepositWallets(self, _index: int) -> list:
         return self._get_array_items(self._depositWallets, _index)
+
+    @only_owner
+    @external
+    def setFeeSharingTxnLimit(self, _limit: int) -> None:
+        self._feeSharingTxnLimit.set(_limit)
+
+    @external(readonly=True)
+    def getFeeSharingTxnLimit(self) -> int:
+        return self._feeSharingTxnLimit.get()
+
+    @only_owner
+    @external
+    def setBridgeOtoken(self, _address: Address) -> None:
+        self._bridgeOtoken.set(_address)
+
+    @external(readonly=True)
+    def getBridgeOtoken(self) -> Address:
+        return self._bridgeOtoken.get()
+
+    @only_owner
+    @external
+    def setOmmToken(self, _address: Address) -> None:
+        self._ommToken.set(_address)
+
+    @external(readonly=True)
+    def getOmmToken(self) -> Address:
+        return self._ommToken.get()
+
+    def _userBridgeDepositStatus(self, _user: Address) -> bool:
+        bridgeOtoken = self.create_interface_score(self._bridgeOtoken.get(), OTokenInterface)
+        return bridgeOtoken.balanceOf(_user) > self._bridgeFeeThreshold.get()
+
+    def _enableFeeSharing(self):
+        if not self._feeSharingUsers[self.msg.sender]['startHeight']:
+            self._feeSharingUsers[self.msg.sender]['startHeight'] = self.block_height
+        if self._feeSharingUsers[self.msg.sender]['startHeight'] + TERM_LENGTH > self.block_height:
+            if self._feeSharingUsers[self.msg.sender]['txnCount']  < self._feeSharingTxnLimit.get():
+                self._feeSharingUsers[self.msg.sender]['txnCount'] += 1
+                self.set_fee_sharing_proportion(100)
+        else:
+            self._feeSharingUsers[self.msg.sender]['startHeight'] = self.block_height
+            self._feeSharingUsers[self.msg.sender]['txnCount'] = 1
+            self.set_fee_sharing_proportion(100)
 
     @payable
     @external
@@ -287,7 +370,6 @@ class LendingPool(IconScoreBase):
         _reserve = self._sIcxAddress.get()
         self._deposit(_reserve, _amount, self.msg.sender)
 
-    # only active and unfreezed reserve
     def _deposit(self, _reserve: Address, _amount: int, _sender: Address):
         """
         deposits the underlying asset to the reserve
@@ -296,6 +378,8 @@ class LendingPool(IconScoreBase):
         :return:
         """
         # checking for active and unfreezed reserve,deposit is allowed only for active and unfreezed reserve
+        if self._userBridgeDepositStatus(self.msg.sender):
+            self._enableFeeSharing()
         lendingPoolCoreAddress = self._lendingPoolCoreAddress.get()
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserveData = core.getReserveData(_reserve)
@@ -327,7 +411,37 @@ class LendingPool(IconScoreBase):
         self.Deposit(_reserve, _sender, _amount, self.now())
 
     @external
-    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int,
+    def redeem(self, _oToken: Address, _amount: int, _waitForUnstaking: bool = False) -> None:
+        if self._userBridgeDepositStatus(self.msg.sender):
+            self._enableFeeSharing()
+        oToken = self.create_interface_score(_oToken, OTokenInterface)
+        redeemParams = oToken.redeem(self.msg.sender, _amount)
+        self.redeemUnderlying(redeemParams['reserve'], self.msg.sender, _oToken, redeemParams['amountToRedeem'],
+                              redeemParams['oTokenRemaining'], _waitForUnstaking)
+
+    @external
+    def claimRewards(self):
+        if self._userBridgeDepositStatus(self.msg.sender):
+            self._enableFeeSharing()
+        rewards = self.create_interface_score(self._rewardAddress.get(), RewardInterface)
+        rewards.claimRewards(self.msg.sender)
+
+    @external
+    def stake(self, _value: int):
+        if self._userBridgeDepositStatus(self.msg.sender):
+            self._enableFeeSharing()
+        ommToken = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
+        ommToken.stake(_value, self.msg.sender)
+
+    @external
+    def unstake(self, _value: int):
+        if self._userBridgeDepositStatus(self.msg.sender):
+            self._enableFeeSharing()
+        ommToken = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
+        ommToken.unstake(_value, self.msg.sender)
+
+    def redeemUnderlying(self, _reserve: Address, _user: Address, _oToken: Address, _amount: int,
+                         _oTokenbalanceAfterRedeem: int,
                          _waitForUnstaking: bool = False):
         """
         redeems the underlying amount of assets requested by the _user.This method is called from the oToken contract
@@ -343,8 +457,8 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserveData = core.getReserveData(_reserve)
         self._require(reserveData['isActive'], "Reserve is not active,withdraw unsuccessful")
-        if self.msg.sender != reserveData['oTokenAddress']:
-            revert(f'{TAG}: {self.msg.sender} is unauthorized to call, only otoken can invoke the method')
+        # if self.msg.sender != reserveData['oTokenAddress']:
+        #     revert(f'{TAG}: {self.msg.sender} is unauthorized to call, only otoken can invoke the method')
 
         reserveAvailableLiquidity = core.getReserveAvailableLiquidity(_reserve)
         if reserveAvailableLiquidity < _amount:
@@ -355,7 +469,7 @@ class LendingPool(IconScoreBase):
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
         if _waitForUnstaking:
-            self._require(self.msg.sender == self._oIcxAddress.get(),
+            self._require(_oToken == self._oIcxAddress.get(),
                           "Redeem with wait for unstaking failed: Invalid token")
             transferData = {"method": "unstake", "user": str(_user)}
             transferDataBytes = json_dumps(transferData).encode("utf-8")
@@ -383,6 +497,8 @@ class LendingPool(IconScoreBase):
         # checking for active and unfreezed reserve,borrow is allowed only for active and unfreezed reserve
         core = self.create_interface_score(self._lendingPoolCoreAddress.get(), CoreInterface)
         reserveData = core.getReserveData(_reserve)
+        if self._userBridgeDepositStatus(self.msg.sender):
+            self._enableFeeSharing()
         self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
         self._require(not reserveData['isFreezed'], "Reserve is frozen,borrow unsuccessful")
 

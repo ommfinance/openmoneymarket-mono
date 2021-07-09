@@ -49,6 +49,7 @@ class IRC2(TokenStandard, IconScoreBase):
     _UNSTAKING_PERIOD = 'unstaking_period'
     _DELEGATION = 'delegation'
     _REWARDS = 'rewards'
+    _LENDING_POOL = 'lendingPool'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -70,6 +71,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
         self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
         self._rewards = VarDB(self._REWARDS, db, value_type=Address)
+        self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
 
     def on_install(
             self,
@@ -173,6 +175,15 @@ class IRC2(TokenStandard, IconScoreBase):
     @external(readonly=True)
     def getRewards(self) -> Address:
         return self._rewards.get()
+
+    @only_owner
+    @external
+    def setLendingPool(self, _address: Address):
+        self._lendingPool.set(_address)
+
+    @external(readonly=True)
+    def getLendingPool(self) -> Address:
+        return self._lendingPool.get()
 
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
@@ -370,7 +381,7 @@ class IRC2(TokenStandard, IconScoreBase):
     @staticmethod
     def _require(_condition: bool, _message: str):
         if not _condition:
-            revert(f'{TAG: }'+ _message)
+            revert(f'{TAG: }' + _message)
 
     def _first_time(self, _from: Address) -> bool:
         if (
@@ -388,49 +399,49 @@ class IRC2(TokenStandard, IconScoreBase):
         if self._first_time(_from):
             self._staked_balances[_from][Status.AVAILABLE] = self._balances[_from]
 
+    @only_lending_pool
     @external
-    def stake(self, _value: int) -> None:
-        _from = self.msg.sender
+    def stake(self, _value: int, _user: Address) -> None:
         self._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
         self._require(_value > self._minimum_stake.get(),
                       f'Amount to stake:{_value} is smaller the minimum stake:{self._minimum_stake.get()}')
-        self._check_first_time(_from)
-        self._makeAvailable(_from)
-        self._require((self._balances[_from] - self._staked_balances[_from][Status.UNSTAKING]) >= _value,
-                      f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_from} is  {self._balances[_from]}')
-        self._require(_from not in self._lock_list, f'Cannot stake,the address {_from} is locked')
-        old_stake = self._staked_balances[_from][Status.STAKED]
+        self._check_first_time(_user)
+        self._makeAvailable(_user)
+        self._require((self._balances[_user] - self._staked_balances[_user][Status.UNSTAKING]) >= _value,
+                      f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {self._balances[_user]}')
+        self._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
+        old_stake = self._staked_balances[_user][Status.STAKED]
         new_stake = _value
         stake_increment = new_stake - old_stake
         self._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
-        self._staked_balances[_from][Status.AVAILABLE] = self._staked_balances[_from][
+        self._staked_balances[_user][Status.AVAILABLE] = self._staked_balances[_user][
                                                              Status.AVAILABLE] - stake_increment
-        self._staked_balances[_from][Status.STAKED] = _value
+        self._staked_balances[_user][Status.STAKED] = _value
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
-        delegation.updateDelegations(_user=_from)
+        delegation.updateDelegations(_user=_user)
 
+    @only_lending_pool
     @external
-    def unstake(self, _value: int) -> None:
-        _from = self.msg.sender
+    def unstake(self, _value: int,_user:Address) -> None:
         self._require(_value > 0, f'Cannot unstake less than zero'
                                   f'value to stake {_value}')
-        self._makeAvailable(_from)
-        staked_balance = self.staked_balanceOf(_from)
+        self._makeAvailable(_user)
+        staked_balance = self.staked_balanceOf(_user)
         self._require(staked_balance >= _value, f'Cannot unstake,user dont have enough staked  balance'
                                                 f'amount to unstake {_value}'
-                                                f'staked balance of user:{_from} is  {staked_balance}')
-        self._require(_from not in self._lock_list, f'Cannot unstake,the address {_from} is locked')
-        if self._staked_balances[_from][Status.UNSTAKING] > 0:
+                                                f'staked balance of user:{_user} is  {staked_balance}')
+        self._require(_user not in self._lock_list, f'Cannot unstake,the address {_user} is locked')
+        if self._staked_balances[_user][Status.UNSTAKING] > 0:
             revert("you already have a unstaking order,try after the amount is unstaked")
-        self._staked_balances[_from][Status.STAKED] -= _value
-        self._staked_balances[_from][Status.UNSTAKING] = _value
-        self._staked_balances[_from][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
+        self._staked_balances[_user][Status.STAKED] -= _value
+        self._staked_balances[_user][Status.UNSTAKING] = _value
+        self._staked_balances[_user][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
         self._total_staked_balance.set(self._total_staked_balance.get() - _value)
 
         # update the prep delegations
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
-        delegation.updateDelegations(_user=_from)
+        delegation.updateDelegations(_user=_user)
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstaking period has already been reached.
