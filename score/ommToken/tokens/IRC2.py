@@ -24,6 +24,12 @@ class DelegationInterface(InterfaceScore):
         pass
 
 
+class RewardDistributionInterface(InterfaceScore):
+    @interface
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
+        pass
+
+
 class Status:
     AVAILABLE = 0
     STAKED = 1
@@ -50,6 +56,7 @@ class IRC2(TokenStandard, IconScoreBase):
     _DELEGATION = 'delegation'
     _REWARDS = 'rewards'
     _LENDING_POOL = 'lendingPool'
+    _REWARD_DISTRIBUTION = 'reward-distribution-manager'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -72,6 +79,7 @@ class IRC2(TokenStandard, IconScoreBase):
         self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
         self._rewards = VarDB(self._REWARDS, db, value_type=Address)
         self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
+        self._rewardDistribution = VarDB(self._REWARD_DISTRIBUTION, db, value_type=Address)
 
     def on_install(
             self,
@@ -184,6 +192,15 @@ class IRC2(TokenStandard, IconScoreBase):
     @external(readonly=True)
     def getLendingPool(self) -> Address:
         return self._lendingPool.get()
+
+    @only_owner
+    @external
+    def setRewardDistribution(self, _address: Address):
+        self._rewardDistribution.set(_address)
+
+    @external(readonly=True)
+    def getRewardDistribution(self) -> Address:
+        return self._rewardDistribution.get()
 
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
@@ -402,24 +419,28 @@ class IRC2(TokenStandard, IconScoreBase):
     @only_lending_pool
     @external
     def stake(self, _value: int, _user: Address) -> None:
-        self._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
-        self._require(_value > self._minimum_stake.get(),
+        IRC2._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
+        IRC2._require(_value > self._minimum_stake.get(),
                       f'Amount to stake:{_value} is smaller the minimum stake:{self._minimum_stake.get()}')
         self._check_first_time(_user)
         self._makeAvailable(_user)
-        self._require((self._balances[_user] - self._staked_balances[_user][Status.UNSTAKING]) >= _value,
+        IRC2._require((self._balances[_user] - self._staked_balances[_user][Status.UNSTAKING]) >= _value,
                       f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {self._balances[_user]}')
-        self._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
+        IRC2._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
+        old_total_supply = self._total_staked_balance.get()
         old_stake = self._staked_balances[_user][Status.STAKED]
         new_stake = _value
         stake_increment = new_stake - old_stake
-        self._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
+        IRC2._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
         self._staked_balances[_user][Status.AVAILABLE] = self._staked_balances[_user][
                                                              Status.AVAILABLE] - stake_increment
         self._staked_balances[_user][Status.STAKED] = _value
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
         delegation.updateDelegations(_user=_user)
+
+        rewardDistribution = self.create_interface_score(self.getRewardDistribution(), RewardDistributionInterface)
+        rewardDistribution.handleAction(_user, old_stake, old_total_supply)
 
     @only_lending_pool
     @external
