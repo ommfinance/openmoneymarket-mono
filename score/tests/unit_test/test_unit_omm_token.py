@@ -266,3 +266,93 @@ class TestOmmToken(ScoreTestCase):
             mock_score = get_interface_score(self.mock_delegation)
             mock_score.updateDelegations(_user=_user)
             self.assert_internal_call(self.mock_reward_distribution, "handleAction", _user, 20 * EXA, 20 * EXA)
+
+    def test_unstake_not_authorized(self):
+        self.set_msg(self._owner)
+        try:
+            self.score.unstake(10 * EXA, self.test_account4)
+        except IconScoreException as err:
+            self.assertIn("SenderNotAuthorized", str(err))
+        else:
+            raise IconScoreException("Unauthorized method call")
+
+    def test_unstake_validation(self):
+        # GIVEN
+        _user = self.test_account3
+        self.score.setMinimumStake(5 * EXA)
+        self.score._balances[_user] = 18 * EXA
+
+        self.set_msg(self.mock_lending_pool)
+        try:
+            self.score.unstake(-1, _user)
+        except IconScoreException as err:
+            self.assertIn("Cannot unstake less than zero", str(err))
+        else:
+            raise IconScoreException("Invalid unstaking value")
+        # Insufficient staking
+        self.score._staked_balances[_user][Status.AVAILABLE] = 4 * EXA
+        self.score._staked_balances[_user][Status.STAKED] = 8 * EXA
+        self.score._staked_balances[_user][Status.UNSTAKING] = 6 * EXA
+        self.score._staked_balances[_user][Status.UNSTAKING_PERIOD] = 100 * TIME
+
+        try:
+            with mock.patch.object(self.score, "now", return_value=99 * TIME):
+                self.score.unstake(9 * EXA, _user)
+        except IconScoreException as err:
+            self.assertIn("Cannot unstake,user dont have enough staked  balance", str(err))
+        else:
+            raise IconScoreException("Invalid staking value")
+
+        try:
+            with mock.patch.object(self.score, "now", return_value=99 * TIME):
+                self.score.unstake(5 * EXA, _user)
+        except IconScoreException as err:
+            self.assertIn("you already have a unstaking order,try after the amount is unstaked", str(err))
+        else:
+            raise IconScoreException("Already unstake in progress")
+
+        # LOCKED user
+
+        self.score._lock_list.put(_user)
+        try:
+            with mock.patch.object(self.score, "now", return_value=99 * TIME):
+                self.score.unstake(8 * EXA, _user)
+        except IconScoreException as err:
+            self.assertIn("is locked", str(err))
+        else:
+            raise IconScoreException("Staked by locked user")
+
+    def test_unstake(self):
+        # GIVEN
+        _user = self.test_account3
+        seconds_in_day = 60 * 60 * 24
+        self.score.setUnstakingPeriod(3 * seconds_in_day)
+        self.score.setMinimumStake(5 * EXA)
+
+        self.register_interface_score(self.mock_delegation)
+        self.register_interface_score(self.mock_reward_distribution)
+
+        self.score._staked_balances[_user][Status.AVAILABLE] = 10 * EXA
+        self.score._staked_balances[_user][Status.STAKED] = 20 * EXA
+        self.score._staked_balances[_user][Status.UNSTAKING] = 30 * EXA
+        self.score._staked_balances[_user][Status.UNSTAKING_PERIOD] = seconds_in_day * TIME
+
+        self.score._balances[_user] = 60 * EXA
+        self.score._total_supply.set(60 * EXA)
+        self.score._total_staked_balance.set(30 * EXA)
+
+        self.set_msg(self.mock_lending_pool)
+        with mock.patch.object(self.score, "now", return_value=25 * seconds_in_day * TIME // 10):
+            self.score.unstake(20 * EXA, _user)
+
+            self.assertEqual(40 * EXA, self.score._staked_balances[_user][Status.AVAILABLE])
+            self.assertEqual(0, self.score._staked_balances[_user][Status.STAKED])
+            self.assertEqual(20 * EXA, self.score._staked_balances[_user][Status.UNSTAKING])
+            self.assertEqual(55 * seconds_in_day * TIME // 10,
+                             self.score._staked_balances[_user][Status.UNSTAKING_PERIOD])
+            self.assertEqual(10 * EXA, self.score._total_staked_balance.get())
+
+            mock_score = get_interface_score(self.mock_delegation)
+            mock_score.updateDelegations(_user=_user)
+
+            self.assert_internal_call(self.mock_reward_distribution, "handleAction", _user, 20 * EXA, 30 * EXA)

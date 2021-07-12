@@ -445,14 +445,15 @@ class IRC2(TokenStandard, IconScoreBase):
     @only_lending_pool
     @external
     def unstake(self, _value: int, _user: Address) -> None:
-        self._require(_value > 0, f'Cannot unstake less than zero'
+        IRC2._require(_value > 0, f'Cannot unstake less than zero'
                                   f'value to stake {_value}')
         self._makeAvailable(_user)
         staked_balance = self.staked_balanceOf(_user)
-        self._require(staked_balance >= _value, f'Cannot unstake,user dont have enough staked  balance'
+        before_total_staked_balance = self._total_staked_balance.get()
+        IRC2._require(staked_balance >= _value, f'Cannot unstake,user dont have enough staked  balance'
                                                 f'amount to unstake {_value}'
                                                 f'staked balance of user:{_user} is  {staked_balance}')
-        self._require(_user not in self._lock_list, f'Cannot unstake,the address {_user} is locked')
+        IRC2._require(_user not in self._lock_list, f'Cannot unstake,the address {_user} is locked')
         if self._staked_balances[_user][Status.UNSTAKING] > 0:
             revert("you already have a unstaking order,try after the amount is unstaked")
         self._staked_balances[_user][Status.STAKED] -= _value
@@ -463,6 +464,9 @@ class IRC2(TokenStandard, IconScoreBase):
         # update the prep delegations
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
         delegation.updateDelegations(_user=_user)
+
+        rewardDistribution = self.create_interface_score(self.getRewardDistribution(), RewardDistributionInterface)
+        rewardDistribution.handleAction(_user, staked_balance, before_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstaking period has already been reached.
