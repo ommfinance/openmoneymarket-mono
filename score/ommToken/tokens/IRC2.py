@@ -296,7 +296,7 @@ class IRC2(TokenStandard, IconScoreBase):
     @only_owner
     @external
     def remove_from_lockList(self, _user: Address):
-        self._require(_user in self._lock_list, f'Cannot remove,the user {_user} is not in lock list')
+        IRC2._require(_user in self._lock_list, f'Cannot remove,the user {_user} is not in lock list')
         top = self._lock_list.pop()
         if top != _user:
             for i in range(len(self._lock_list)):
@@ -324,7 +324,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        self._require(self.msg.sender not in self._lock_list, f'Cannot transfer,the address {_to} is locked')
+        IRC2._require(self.msg.sender not in self._lock_list, f'Cannot transfer,the address {_to} is locked')
         if _data is None:
             _data = b'None'
         self._transfer(self.msg.sender, _to, _value, _data)
@@ -381,7 +381,7 @@ class IRC2(TokenStandard, IconScoreBase):
     @staticmethod
     def _require(_condition: bool, _message: str):
         if not _condition:
-            revert(f'{TAG: }' + _message)
+            revert(f'{TAG}: {_message}')
 
     def _first_time(self, _from: Address) -> bool:
         if (
@@ -423,7 +423,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
     @only_lending_pool
     @external
-    def unstake(self, _value: int,_user:Address) -> None:
+    def unstake(self, _value: int, _user: Address) -> None:
         self._require(_value > 0, f'Cannot unstake less than zero'
                                   f'value to stake {_value}')
         self._makeAvailable(_user)
