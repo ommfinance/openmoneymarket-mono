@@ -6,6 +6,7 @@ from ..actions.fee_sharing_3_usds_check_free_limit import ACTIONS as FEE_SHARING
 from ..actions.fee_sharing_4_multiple_users import ACTIONS as FEE_SHARING_CASE4
 from ..actions.fee_sharing_5_icx_user_whitelisted import ACTIONS as FEE_SHARING_CASE5
 from ..actions.fee_sharing_6_icx_user_not_whitelisted import ACTIONS as FEE_SHARING_CASE6
+from ..actions.fee_sharing_7_borrow_all_deposited_usds import ACTIONS as FEE_SHARING_CASE7
 from ..actions.steps import Steps
 
 EXA = 10 ** 18
@@ -32,6 +33,9 @@ class OMMFeeSharingCases(OmmUtils):
 
 	def test_06_bridge_not_deposited_icx_cases(self):
 		self._execute(FEE_SHARING_CASE6)
+
+	def test_07_user_withdraws_all_usds_cases(self):
+		self._execute(FEE_SHARING_CASE7)
 
 	def initialize_user(self, name: str, share_fee: bool = False):		
 		user = KeyWallet.create()
