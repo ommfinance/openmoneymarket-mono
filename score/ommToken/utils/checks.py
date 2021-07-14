@@ -29,3 +29,17 @@ def only_admin(func):
         return func(self, *args, **kwargs)
 
     return __wrapper
+
+
+def only_lending_pool(func):
+    if not isfunction(func):
+        revert(f"{TAG}: ""NotAFunctionError")
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        if self.msg.sender != self._lendingPool.get():
+            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (lendingPool){self._lendingPool.get()}")
+
+        return func(self, *args, **kwargs)
+
+    return __wrapper
