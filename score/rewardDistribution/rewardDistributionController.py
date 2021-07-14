@@ -104,6 +104,8 @@ class RewardDistributionController(RewardDistributionManager):
         self._rewardsBatchSize = VarDB(self.REWARDS_BATCH_SIZE, db, value_type=int)
         self._rewardsActivate = VarDB(self.REWARDS_ACTIVATE, db, value_type=int)
 
+        self._lendingPool = VarDB('lendingPool', db, value_type=Address)
+
     def on_install(self) -> None:
         super().on_install()
         self._recipients.put('dex')
@@ -143,6 +145,14 @@ class RewardDistributionController(RewardDistributionManager):
         return self._dataProviderAddress.get()
 
     @only_owner
+    @external
+    def setLendingPool(self, _address: Address):
+        self._lendingPool.set(_address)
+
+    @external(readonly=True)
+    def getLendingPool(self) -> Address:
+        return self._lendingPool.get()
+
     @external
     def setOmm(self, _address: Address):
         self._ommTokenAddress.set(_address)
@@ -322,6 +332,7 @@ class RewardDistributionController(RewardDistributionManager):
 
         return response
 
+    @only_lendingPool
     @external
     def claimRewards(self) -> int:
         user = self.msg.sender
@@ -337,7 +348,7 @@ class RewardDistributionController(RewardDistributionManager):
             userAssetList.append(userAssetDetails)
             self._usersUnclaimedRewards[user][asset] = 0
 
-        accruedRewards = self._claimRewards(user, userAssetList)
+        accruedRewards = self._claimRewards(_user, userAssetList)
         if accruedRewards != 0:
             unclaimedRewards += accruedRewards
             self.RewardsAccrued(user, accruedRewards)
@@ -346,7 +357,7 @@ class RewardDistributionController(RewardDistributionManager):
             return 0
         
         ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
-        ommToken.transfer(user, unclaimedRewards)
+        ommToken.transfer(_user, unclaimedRewards)
 
         self.RewardsClaimed(user, unclaimedRewards, 'Asset rewards')
 

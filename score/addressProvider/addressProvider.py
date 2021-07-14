@@ -17,6 +17,7 @@ class AddressProvider(IconScoreBase):
     DELEGATION = 'delegation'
     OMM_TOKEN = 'ommToken'
     REWARDS = 'rewards'
+    PRICE_ORACLE='priceOracle'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -100,6 +101,18 @@ class AddressProvider(IconScoreBase):
     def setRewards(self, _address: Address) -> None:
         self._set_address(self.REWARDS, _address)
 
+    @external
+    def setPriceOracle(self, _address: Address) -> None:
+        self._set_address(self.PRICE_ORACLE, _address)
+
+    @external(readonly=True)
+    def getReserveAddresses(self) -> dict:
+        return {
+            "USDS": self._get_address(self.USDs),
+            "sICX": self._get_address(self.sICX),
+            "IUSDC": self._get_address(self.IUSDC),
+        }
+
     @external(readonly=True)
     def getAllAddresses(self) -> dict:
         return {
@@ -125,5 +138,6 @@ class AddressProvider(IconScoreBase):
                 "Delegation": self._get_address(self.DELEGATION),
                 "OmmToken": self._get_address(self.OMM_TOKEN),
                 "Rewards": self._get_address(self.REWARDS),
+                "PriceOracle": self._get_address(self.PRICE_ORACLE),
             }
         }

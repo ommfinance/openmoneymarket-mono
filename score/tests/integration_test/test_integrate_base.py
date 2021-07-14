@@ -364,6 +364,8 @@ class OMMTestBase(TestUtils):
         print("-------------------------------Configuring OMM----------------------------------------------------")
         with open(SCORE_ADDRESS_PATH, "r") as file:
             self.contracts = json.load(file)
+        self._deposit_for_fee_sharing()
+        self._mint_bridge()
         self._config_lendingPool()
         self._config_lendingPoolDataProvider()
         self._config_oToken()
@@ -384,6 +386,29 @@ class OMMTestBase(TestUtils):
         self._config_staking()
         self._config_fee_provider()
         self._config_debt_tokens()
+
+
+    def _deposit_for_fee_sharing(self):
+        contracts = ['usds', 'lendingPool']
+        for contract in contracts:
+            print(f"-------------------------------Deposit fee sharing amount to {contract}----------------------------------")
+            deposit_fee = self.deposit_tx(self.deployer_wallet, self.contracts[contract])
+            tx_hash = self.process_transaction(deposit_fee, self.icon_service)
+            tx_result = self.get_tx_result(tx_hash['txHash'])
+            self.assertEqual(True, tx_hash['status'])
+
+    def _mint_bridge(self):
+        param = {
+            '_to': self.deployer_wallet.get_address(),
+            '_value': 1000000 * 10 ** 18
+        }
+        tx_result = self.send_tx(
+                from_=self.deployer_wallet,
+                to=self.contracts['usds'],
+                method="mint",
+                params=param
+            )
+        self.assertEqual(True, tx_result['status'])
 
     def _config_lendingPool(self):
         print(
@@ -407,6 +432,12 @@ class OMMTestBase(TestUtils):
              'params': {'_address': contracts['feeProvider']}},
             {'contract': 'lendingPool', 'method': 'setSICX',
              'params': {'_address': contracts['sicx']}},
+            {'contract': 'lendingPool', 'method': 'setFeeSharingTxnLimit',
+             'params': {'_limit': 3}},
+            {'contract': 'lendingPool', 'method': 'setBridgeOtoken',
+             'params': {'_address': contracts['oUSDS']}},
+            {'contract': 'lendingPool', 'method': 'setOmmToken',
+             'params': {'_address': contracts['ommToken']}}
         ]
         self._get_transaction(settings_lendingPool)
 
@@ -725,6 +756,8 @@ class OMMTestBase(TestUtils):
              'params': {'_address': contracts['daoFund']}},
             {'contract': 'rewardDistribution', 'method': 'setLpToken',
              'params': {'_address': contracts['lpToken']}},
+            {'contract': 'rewardDistribution', 'method': 'setLendingPool',
+             'params': {'_address': contracts['lendingPool']}},
             {'contract': 'rewardDistribution', 'method': 'setGovernance',
              'params': {'_address': contracts['governance']}}
         ]

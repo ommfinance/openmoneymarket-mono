@@ -48,6 +48,7 @@ class TestRewardDistributionController(ScoreTestCase):
         self._owner = self.test_account1
         self.score = self.get_score_instance(RewardDistributionController, self._owner)
         self.mock_lending_pool_core = Address.from_string(f"cx{'1231' * 10}")
+        self.mock_lending_pool = Address.from_string(f"cx{'1212' * 10}")
         self.mock_omm_token = Address.from_string(f"cx{'1232' * 10}")
         self.mock_worker_token = Address.from_string(f"cx{'1233' * 10}")
         self.mock_lp_token = Address.from_string(f"cx{'1235' * 10}")
@@ -57,6 +58,7 @@ class TestRewardDistributionController(ScoreTestCase):
         self.score.setLendingPoolDataProvider(self.mock_lending_pool_core)
         self.score.setOmm(self.mock_omm_token)
         self.score.setWorkerToken(self.mock_worker_token)
+        self.score.setLendingPool(self.mock_lending_pool)
         self.score.setLpToken(self.mock_lp_token)
         self.score.setDaoFund(self.mock_dao_fund)
         self.set_msg(self.test_account2, 1)
@@ -696,8 +698,8 @@ class TestRewardDistributionController(ScoreTestCase):
         self.assertEqual(4000 * EXA, actual_result.get("depositBorrowRewards"))
 
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self.set_msg(_user1, 1)
-            self.score.claimRewards()
+            self.set_msg(self.mock_lending_pool, 1)
+            self.score.claimRewards(_user1)
             mock_omm_token_score = get_interface_score(self.mock_omm_token)
             _calls = [
                 call(_user1, 19 * EXA),
@@ -721,8 +723,8 @@ class TestRewardDistributionController(ScoreTestCase):
         _mock_time_elapsed = 900 * TIME
 
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self.set_msg(_user1, 1)
-            self.score.claimRewards()
+            self.set_msg(self.mock_lending_pool, 1)
+            self.score.claimRewards(_user1)
             self.assert_internal_call(self.mock_omm_token, "transfer", _user1, 4000 * EXA)
             self.score.RewardsClaimed.assert_called_with(_user1, 4000 * EXA, "borrowDepositRewards")
             self.assert_internal_call(self.mock_lending_pool_core, "getAssetPrincipalSupply", ASSET_ADDRESS,

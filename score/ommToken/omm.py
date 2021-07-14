@@ -1,5 +1,5 @@
 from .tokens.IRC2mintable import IRC2Mintable
-
+from iconservice import *
 TOKEN_NAME = 'OmmToken'
 SYMBOL_NAME = 'OMM'
 
