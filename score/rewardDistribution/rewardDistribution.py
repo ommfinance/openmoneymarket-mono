@@ -7,8 +7,7 @@ TAG = 'RewardDistributionManager'
 
 class AssetConfig(TypedDict):
     asset: Address
-    emissionPerSecond: int
-    totalBalance: int
+    distPercentage: int
 
 
 class UserAssetInput(TypedDict):
@@ -17,20 +16,32 @@ class UserAssetInput(TypedDict):
     totalBalance: int
 
 
+class TokenInterface(InterfaceScore):
+    @interface
+    def totalSupply(self) -> int:
+        pass
+
+    @interface
+    def total_staked_balance(self) -> int:
+        pass
+
 class RewardDistributionManager(IconScoreBase):
     EMISSION_PER_SECOND = 'emissionPerSecond'
     LAST_UPDATE_TIMESTAMP = 'lastUpdateTimestamp'
     ASSET_INDEX = 'assetIndex'
     USER_INDEX = 'userIndex'
     ASSETS = 'assets'
+    DIST_PERCENTAGE = 'distPercentage'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._emissionPerSecond = DictDB(self.EMISSION_PER_SECOND, db, value_type=int)
         self._lastUpdateTimestamp = DictDB(self.LAST_UPDATE_TIMESTAMP, db, value_type=int)
         self._assetIndex = DictDB(self.ASSET_INDEX, db, value_type=int)
+        self._distPercentage = DictDB(self.DIST_PERCENTAGE, db, value_type=int)
         self._userIndex = DictDB(self.USER_INDEX, db, value_type=int, depth=2)
         self._assets = ArrayDB(self.ASSETS, db, value_type=Address)
+        self._timestampAtStart = VarDB('timestampAtStart', db, value_type=int)
 
     @eventlog(indexed=1)
     def AssetIndexUpdated(self, _asset: Address, _index: int) -> None:
@@ -53,7 +64,7 @@ class RewardDistributionManager(IconScoreBase):
 
     @external(readonly=True)
     def getAssets(self) -> list:
-        return [i for i in self._assets]
+        return [asset for asset in self._assets]
 
     @only_owner
     @external   
@@ -61,13 +72,46 @@ class RewardDistributionManager(IconScoreBase):
 
         for config in _assetConfig:
             asset = config['asset']
-            totalBalance = config['totalBalance']
-            emissionPerSecond = config['emissionPerSecond']
+            distPercentage = config['distPercentage']
+            self._distPercentage[asset] = distPercentage
+            emissionPerSecond = exaDiv(self.tokenDistributionPerDay(self.getDay()) // 86400, distPercentage)
+            token = self.create_interface_score(asset, TokenInterface)
+            totalBalance = token.totalSupply()
             self._updateAssetStateInternal(asset, totalBalance)
             self._emissionPerSecond[asset] = emissionPerSecond
             self.AssetConfigUpdated(asset, emissionPerSecond)
             if asset not in self._assets:
                 self._assets.put(asset)
+
+    
+
+    @only_owner
+    @external   
+    def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
+
+        for config in _assetConfig:
+            asset = config['asset']
+            distPercentage = config['distPercentage']
+            self._distPercentage[asset] = distPercentage
+            emissionPerSecond = exaDiv(self.tokenDistributionPerDay(self.getDay()) // 86400, distPercentage)
+            token = self.create_interface_score(asset, TokenInterface)
+            totalBalance = token.totalSupply()
+            self._updateAssetStateInternal(asset, totalBalance)
+            self._emissionPerSecond[asset] = emissionPerSecond
+            self.AssetConfigUpdated(asset, emissionPerSecond)
+            if asset not in self._assets:
+                self._assets.put(asset)
+
+    @only_owner
+    def updateEmissionPerSecond(self) -> None:
+        for asset in self._assets:
+            emissionPerSecond = exaDiv(self.tokenDistributionPerDay(self.getDay()) // 86400, self._distPercentage[asset])
+            self._updateAssetStateInternal(asset, totalBalance)
+            token = self.create_interface_score(asset, TokenInterface)
+            totalBalance = token.total_staked_balance()
+            self._emissionPerSecond[asset] = emissionPerSecond
+            self.AssetConfigUpdated(asset, emissionPerSecond)
+
 
     def _updateAssetStateInternal(self, _asset: Address, _totalBalance: int) -> int:
         oldIndex = self._assetIndex[_asset]
@@ -118,19 +162,46 @@ class RewardDistributionManager(IconScoreBase):
 
         return accruedRewards
 
-    def _getUnclaimedRewards(self, _user: Address, assetInputs: List[UserAssetInput]) -> int:
-        accruedRewards = 0
-        for assetInput in assetInputs:
-            asset = assetInput['asset']
-            userBalance = assetInput['userBalance']
-            totalBalance = assetInput['totalBalance']
-            assetIndex = self._getAssetIndex(self._assetIndex[asset], self._emissionPerSecond[asset],
-                                             self._lastUpdateTimestamp[asset], totalBalance)
-
-            accruedRewards += RewardDistributionManager._getRewards(userBalance, assetIndex, self._userIndex[_user][asset])
-
+    def _getUnclaimedRewards(self, _user: Address, _assetInputs: 'UserAssetInput') -> int:
+        asset = _assetInput['asset']
+        userBalance = _assetInput['userBalance']
+        totalBalance = _assetInput['totalBalance']
+        assetIndex = self._getAssetIndex(self._assetIndex[asset], self._emissionPerSecond[asset],
+                                            self._lastUpdateTimestamp[asset], totalBalance)
+        accruedRewards += RewardDistributionManager._getRewards(userBalance, assetIndex, self._userIndex[_user][asset])
         return accruedRewards
 
     @staticmethod
     def _getRewards(_userBalance: int, _assetIndex: int, _userIndex: int) -> int:
         return exaMul(_userBalance, _assetIndex - _userIndex)
+    
+    @external(readonly=True)
+    def tokenDistributionPerDay(self, _day: int) -> int:
+        DAYS_PER_YEAR = 365
+
+        if _day < 30:
+            return 10 ** 24
+        elif _day < DAYS_PER_YEAR:
+            return 4 * 10 ** 23
+        elif _day < (DAYS_PER_YEAR * 2):
+            return 3 * 10 ** 23
+        elif _day < (DAYS_PER_YEAR * 3):
+            return 2 * 10 ** 23
+        elif _day < (DAYS_PER_YEAR * 4):
+            return 10 ** 23
+        else:
+            index = _day // 365 - 4
+            return ((103 ** index * 3 * (383 * 10 ** 24)) // DAYS_PER_YEAR) // (100 ** (index + 1))
+
+    @external(readonly=True)
+    def getDay(self) -> int:
+        return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
+
+    @only_admin
+    @external
+    def setStartTimestamp(self, _timestamp: int):
+        self._timestampAtStart.set(_timestamp)
+
+    @external(readonly=True)
+    def getStartTimestamp(self) -> int:
+        return self._timestampAtStart.get()

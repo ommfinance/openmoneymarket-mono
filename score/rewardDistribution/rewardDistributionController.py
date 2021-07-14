@@ -74,17 +74,19 @@ class RewardDistributionController(RewardDistributionManager):
     REWARDS_BATCH_SIZE = "rewardsBatchSize"
     CLAIMED_BIT_MAP = "claimedBitMap"
     REWARDS_ACTIVATE = "rewardsActivate"
+    ASSET_NAME = "assetName"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._day = VarDB(self.DAY, db, value_type=int)
         self._tokenValue = DictDB(self.TOKEN_VALUE, db, value_type=int, depth=2)
-        self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int)
+        self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth = 2)
+        self._assetName = DictDB(self.ASSET_NAME, db, value_type=str)
         self._dataProviderAddress = VarDB(self.DATA_PROVIDER, db, value_type=Address)
         self._ommTokenAddress = VarDB(self.OMM_TOKEN_ADDRESS, db, value_type=Address)
         self._workerTokenAddress = VarDB('workerTokenAddress', db, value_type=Address)
         self._daoFundAddress = VarDB('daoFundAddress', db, value_type=Address)
-        self._timestampAtStart = VarDB('timestampAtStart', db, value_type=int)
+        
         self._recipients = ArrayDB('recipients', db, value_type=str)
 
         self._precompute = DictDB('preCompute', db, value_type=bool)
@@ -140,6 +142,7 @@ class RewardDistributionController(RewardDistributionManager):
     def getLendingPoolDataProvider(self) -> Address:
         return self._dataProviderAddress.get()
 
+    @only_owner
     @external
     def setOmm(self, _address: Address):
         self._ommTokenAddress.set(_address)
@@ -147,6 +150,15 @@ class RewardDistributionController(RewardDistributionManager):
     @external(readonly=True)
     def getOmm(self) -> Address:
         return self._ommTokenAddress.get()
+
+    @only_owner
+    @external
+    def setAssetName(self, _asset: Address, _name: str):
+        self._assetName[_asset] = _name
+
+    @external(readonly=True)
+    def getAssetName(self, _asset: Address) -> str:
+        return self._assetName[_asset]
 
     @only_owner
     @external
@@ -230,14 +242,7 @@ class RewardDistributionController(RewardDistributionManager):
         else:
             return self._distPercentage[_recipient][low - 1]
 
-    @only_admin
-    @external
-    def setStartTimestamp(self, _timestamp: int):
-        self._timestampAtStart.set(_timestamp)
-
-    @external(readonly=True)
-    def getStartTimestamp(self) -> int:
-        return self._timestampAtStart.get()
+    
 
     @only_owner
     @external
@@ -284,73 +289,66 @@ class RewardDistributionController(RewardDistributionManager):
         return response
 
     @external
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
-        accruedRewards = self._updateUserReserveInternal(_user, self.msg.sender, _userBalance, _totalSupply)
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
+        if _asset == None:
+            _asset = self.msg.sender
+        accruedRewards = self._updateUserReserveInternal(_user, _asset, _userBalance, _totalSupply)
         if accruedRewards != 0:
-            self._usersUnclaimedRewards[_user] += accruedRewards
-            self.RewardsAccrued(_user, accruedRewards)
+            self._usersUnclaimedRewards[_user][_asset] += accruedRewards
+            self.RewardsAccrued(_user, _asset, accruedRewards)
 
     @external(readonly=True)
     def getRewards(self, _user: Address) -> dict:
-        unclaimedRewards = self._usersUnclaimedRewards[_user]
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
-
+        totalRewards = 0
         userAssetList = []
+        response = {}
         for asset in self._assets:
             supply = dataProvider.getAssetPrincipalSupply(asset, _user)
             userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
                                                 'totalBalance': supply['principalTotalSupply']}
-            userAssetList.append(userAssetDetails)
+            unclaimedRewards = self._usersUnclaimedRewards[_user][asset]
+            unclaimedRewards += self._getUnclaimedRewards(_user, userAssetDetails)
+            response[self._assetName[asset]] = unclaimedRewards
+            totalRewards += unclaimedRewards
 
-        unclaimedRewards += self._getUnclaimedRewards(_user, userAssetList)
-
-        response = {}
-        ommRewards = unclaimedRewards
-        liquidityRewards = 0
-        total = unclaimedRewards
         recipientSet = {"daoFund", "worker"}
         for recipient in self._recipients:
             tokenAmount = self._tokenValue[_user][recipient]
             response[recipient] = tokenAmount
-            if recipient in recipientSet:
-                ommRewards += tokenAmount
-            else:
-                liquidityRewards += tokenAmount
-            total += tokenAmount
+            totalRewards += tokenAmount
 
-        response['depositBorrowRewards'] = unclaimedRewards
-        response['ommRewards'] = ommRewards
-        response['liquidityRewards'] = liquidityRewards
-        response['total'] = total
+        response['totalRewards'] = totalRewards
 
         return response
 
     @external
     def claimRewards(self) -> int:
         user = self.msg.sender
-        unclaimedRewards = self._usersUnclaimedRewards[user]
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
 
         userAssetList = []
+        unclaimedRewards = 0
         for asset in self._assets:
+            unclaimedRewards += self._usersUnclaimedRewards[_user][asset]
             supply = dataProvider.getAssetPrincipalSupply(asset, user)
             userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
                                                 'totalBalance': supply['principalTotalSupply']}
             userAssetList.append(userAssetDetails)
+            self._usersUnclaimedRewards[user][asset] = 0
 
         accruedRewards = self._claimRewards(user, userAssetList)
         if accruedRewards != 0:
             unclaimedRewards += accruedRewards
             self.RewardsAccrued(user, accruedRewards)
-
+        
         if unclaimedRewards == 0:
             return 0
-
-        self._usersUnclaimedRewards[user] = 0
+        
         ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
         ommToken.transfer(user, unclaimedRewards)
 
-        self.RewardsClaimed(user, unclaimedRewards, 'borrowDepositRewards')
+        self.RewardsClaimed(user, unclaimedRewards, 'Asset rewards')
 
     @external
     def distribute(self) -> None:
@@ -388,9 +386,6 @@ class RewardDistributionController(RewardDistributionManager):
             self.Distribution("daoFund", daoFundAddress, tokenDistTrackerDaoFund)
             self._day.set(day + 1)
 
-    @external(readonly=True)
-    def getDay(self) -> int:
-        return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
 
     @external(readonly=True)
     def getDistributedDay(self) -> int:
@@ -406,24 +401,7 @@ class RewardDistributionController(RewardDistributionManager):
             self._distComplete[recipient] = False
             self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay, self.distPercentageAt(recipient, day))
 
-    @external(readonly=True)
-    def tokenDistributionPerDay(self, _day: int) -> int:
-        DAYS_PER_YEAR = 365
-
-        if _day < 30:
-            return 10 ** 24
-        elif _day < DAYS_PER_YEAR:
-            return 4 * 10 ** 23
-        elif _day < (DAYS_PER_YEAR * 2):
-            return 3 * 10 ** 23
-        elif _day < (DAYS_PER_YEAR * 3):
-            return 2 * 10 ** 23
-        elif _day < (DAYS_PER_YEAR * 4):
-            return 10 ** 23
-        else:
-            index = _day // 365 - 4
-            return ((103 ** index * 3 * (383 * 10 ** 24)) // DAYS_PER_YEAR) // (100 ** (index + 1))
-
+    
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
         pass
