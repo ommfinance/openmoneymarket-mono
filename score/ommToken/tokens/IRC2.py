@@ -26,7 +26,7 @@ class DelegationInterface(InterfaceScore):
 
 class RewardDistributionInterface(InterfaceScore):
     @interface
-    def handleAction(self, user: Address, userBalance: int, totalSupply: int, asset: Address = None) -> None:
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
         pass
 
 
