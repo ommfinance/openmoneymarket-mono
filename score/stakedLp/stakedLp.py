@@ -4,7 +4,7 @@ from .utils.checks import *
 
 class RewardInterface(InterfaceScore):
     @interface
-    def handleAction(self, _user: Address, _userStake: int, _totalStaked: int, _asset: Address = None):
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
         pass
 
 
