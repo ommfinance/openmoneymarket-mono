@@ -24,6 +24,12 @@ class DelegationInterface(InterfaceScore):
         pass
 
 
+class RewardDistributionInterface(InterfaceScore):
+    @interface
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
+        pass
+
+
 class Status:
     AVAILABLE = 0
     STAKED = 1
@@ -50,6 +56,7 @@ class IRC2(TokenStandard, IconScoreBase):
     _DELEGATION = 'delegation'
     _REWARDS = 'rewards'
     _LENDING_POOL = 'lendingPool'
+    _REWARD_DISTRIBUTION = 'reward-distribution-manager'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -72,6 +79,7 @@ class IRC2(TokenStandard, IconScoreBase):
         self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
         self._rewards = VarDB(self._REWARDS, db, value_type=Address)
         self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
+        self._rewardDistribution = VarDB(self._REWARD_DISTRIBUTION, db, value_type=Address)
 
     def on_install(
             self,
@@ -185,6 +193,15 @@ class IRC2(TokenStandard, IconScoreBase):
     def getLendingPool(self) -> Address:
         return self._lendingPool.get()
 
+    @only_owner
+    @external
+    def setRewardDistribution(self, _address: Address):
+        self._rewardDistribution.set(_address)
+
+    @external(readonly=True)
+    def getRewardDistribution(self) -> Address:
+        return self._rewardDistribution.get()
+
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
         detail_balance = self.details_balanceOf(_owner)
@@ -296,7 +313,7 @@ class IRC2(TokenStandard, IconScoreBase):
     @only_owner
     @external
     def remove_from_lockList(self, _user: Address):
-        self._require(_user in self._lock_list, f'Cannot remove,the user {_user} is not in lock list')
+        IRC2._require(_user in self._lock_list, f'Cannot remove,the user {_user} is not in lock list')
         top = self._lock_list.pop()
         if top != _user:
             for i in range(len(self._lock_list)):
@@ -324,7 +341,7 @@ class IRC2(TokenStandard, IconScoreBase):
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        self._require(self.msg.sender not in self._lock_list, f'Cannot transfer,the address {_to} is locked')
+        IRC2._require(self.msg.sender not in self._lock_list, f'Cannot transfer,the address {_to} is locked')
         if _data is None:
             _data = b'None'
         self._transfer(self.msg.sender, _to, _value, _data)
@@ -381,7 +398,7 @@ class IRC2(TokenStandard, IconScoreBase):
     @staticmethod
     def _require(_condition: bool, _message: str):
         if not _condition:
-            revert(f'{TAG: }' + _message)
+            revert(f'{TAG}: {_message}')
 
     def _first_time(self, _from: Address) -> bool:
         if (
@@ -402,18 +419,19 @@ class IRC2(TokenStandard, IconScoreBase):
     @only_lending_pool
     @external
     def stake(self, _value: int, _user: Address) -> None:
-        self._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
-        self._require(_value > self._minimum_stake.get(),
+        IRC2._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
+        IRC2._require(_value > self._minimum_stake.get(),
                       f'Amount to stake:{_value} is smaller the minimum stake:{self._minimum_stake.get()}')
         self._check_first_time(_user)
         self._makeAvailable(_user)
-        self._require((self._balances[_user] - self._staked_balances[_user][Status.UNSTAKING]) >= _value,
+        IRC2._require((self._balances[_user] - self._staked_balances[_user][Status.UNSTAKING]) >= _value,
                       f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {self._balances[_user]}')
-        self._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
+        IRC2._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
+        old_total_supply = self._total_staked_balance.get()
         old_stake = self._staked_balances[_user][Status.STAKED]
         new_stake = _value
         stake_increment = new_stake - old_stake
-        self._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
+        IRC2._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
         self._staked_balances[_user][Status.AVAILABLE] = self._staked_balances[_user][
                                                              Status.AVAILABLE] - stake_increment
         self._staked_balances[_user][Status.STAKED] = _value
@@ -421,17 +439,21 @@ class IRC2(TokenStandard, IconScoreBase):
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
+        rewardDistribution = self.create_interface_score(self.getRewardDistribution(), RewardDistributionInterface)
+        rewardDistribution.handleAction(_user, old_stake, old_total_supply)
+
     @only_lending_pool
     @external
-    def unstake(self, _value: int,_user:Address) -> None:
-        self._require(_value > 0, f'Cannot unstake less than zero'
+    def unstake(self, _value: int, _user: Address) -> None:
+        IRC2._require(_value > 0, f'Cannot unstake less than zero'
                                   f'value to stake {_value}')
         self._makeAvailable(_user)
         staked_balance = self.staked_balanceOf(_user)
-        self._require(staked_balance >= _value, f'Cannot unstake,user dont have enough staked  balance'
+        before_total_staked_balance = self._total_staked_balance.get()
+        IRC2._require(staked_balance >= _value, f'Cannot unstake,user dont have enough staked  balance'
                                                 f'amount to unstake {_value}'
                                                 f'staked balance of user:{_user} is  {staked_balance}')
-        self._require(_user not in self._lock_list, f'Cannot unstake,the address {_user} is locked')
+        IRC2._require(_user not in self._lock_list, f'Cannot unstake,the address {_user} is locked')
         if self._staked_balances[_user][Status.UNSTAKING] > 0:
             revert("you already have a unstaking order,try after the amount is unstaked")
         self._staked_balances[_user][Status.STAKED] -= _value
@@ -442,6 +464,9 @@ class IRC2(TokenStandard, IconScoreBase):
         # update the prep delegations
         delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
         delegation.updateDelegations(_user=_user)
+
+        rewardDistribution = self.create_interface_score(self.getRewardDistribution(), RewardDistributionInterface)
+        rewardDistribution.handleAction(_user, staked_balance, before_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstaking period has already been reached.
