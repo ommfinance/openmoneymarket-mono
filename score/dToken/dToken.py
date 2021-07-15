@@ -9,6 +9,11 @@ class SupplyDetails(TypedDict):
     decimals: int
 
 
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
+
+
 class LendingPoolCoreInterface(InterfaceScore):
     @interface
     def getNormalizedDebt(self, _reserve: Address) -> int:
@@ -52,13 +57,9 @@ class DToken(IconScoreBase, TokenStandard):
     _DECIMALS = 'decimals'
     _TOTAL_SUPPLY = 'total_supply'
     _BALANCES = 'balances'
-    _CORE_ADDRESS = 'core_address'
-    _RESERVE_ADDRESS = 'reserve_address'
-    _DATA_PROVIDER = 'data_provider'
-    _LENDING_POOL = 'lending_pool'
-    _LIQUIDATION = 'liquidation'
+    _CONTRACTS = 'contracts'
+    _ADDRESSES = 'addresses'
     _USER_INDEXES = 'user_indexes'
-    _DISTRIBUTION_MANAGER = 'distribution_manager'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -67,17 +68,13 @@ class DToken(IconScoreBase, TokenStandard):
         super().__init__(db)
 
         self._name = VarDB(self._NAME, db, value_type=str)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._symbol = VarDB(self._SYMBOL, db, value_type=str)
         self._decimals = VarDB(self._DECIMALS, db, value_type=int)
         self._totalSupply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
         self._balances = DictDB(self._BALANCES, db, value_type=int)
-        self._lendingPoolCore = VarDB(self._CORE_ADDRESS, db, Address)
-        self._reserveAddress = VarDB(self._RESERVE_ADDRESS, db, Address)
-        self._dataProviderAddress = VarDB(self._DATA_PROVIDER, db, value_type=Address)
-        self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
-        self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
-        self._distributionManager = VarDB(self._DISTRIBUTION_MANAGER, db, value_type=Address)
 
     def on_install(self, _name: str, _symbol: str, _decimals: int = 18) -> None:
         """
@@ -152,66 +149,24 @@ class DToken(IconScoreBase, TokenStandard):
         """
         return self._decimals.get()
 
-    @only_owner
+    @origin_owner
     @external
-    def setLendingPoolCore(self, _address: Address):
-        self._lendingPoolCore.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
 
     @external(readonly=True)
-    def getLendingPoolCore(self) -> Address:
-        return self._lendingPoolCore.get()
-
-    @only_owner
-    @external
-    def setDistributionManager(self, _address: Address):
-        self._distributionManager.set(_address)
-
-    @external(readonly=True)
-    def getDistributionManager(self) -> Address:
-        return self._distributionManager.get()
-
-    @only_owner
-    @external
-    def setLiquidation(self, _address: Address):
-        self._liquidation.set(_address)
-
-    @external(readonly=True)
-    def getLiquidation(self) -> Address:
-        return self._liquidation.get()
-
-    @only_owner
-    @external
-    def setReserve(self, _address: Address):
-        self._reserveAddress.set(_address)
-
-    @external(readonly=True)
-    def getReserve(self) -> Address:
-        return self._reserveAddress.get()
-
-    @only_owner
-    @external
-    def setLendingPoolDataProvider(self, _address: Address):
-        self._dataProviderAddress.set(_address)
-
-    @external(readonly=True)
-    def getLendingPoolDataProvider(self) -> Address:
-        return self._dataProviderAddress.get()
-
-    @only_owner
-    @external
-    def setLendingPool(self, _address: Address):
-        self._lendingPool.set(_address)
-
-    @external(readonly=True)
-    def getLendingPool(self) -> Address:
-        return self._lendingPool.get()
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
     def getUserBorrowCumulativeIndex(self, _user: Address) -> int:
         return self._userIndexes[_user]
 
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
-        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
+        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
         userIndex = self._userIndexes[_user]
         if userIndex == 0:
             return _balance
@@ -223,7 +178,7 @@ class DToken(IconScoreBase, TokenStandard):
             return convertExaToOther(balance, decimals)
 
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
-        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
+        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
         previousUserIndex = self._userIndexes[_user]
         decimals = self._decimals.get()
         previousPrincipalBalance = self.principalBalanceOf(_user)
@@ -279,8 +234,8 @@ class DToken(IconScoreBase, TokenStandard):
         Returns the total number of tokens in existence
 
         """
-        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
-        borrowIndex = core.getReserveBorrowCumulativeIndex(self._reserveAddress.get())
+        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
+        borrowIndex = core.getReserveBorrowCumulativeIndex(self._addresses['reserve'])
         principalTotalSupply = self.principalTotalSupply()
         if borrowIndex == 0:
             return self._totalSupply.get()
@@ -297,46 +252,46 @@ class DToken(IconScoreBase, TokenStandard):
     def _mintInterestAndUpdateIndex(self, _user: Address, _balanceIncrease: int):
         if _balanceIncrease > 0:
             self._mint(_user, _balanceIncrease)
-        core = self.create_interface_score(self._lendingPoolCore.get(), LendingPoolCoreInterface)
+        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
         userIndex = core.getReserveBorrowCumulativeIndex(self.getReserve())
         self._userIndexes[_user] = userIndex
 
     @only_lending_pool_core
     @external
-    def mintOnBorrow(self, _user: Address, _amount: int,_balanceIncrease:int):
+    def mintOnBorrow(self, _user: Address, _amount: int, _balanceIncrease: int):
         beforeTotalSupply = self.principalTotalSupply()
         beforeUserSupply = self.principalBalanceOf(_user)
-        self._mintInterestAndUpdateIndex(_user,_balanceIncrease)
+        self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._mint(_user, _amount)
-        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         self.MintOnBorrow(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
     @only_lending_pool_core
     @external
-    def burnOnRepay(self, _user: Address, _amount: int,_balanceIncrease:int):
+    def burnOnRepay(self, _user: Address, _amount: int, _balanceIncrease: int):
         beforeTotalSupply = self.principalTotalSupply()
         beforeUserSupply = self.principalBalanceOf(_user)
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'loanRepaid')
-        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
-        if self.principalBalanceOf(_user)== 0:
+        if self.principalBalanceOf(_user) == 0:
             self._resetDataOnZeroBalanceInternal(_user)
 
     @only_lending_pool_core
     @external
-    def burnOnLiquidation(self, _user: Address, _amount: int,_balanceIncrease:int) -> None:
+    def burnOnLiquidation(self, _user: Address, _amount: int, _balanceIncrease: int) -> None:
         beforeTotalSupply = self.principalTotalSupply()
         beforeUserSupply = self.principalBalanceOf(_user)
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'userLiquidated')
-        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
-        if self.principalBalanceOf(_user)== 0:
+        if self.principalBalanceOf(_user) == 0:
             self._resetDataOnZeroBalanceInternal(_user)
 
     @external
