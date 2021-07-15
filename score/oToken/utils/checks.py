@@ -9,8 +9,8 @@ def only_lending_pool(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self.getLendingPool():
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (liquidation){self.getLendingPool()}")
+        if self.msg.sender != self._addresses['lendingPool']:
+            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (lendingPool){self._addresses['lendingPool']}")
         return func(self, *args, **kwargs)
 
     return __wrapper
@@ -22,8 +22,8 @@ def only_liquidation(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self.getLiquidation():
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (liquidation){self.getLiquidation()}")
+        if self.msg.sender != self._addresses['liquidationManager']:
+            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (liquidation){self._addresses['liquidationManager']}")
         return func(self, *args, **kwargs)
 
     return __wrapper
@@ -41,14 +41,15 @@ def only_owner(func):
 
     return __wrapper
 
-def only_address_provider(func):
+
+def origin_owner(func):
     if not isfunction(func):
         revert(f"{TAG}: ""NotAFunctionError")
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._addresses["addressProvider"]:
-            revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.msg.sender} (owner){self.owner}")
+        if self.tx.origin != self.owner:
+            revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.txn.origin} (owner){self.owner}")
         return func(self, *args, **kwargs)
 
     return __wrapper
