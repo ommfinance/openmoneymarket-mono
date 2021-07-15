@@ -111,7 +111,7 @@ class LiquidationManager(IconScoreBase):
     def name(self) -> str:
         return "OmmLiquidationManager"
 
-    @only_address_provider
+    @origin_owner
     @external
     def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
         for addressDetail in _addressDetails:
@@ -135,9 +135,9 @@ class LiquidationManager(IconScoreBase):
 
     def calculateAvailableCollateralToLiquidate(self, _collateral: Address, _reserve: Address, _purchaseAmount: int,
                                                 _userCollateralBalance: int, _fee: bool) -> dict:
-        priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
-        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
-        core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
+        priceOracle = self.create_interface_score(self.getAddress(PRICE_ORACLE), OracleInterface)
+        dataProvider = self.create_interface_score(self.getAddress(LENDING_POOL_DATA_PROVIDER), DataProviderInterface)
+        core = self.create_interface_score(self.getAddress(LENDING_POOL_CORE), CoreInterface)
 
         if _fee:
             liquidationBonus = 0
@@ -149,12 +149,13 @@ class LiquidationManager(IconScoreBase):
 
         collateralPrice = priceOracle.get_reference_data(collateralBase, 'USD')
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
+        _stakingAddress=self.getAddress(STAKING)
         if collateralBase == 'ICX':
-            staking = self.create_interface_score(self._staking.get(), StakingInterface)
+            staking = self.create_interface_score(_stakingAddress, StakingInterface)
             sicxRate = staking.getTodayRate()
             collateralPrice = exaMul(collateralPrice, sicxRate)
         if principalBase == 'ICX':
-            staking = self.create_interface_score(self._staking.get(), StakingInterface)
+            staking = self.create_interface_score(_stakingAddress, StakingInterface)
             sicxRate = staking.getTodayRate()
             principalPrice = exaMul(principalPrice, sicxRate)
         reserveConfiguration = core.getReserveConfiguration(_reserve)
@@ -189,9 +190,9 @@ class LiquidationManager(IconScoreBase):
 
     @external
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
-        core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
-        priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
-        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
+        core = self.create_interface_score(self.getAddress(LENDING_POOL_CORE), CoreInterface)
+        priceOracle = self.create_interface_score(self.getAddress(PRICE_ORACLE), OracleInterface)
+        dataProvider = self.create_interface_score(self.getAddress(LENDING_POOL_DATA_PROVIDER), DataProviderInterface)
         principalBase = dataProvider.getSymbol(_reserve)
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
         userAccountData = dataProvider.getUserAccountData(_user)
@@ -271,7 +272,7 @@ class LiquidationManager(IconScoreBase):
         if feeLiquidated > 0:
             collateralOtoken.burnOnLiquidation(_user, liquidatedCollateralForFee)
             # the liquidated fee is sent to fee provider
-            core.liquidateFee(_collateral, liquidatedCollateralForFee, self.getFeeProvider())
+            core.liquidateFee(_collateral, liquidatedCollateralForFee, self.getAddress(FEE_PROVIDER))
             self.OriginationFeeLiquidated(_collateral, _reserve, _user, feeLiquidated, liquidatedCollateralForFee,
                                           self.now())
         self.LiquidationCall(_collateral, _reserve, _user, actualAmountToLiquidate, maxCollateralToLiquidate,
