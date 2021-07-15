@@ -1,4 +1,3 @@
-
 from .utils.checks import *
 
 class AddressDetails(TypedDict):
@@ -29,11 +28,10 @@ class AddressProvider(IconScoreBase):
     DELEGATION = "delegation"
     OMM_TOKEN = "ommToken"
     REWARDS = "rewards"
-    PRICE_ORACLE="priceOracle"
+    PRICE_ORACLE = "priceOracle"
     LENDING_POOL_CORE = "lendingPoolCore"
     LIQUIDATION_MANAGER = "liquidationManager"
     FEE_PROVIDER = "feeProvider"
-    REWARD = "reward"
     BRIDGE_OTOKEN = "bridgeOToken"
     GOVERNANCE = "governance"
     ADDRESS_PROVIDER = "addressProvider"
@@ -100,149 +98,136 @@ class AddressProvider(IconScoreBase):
             }
         }
 
-    
     @only_owner
     @external
     def setSCOREAddresses(self) -> None:
         self.setLendingPoolAddresses()
         self.setLendingPoolCoreAddresses()
         self.setLiquidationManagerAddresses()
-     
 
     @only_owner
-    @external  
+    @external
     def setLendingPoolAddresses(self) -> None:
-        lendingPoolAddressDetails: AddressDetails = [{"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
-                                                {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
-                                                {"name": self.sICX, "address": self._addresses[self.sICX]},
-                                                {"name": self.oICX, "address": self._addresses[self.oICX]},
-                                                {"name": self.STAKING, "address": self._addresses[self.STAKING]},
-                                                {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
-                                                {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
-                                                {"name": self.REWARD, "address": self._addresses[self.REWARD]},
-                                                {"name": self.BRIDGE_OTOKEN, "address": self._addresses[self.BRIDGE_OTOKEN]},
-                                                {"name": self.ADDRESS_PROVIDER, "address": self.address},
-                                                {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]}]
-                                        
+        lendingPoolAddressDetails: List[AddressDetails] = [
+            {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
+            {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
+            {"name": self.sICX, "address": self._addresses[self.sICX]},
+            {"name": self.oICX, "address": self._addresses[self.oICX]},
+            {"name": self.STAKING, "address": self._addresses[self.STAKING]},
+            {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
+            {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
+            {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
+            {"name": self.BRIDGE_OTOKEN, "address": self._addresses[self.BRIDGE_OTOKEN]},
+            {"name": self.ADDRESS_PROVIDER, "address": self.address},
+            {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]}]
 
         lendingPool = self.create_interface_score(self._addresses[self.LENDING_POOL], AddressInterface)
         lendingPool.setAddresses(lendingPoolAddressDetails)
 
     @only_owner
-    @external  
+    @external
     def setLendingPoolCoreAddresses(self) -> None:
-        lendingPoolCoreAddressDetails: AddressDetails = [{"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
-                                                {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
-                                                {"name": self.STAKING, "address": self._addresses[self.STAKING]},
-                                                {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
-                                                {"name": self.DELEGATION, "address": self._addresses[self.DELEGATION]},
-                                                {"name": self.GOVERNANCE, "address": self._addresses[self.GOVERNANCE]},
-                                                {"name": self.ADDRESS_PROVIDER, "address": self.address},
-                                                {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]}]
-                                        
+        lendingPoolCoreAddressDetails: List[AddressDetails] = [
+            {"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
+            {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
+            {"name": self.STAKING, "address": self._addresses[self.STAKING]},
+            {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
+            {"name": self.DELEGATION, "address": self._addresses[self.DELEGATION]},
+            {"name": self.GOVERNANCE, "address": self._addresses[self.GOVERNANCE]},
+            {"name": self.ADDRESS_PROVIDER, "address": self.address},
+            {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]}]
 
         lendingPoolCore = self.create_interface_score(self._addresses[self.LENDING_POOL_CORE], AddressInterface)
         lendingPoolCore.setAddresses(lendingPoolCoreAddressDetails)
 
     @only_owner
-    @external  
+    @external
     def setLendingPoolCoreAddresses(self) -> None:
-        lendingPoolCoreAddressDetails: AddressDetails = [{"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
-                                                {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
-                                                {"name": self.STAKING, "address": self._addresses[self.STAKING]},
-                                                {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
-                                                {"name": self.DELEGATION, "address": self._addresses[self.DELEGATION]},
-                                                {"name": self.GOVERNANCE, "address": self._addresses[self.GOVERNANCE]},
-                                                {"name": self.ADDRESS_PROVIDER, "address": self.address},
-                                                {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]}]
-                                        
+        lendingPoolCoreAddressDetails: List[AddressDetails] = [
+            {"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
+            {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
+            {"name": self.STAKING, "address": self._addresses[self.STAKING]},
+            {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
+            {"name": self.DELEGATION, "address": self._addresses[self.DELEGATION]},
+            {"name": self.GOVERNANCE, "address": self._addresses[self.GOVERNANCE]},
+            {"name": self.ADDRESS_PROVIDER, "address": self.address},
+            {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]}
+        ]
 
         lendingPoolCore = self.create_interface_score(self._addresses[self.LENDING_POOL_CORE], AddressInterface)
         lendingPoolCore.setAddresses(lendingPoolCoreAddressDetails)
 
     @only_owner
-    @external  
+    @external
     def setLiquidationManagerAddresses(self) -> None:
-        liquidationManagerAddressDetails: AddressDetails = [{"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
-                                                {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
-                                                {"name": self.STAKING, "address": self._addresses[self.STAKING]},
-                                                {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
-                                                {"name": self.ADDRESS_PROVIDER, "address": self.address},
-                                                {"name": self.PRICE_ORACLE, "address": self._addresses[self.PRICE_ORACLE]}]
+        liquidationManagerAddressDetails: List[AddressDetails] = [
+            {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
+            {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
+            {"name": self.STAKING, "address": self._addresses[self.STAKING]},
+            {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
+            {"name": self.ADDRESS_PROVIDER, "address": self.address},
+            {"name": self.PRICE_ORACLE, "address": self._addresses[self.PRICE_ORACLE]}]
 
         liquidationManager = self.create_interface_score(self._addresses[self.LIQUIDATION_MANAGER], AddressInterface)
         liquidationManager.setAddresses(liquidationManagerAddressDetails)
 
     @only_owner
-    @external  
+    @external
     def setOmmTokenAddresses(self) -> None:
-        ommTokenAddressDetails: AddressDetails = [{"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
-                                                {"name": self.DELEGATION, "address": self._addresses[self.DELEGATION]},
-                                                {"name": self.REWARD, "address": self._addresses[self.REWARD]},
-                                                {"name": self.ADDRESS_PROVIDER, "address": self.address}
-                                                ]
+        ommTokenAddressDetails: List[AddressDetails] = [
+            {"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
+            {"name": self.DELEGATION, "address": self._addresses[self.DELEGATION]},
+            {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
+            {"name": self.ADDRESS_PROVIDER, "address": self.address}
+        ]
 
         ommToken = self.create_interface_score(self._addresses[self.OMM_TOKEN], AddressInterface)
         ommToken.setAddresses(ommTokenAddressDetails)
 
-    
     @only_owner
-    @external  
+    @external
     def setoICXAddresses(self) -> None:
-        oICXAddressDetails: AddressDetails = [{"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
-                                                {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
-                                                {"name": self.RESERVE, "address": self._addresses[self.sICX]},
-                                                {"name": self.ADDRESS_PROVIDER, "address": self.address},
-                                                {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self.LENDING_POOL_DATA_PROVIDER},
-                                                {"name": self.LENDING_POOL, "address": self.LENDING_POOL},
-                                                {"name": self.REWARD, "address": self.REWARD}
-                                                ]
+        oICXAddressDetails: List[AddressDetails] = [
+            {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
+            {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
+            {"name": self.RESERVE, "address": self._addresses[self.sICX]},
+            {"name": self.ADDRESS_PROVIDER, "address": self.address},
+            {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self.LENDING_POOL_DATA_PROVIDER},
+            {"name": self.LENDING_POOL, "address": self.LENDING_POOL},
+            {"name": self.REWARDS, "address": self.REWARDS}
+        ]
 
         oICX = self.create_interface_score(self._addresses[self.oICX], AddressInterface)
-        ommToken.setAddresses(oICXAddressDetails)
+        oICX.setAddresses(oICXAddressDetails)
 
     @only_owner
-    @external  
+    @external
     def setoUSDsAddresses(self) -> None:
-        oUSDsAddressDetails: AddressDetails = [{"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
-                                                {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
-                                                {"name": self.RESERVE, "address": self._addresses[self.USDs]},
-                                                {"name": self.ADDRESS_PROVIDER, "address": self.address},
-                                                {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self.LENDING_POOL_DATA_PROVIDER},
-                                                {"name": self.LENDING_POOL, "address": self.LENDING_POOL},
-                                                {"name": self.REWARD, "address": self.REWARD}
-                                                ]
+        oUSDsAddressDetails: List[AddressDetails] = [
+            {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
+            {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
+            {"name": self.RESERVE, "address": self._addresses[self.USDs]},
+            {"name": self.ADDRESS_PROVIDER, "address": self.address},
+            {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self.LENDING_POOL_DATA_PROVIDER},
+            {"name": self.LENDING_POOL, "address": self.LENDING_POOL},
+            {"name": self.REWARDS, "address": self.REWARDS}
+        ]
 
         oUSDs = self.create_interface_score(self._addresses[self.oUSDs], AddressInterface)
-        oUSDs.setAddresses(oICXAddressDetails)
+        oUSDs.setAddresses(oUSDsAddressDetails)
 
     @only_owner
-    @external  
+    @external
     def setoIUSDCAddresses(self) -> None:
-        oIUSDCAddressDetails: AddressDetails = [{"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
-                                                {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
-                                                {"name": self.RESERVE, "address": self._addresses[self.USDs]},
-                                                {"name": self.ADDRESS_PROVIDER, "address": self.address},
-                                                {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self.LENDING_POOL_DATA_PROVIDER},
-                                                {"name": self.LENDING_POOL, "address": self.LENDING_POOL},
-                                                {"name": self.REWARD, "address": self.REWARD}
-                                                ]
+        oIUSDCAddressDetails: List[AddressDetails] = [
+            {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
+            {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
+            {"name": self.RESERVE, "address": self._addresses[self.USDs]},
+            {"name": self.ADDRESS_PROVIDER, "address": self.address},
+            {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self.LENDING_POOL_DATA_PROVIDER},
+            {"name": self.LENDING_POOL, "address": self.LENDING_POOL},
+            {"name": self.REWARDS, "address": self.REWARDS}
+        ]
 
         oIUSDC = self.create_interface_score(self._addresses[self.oIUSDC], AddressInterface)
-        oIUSDC.setAddresses(oICXAddressDetails)
-
-    
-
-   
-
-
-   
-
-
-
-
-
-
-        
-
-        
+        oIUSDC.setAddresses(oIUSDCAddressDetails)
