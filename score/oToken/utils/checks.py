@@ -49,7 +49,7 @@ def origin_owner(func):
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
         if self.tx.origin != self.owner:
-            revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.txn.origin} (owner){self.owner}")
+            revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.tx.origin} (owner){self.owner}")
         return func(self, *args, **kwargs)
 
     return __wrapper
