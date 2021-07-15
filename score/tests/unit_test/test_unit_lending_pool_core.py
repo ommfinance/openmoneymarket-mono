@@ -6,6 +6,7 @@ from tbears.libs.scoretest.score_test_case import ScoreTestCase
 
 from lendingPoolCore.Math import SECONDS_PER_YEAR
 from lendingPoolCore.lendingPoolCore import LendingPoolCore
+from lendingPoolCore.utils.checks import *
 
 EXA = 10 ** 18
 
@@ -27,13 +28,15 @@ class TestLendingPoolCore(ScoreTestCase):
 
         lending_pool_core = self.get_score_instance(LendingPoolCore, self._owner)
 
-        self.set_msg(self._owner, 1)
-        lending_pool_core.setStaking(self.mock_staking)
-        lending_pool_core.setFeeProvider(self.mock_fee_provider)
-        lending_pool_core.setLiquidationManager(self.mock_liquidation_manager)
-        lending_pool_core.setLendingPool(self.mock_lending_pool)
-        lending_pool_core.setGovernance(self.mock_governance)
-        lending_pool_core.setDelegation(self.mock_delegation)
+        self.set_tx(origin=self._owner)
+        lending_pool_core.setAddresses(
+            [{"name": LENDING_POOL, "address": self.mock_lending_pool},
+             {"name": LIQUIDATION_MANAGER, "address": self.mock_liquidation_manager},
+             {"name": STAKING, "address": self.mock_staking},
+             {"name": FEE_PROVIDER, "address": self.mock_fee_provider},
+             {"name": DELEGATION, "address": self.mock_delegation},
+             {"name": GOVERNANCE, "address": self.mock_governance}]
+        )
 
         self.lending_pool_core = lending_pool_core
 
@@ -292,7 +295,7 @@ class TestLendingPoolCore(ScoreTestCase):
 
         _totalSupply = 1750 * EXA
         new_borrow_amount = 1450 * EXA
-        _totalBorrow = (1220+1450) * EXA
+        _totalBorrow = (1220 + 1450) * EXA
 
         _user_current_borrow = 220 * EXA
 
@@ -308,7 +311,6 @@ class TestLendingPoolCore(ScoreTestCase):
 
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
-
             self.lending_pool_core.updateStateOnBorrow(_reserve_address, _user_address, new_borrow_amount,
                                                        10 * EXA // 100)
             prefix = self.lending_pool_core.userReservePrefix(_reserve_address, _user_address)
@@ -355,7 +357,7 @@ class TestLendingPoolCore(ScoreTestCase):
         else:
             raise
 
-    def test_update_state_on_repay(self):# fail
+    def test_update_state_on_repay(self):  # fail
         _reserve = self._reserve
         _reserve_address = _reserve.get("reserveAddress")
         _d_token_address = _reserve.get("dTokenAddress")
@@ -364,7 +366,7 @@ class TestLendingPoolCore(ScoreTestCase):
 
         _totalSupply = 2250 * EXA
         repay_amount = 920 * EXA
-        _totalBorrow = (1800-920) * EXA
+        _totalBorrow = (1800 - 920) * EXA
         _user_current_borrow = 920 * EXA
         borrow_balance_increase = 1 * EXA // 10
 
@@ -377,7 +379,6 @@ class TestLendingPoolCore(ScoreTestCase):
 
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
-
             origination_fee = 1 * EXA // 100
 
             prefix = self.lending_pool_core.userReservePrefix(_reserve_address, _user_address)
@@ -403,7 +404,8 @@ class TestLendingPoolCore(ScoreTestCase):
             # mock_d_token_score.principalBalanceOf.assert_called_with(_user_address)
             mock_d_token_score.burnOnRepay.aseert_called_with(_user_address, repay_amount, borrow_balance_increase)
 
-            self.assert_internal_call(_reserve_address, "transfer", self.mock_fee_provider, borrow_balance_increase // 10)
+            self.assert_internal_call(_reserve_address, "transfer", self.mock_fee_provider,
+                                      borrow_balance_increase // 10)
 
             actual_result = self.lending_pool_core.getReserveData(_reserve_address)
 
@@ -438,7 +440,7 @@ class TestLendingPoolCore(ScoreTestCase):
         _amount_to_liquidate = 170 * EXA
 
         _principal_total_supply = 4500 * EXA
-        _principal_total_borrow = (2500-170) * EXA
+        _principal_total_borrow = (2500 - 170) * EXA
         _user_current_borrow = 670 * EXA
 
         _collateral_total_supply = 5000 * EXA
@@ -446,7 +448,6 @@ class TestLendingPoolCore(ScoreTestCase):
         _user_current_collateral = 1000 * EXA
 
         borrow_balance_increase = 1 * EXA // 10
-
 
         self.patch_internal_method(_principal_reserve_address, "balanceOf", lambda _address: _principal_total_supply)
         self._mock_debt_token_score(_principal_total_borrow, _user_current_borrow, borrow_balance_increase)
@@ -479,7 +480,8 @@ class TestLendingPoolCore(ScoreTestCase):
             _collateral_actual_result = self.lending_pool_core.getReserveData(_collateral_reserve_address)
 
             mock_principal_reserve_score = get_interface_score(_principal_reserve_address)
-            mock_principal_reserve_score.transfer.assert_called_with(self.mock_fee_provider, borrow_balance_increase // 10)
+            mock_principal_reserve_score.transfer.assert_called_with(self.mock_fee_provider,
+                                                                     borrow_balance_increase // 10)
 
             mock_collateral_reserve_score = get_interface_score(_collateral_reserve_address)
             self.assertTrue(mock_collateral_reserve_score.transfer.assert_not_called)
@@ -509,7 +511,6 @@ class TestLendingPoolCore(ScoreTestCase):
 
             self.assertEqual(time_elapsed, _principal_actual_result["lastUpdateTimestamp"])
             self.assertEqual(time_elapsed, _collateral_actual_result["lastUpdateTimestamp"])
-
 
             self.assertAlmostEqual(0.044964285714285700, _principal_actual_result["borrowRate"] / EXA, 8)
             self.assertAlmostEqual(0.051512623957157200, _collateral_actual_result["borrowRate"] / EXA, 8)

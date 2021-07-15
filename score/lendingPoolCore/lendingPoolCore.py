@@ -6,9 +6,11 @@ from .utils.checks import *
 RESERVE_DB_PREFIX = b'reserve'
 USER_DB_PREFIX = b'userReserve'
 
+
 class AddressDetails(TypedDict):
     name: str
     address: Address
+
 
 class ReserveAttributes(TypedDict):
     reserveAddress: Address
@@ -118,26 +120,15 @@ class StakingInterface(InterfaceScore):
 class LendingPoolCore(IconScoreBase):
     _ID = 'id'
     _RESERVE_LIST = 'reserveList'
-    _LENDING_POOL = 'lendingPool'
     _CONSTANTS = 'constants'
-    _FEE_PROVIDER = 'feeProvider'
-    _STAKING = 'staking'
-    _DELEGATION = 'delegation'
-    _LIQUIDATION = 'liquidation'
-    _GOVERNANCE = 'governance'
+    ADDRESSES = 'addresses'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._id = VarDB(self._ID, db, str)
         self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
-        self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
-        self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
-        self._staking = VarDB(self._STAKING, db, value_type=Address)
-        self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
-        self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
-        self._governance = VarDB(self._GOVERNANCE, db, value_type=Address)
         self.reserve = ReserveDataDB(db)
         self.userReserve = UserReserveDataDB(db)
 
@@ -169,7 +160,7 @@ class LendingPoolCore(IconScoreBase):
     def get_id(self) -> str:
         return self._id.get()
 
-    @only_address_provider
+    @origin_owner
     @external
     def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
         for addressDetail in _addressDetails:
@@ -483,7 +474,7 @@ class LendingPoolCore(IconScoreBase):
         dToken = self.create_interface_score(self.getReserveDTokenAddress(_reserve), DTokenInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         if balanceIncrease > 0:
-            reserve.transfer(self._feeProvider.get(), balanceIncrease // 10)
+            reserve.transfer(self.getAddress(FEE_PROVIDER), balanceIncrease // 10)
             self.InterestTransfer(balanceIncrease // 10, _reserve, _user)
         self.updateCumulativeIndexes(_reserve)
         dToken.mintOnBorrow(_user, _amountBorrowed, balanceIncrease)
@@ -505,7 +496,7 @@ class LendingPoolCore(IconScoreBase):
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         dToken = self.create_interface_score(self.getReserveData(_reserve)['dTokenAddress'], DTokenInterface)
         if _balanceIncrease > 0:
-            reserve.transfer(self._feeProvider.get(), _balanceIncrease // 10)
+            reserve.transfer(self.getAddress(FEE_PROVIDER), _balanceIncrease // 10)
             self.InterestTransfer(_balanceIncrease // 10, _reserve, _user)
         self.updateCumulativeIndexes(_reserve)
         dToken.burnOnRepay(_user, _paybackAmountMinusFees, _balanceIncrease)
@@ -548,7 +539,7 @@ class LendingPoolCore(IconScoreBase):
                                  _liquidatedCollateralForFee: int, _balanceIncrease: int):
         reserve = self.create_interface_score(_principalReserve, ReserveInterface)
         if _balanceIncrease > 0:
-            reserve.transfer(self._feeProvider.get(), _balanceIncrease // 10)
+            reserve.transfer(self.getAddress(FEE_PROVIDER), _balanceIncrease // 10)
             self.InterestTransfer(_balanceIncrease // 10, _principalReserve, _user)
 
         self.updatePrincipalReserveStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate,
@@ -660,7 +651,7 @@ class LendingPoolCore(IconScoreBase):
     @only_delegation
     @external
     def updatePrepDelegations(self, _delegations: List[PrepDelegations]) -> None:
-        staking = self.create_interface_score(self._staking.get(), StakingInterface)
+        staking = self.create_interface_score(self.getAddress(STAKING), StakingInterface)
         staking.delegate(_delegations)
 
     @external
