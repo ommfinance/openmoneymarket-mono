@@ -1,6 +1,9 @@
 from .Math import *
 from .utils.checks import *
 
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 class DataProviderInterface(InterfaceScore):
     @interface
@@ -81,19 +84,11 @@ class StakingInterface(InterfaceScore):
 
 
 class LiquidationManager(IconScoreBase):
-    _LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
-    _LENDINGPOOLCORE = 'lendingPoolCore'
-    _PRICE_ORACLE = 'priceOracle'
-    _STAKING = 'staking'
-    _FEE_PROVIDER = 'feeProvider'
+    ADDRESSES = "addresses"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._lendingPoolDataProvider = VarDB(self._LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
-        self._lendingPoolCore = VarDB(self._LENDINGPOOLCORE, db, value_type=Address)
-        self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
-        self._staking = VarDB(self._STAKING, db, value_type=Address)
-        self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
+        self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -116,50 +111,17 @@ class LiquidationManager(IconScoreBase):
     def name(self) -> str:
         return "OmmLiquidationManager"
 
-    @only_owner
+    @only_address_provider
     @external
-    def setLendingPoolDataProvider(self, _address: Address) -> None:
-        self._lendingPoolDataProvider.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for addressDetail in _addressDetails:
+            self._addresses[addressDetail['name']] = addressDetail['address']
 
     @external(readonly=True)
-    def getLendingPoolDataProvider(self) -> Address:
-        return self._lendingPoolDataProvider.get()
+    def getAddress(self, _name: str) -> Address:
+        return self._addresses[_name]
 
-    @only_owner
-    @external
-    def setLendingPoolCore(self, _address: Address):
-        self._lendingPoolCore.set(_address)
 
-    @external(readonly=True)
-    def getLendingPoolCore(self) -> Address:
-        return self._lendingPoolCore.get()
-    
-    @only_owner
-    @external
-    def setFeeProvider(self, _address: Address):
-        self._feeProvider.set(_address)
-
-    @external(readonly=True)
-    def getFeeProvider(self) -> Address:
-        return self._feeProvider.get()
-
-    @only_owner
-    @external
-    def setPriceOracle(self, _address: Address):
-        self._priceOracle.set(_address)
-
-    @external(readonly=True)
-    def getPriceOracle(self) -> Address:
-        return self._priceOracle.get()
-
-    @only_owner
-    @external
-    def setStaking(self, _address: Address):
-        self._staking.set(_address)
-
-    @external(readonly=True)
-    def getStaking(self) -> Address:
-        return self._staking.get()
 
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,

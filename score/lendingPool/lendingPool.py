@@ -4,6 +4,9 @@ from .utils.Math import *
 BATCH_SIZE = 50
 TERM_LENGTH = 43120
 
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 # An interface to fee provider
 class FeeProviderInterface(InterfaceScore):
@@ -172,9 +175,11 @@ class LendingPool(IconScoreBase):
     BRIDGE_O_TOKEN = 'bridgeOToken'
     OMM_TOKEN = 'omm_token'
     BRIDGE_FEE_THRESHOLD = "bridgeFeeThreshold"
+    ADDRESSES = "addresses"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
+        self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
         self._lendingPoolCoreAddress = VarDB(self.LENDING_POOL_CORE, db, value_type=Address)
         self._dataProvider = VarDB(self.LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
         self._borrowWallets = ArrayDB(self.BORROW_WALLETS, db, value_type=Address)
@@ -218,81 +223,21 @@ class LendingPool(IconScoreBase):
               _borrowBalanceIncrease: int, _timestamp: int):
         pass
 
-    @only_owner
+    @only_address_provider
     @external
-    def setLendingPoolCore(self, _address: Address) -> None:
-        self._lendingPoolCoreAddress.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for addressDetail in _addressDetails:
+            self._addresses[addressDetail['name']] = addressDetail['address']
 
     @external(readonly=True)
-    def getLendingPoolCore(self) -> Address:
-        return self._lendingPoolCoreAddress.get()
+    def getAddress(self, _name: str) -> Address:
+        return self._addresses[_name]
+
 
     @external(readonly=True)
     def name(self) -> str:
         return "OmmLendingPool"
 
-    @only_owner
-    @external
-    def setLiquidationManager(self, _address: Address) -> None:
-        self._liquidationManagerAddress.set(_address)
-
-    @external(readonly=True)
-    def getLiquidationManager(self) -> Address:
-        return self._liquidationManagerAddress.get()
-
-    @only_owner
-    @external
-    def setSICX(self, _address: Address) -> None:
-        self._sIcxAddress.set(_address)
-
-    @external(readonly=True)
-    def getSICX(self) -> Address:
-        return self._sIcxAddress.get()
-
-    @only_owner
-    @external
-    def setOICX(self, _address: Address) -> None:
-        self._oIcxAddress.set(_address)
-
-    @external(readonly=True)
-    def getOICX(self) -> Address:
-        return self._oIcxAddress.get()
-
-    @only_owner
-    @external
-    def setStaking(self, _address: Address) -> None:
-        self._stakingAddress.set(_address)
-
-    @external(readonly=True)
-    def getStaking(self) -> Address:
-        return self._stakingAddress.get()
-
-    @only_owner
-    @external
-    def setLendingPoolDataProvider(self, _address: Address) -> None:
-        self._dataProvider.set(_address)
-
-    @external(readonly=True)
-    def getLendingPoolDataProvider(self) -> Address:
-        return self._dataProvider.get()
-
-    @only_owner
-    @external
-    def setFeeProvider(self, _address: Address) -> None:
-        self._feeProvider.set(_address)
-
-    @external(readonly=True)
-    def getFeeProvider(self) -> Address:
-        return self._feeProvider.get()
-
-    @only_owner
-    @external
-    def setRewardManager(self, _address: Address) -> None:
-        self._rewardAddress.set(_address)
-
-    @external(readonly=True)
-    def getRewardManager(self) -> Address:
-        return self._rewardAddress.get()
 
     @only_owner
     @external
@@ -319,24 +264,6 @@ class LendingPool(IconScoreBase):
     @external(readonly=True)
     def getFeeSharingTxnLimit(self) -> int:
         return self._feeSharingTxnLimit.get()
-
-    @only_owner
-    @external
-    def setBridgeOtoken(self, _address: Address) -> None:
-        self._bridgeOtoken.set(_address)
-
-    @external(readonly=True)
-    def getBridgeOtoken(self) -> Address:
-        return self._bridgeOtoken.get()
-
-    @only_owner
-    @external
-    def setOmmToken(self, _address: Address) -> None:
-        self._ommToken.set(_address)
-
-    @external(readonly=True)
-    def getOmmToken(self) -> Address:
-        return self._ommToken.get()
 
     def _userBridgeDepositStatus(self, _user: Address) -> bool:
         bridgeOtoken = self.create_interface_score(self._bridgeOtoken.get(), OTokenInterface)

@@ -57,6 +57,7 @@ class IRC2(TokenStandard, IconScoreBase):
     _REWARDS = 'rewards'
     _LENDING_POOL = 'lendingPool'
     _REWARD_DISTRIBUTION = 'reward-distribution-manager'
+    _ADDRESSES = "addresses"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -75,11 +76,7 @@ class IRC2(TokenStandard, IconScoreBase):
         self._staked_balances = DictDB(self._STAKED_BALANCES, db, value_type=int, depth=2)
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
-
-        self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
-        self._rewards = VarDB(self._REWARDS, db, value_type=Address)
-        self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
-        self._rewardDistribution = VarDB(self._REWARD_DISTRIBUTION, db, value_type=Address)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
 
     def on_install(
             self,
@@ -166,41 +163,6 @@ class IRC2(TokenStandard, IconScoreBase):
         """
         return self._balances[_owner]
 
-    @only_owner
-    @external
-    def setDelegation(self, _address: Address):
-        self._delegation.set(_address)
-
-    @external(readonly=True)
-    def getDelegation(self) -> Address:
-        return self._delegation.get()
-
-    @only_owner
-    @external
-    def setRewards(self, _address: Address):
-        self._rewards.set(_address)
-
-    @external(readonly=True)
-    def getRewards(self) -> Address:
-        return self._rewards.get()
-
-    @only_owner
-    @external
-    def setLendingPool(self, _address: Address):
-        self._lendingPool.set(_address)
-
-    @external(readonly=True)
-    def getLendingPool(self) -> Address:
-        return self._lendingPool.get()
-
-    @only_owner
-    @external
-    def setRewardDistribution(self, _address: Address):
-        self._rewardDistribution.set(_address)
-
-    @external(readonly=True)
-    def getRewardDistribution(self) -> Address:
-        return self._rewardDistribution.get()
 
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
@@ -215,6 +177,16 @@ class IRC2(TokenStandard, IconScoreBase):
     def unstaked_balanceOf(self, _owner: Address) -> int:
         detail_balance = self.details_balanceOf(_owner)
         return detail_balance["unstakingBalance"]
+
+    @only_address_provider
+    @external
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for addressDetail in _addressDetails:
+            self._addresses[addressDetail['name']] = addressDetail['address']
+
+    @external(readonly=True)
+    def getAddress(self, _name: str) -> Address:
+        return self._addresses[_name]
 
     @only_owner
     @external

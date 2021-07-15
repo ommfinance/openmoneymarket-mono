@@ -8,6 +8,10 @@ class SupplyDetails(TypedDict):
     principalTotalSupply: int
     decimals: int
 
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
+
 
 class LendingPoolCoreInterface(InterfaceScore):
     @interface
@@ -62,6 +66,7 @@ class OToken(IconScoreBase, TokenStandard):
     _LIQUIDATION = 'liquidation'
     _USER_INDEXES = 'user_indexes'
     _DISTRIBUTION_MANAGER = 'distribution_manager'
+    _ADDRESSES = 'addresses'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -81,6 +86,7 @@ class OToken(IconScoreBase, TokenStandard):
         self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
         self._distributionManager = VarDB(self._DISTRIBUTION_MANAGER, db, value_type=Address)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
 
     def on_install(self, _name: str, _symbol: str, _decimals: int = 18) -> None:
         """
@@ -186,59 +192,15 @@ class OToken(IconScoreBase, TokenStandard):
                 borrowIndex)
             return convertExaToOther(balance, decimals)
 
-    @only_owner
+    @only_address_provider
     @external
-    def setLendingPoolCore(self, _address: Address):
-        self._coreAddress.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for addressDetail in _addressDetails:
+            self._addresses[addressDetail['name']] = addressDetail['address']
 
     @external(readonly=True)
-    def getLendingPoolCore(self) -> Address:
-        return self._coreAddress.get()
-
-    @only_owner
-    @external
-    def setLiquidation(self, _address: Address):
-        self._liquidation.set(_address)
-
-    @external(readonly=True)
-    def getLiquidation(self) -> Address:
-        return self._liquidation.get()
-
-    @only_owner
-    @external
-    def setReserve(self, _address: Address):
-        self._reserveAddress.set(_address)
-
-    @external(readonly=True)
-    def getReserve(self) -> Address:
-        return self._reserveAddress.get()
-
-    @only_owner
-    @external
-    def setLendingPoolDataProvider(self, _address: Address):
-        self._dataProviderAddress.set(_address)
-
-    @external(readonly=True)
-    def getLendingPoolDataProvider(self) -> Address:
-        return self._dataProviderAddress.get()
-
-    @only_owner
-    @external
-    def setLendingPool(self, _address: Address):
-        self._lendingPoolAddress.set(_address)
-
-    @external(readonly=True)
-    def getLendingPool(self) -> Address:
-        return self._lendingPoolAddress.get()
-
-    @only_owner
-    @external
-    def setDistributionManager(self, _address: Address):
-        self._distributionManager.set(_address)
-
-    @external(readonly=True)
-    def getDistributionManager(self) -> Address:
-        return self._distributionManager.get()
+    def getAddress(self, _name: str) -> Address:
+        return self._addresses[_name]
 
     @external(readonly=True)
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:

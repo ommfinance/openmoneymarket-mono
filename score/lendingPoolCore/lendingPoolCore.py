@@ -6,6 +6,9 @@ from .utils.checks import *
 RESERVE_DB_PREFIX = b'reserve'
 USER_DB_PREFIX = b'userReserve'
 
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 class ReserveAttributes(TypedDict):
     reserveAddress: Address
@@ -126,6 +129,7 @@ class LendingPoolCore(IconScoreBase):
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._id = VarDB(self._ID, db, str)
+        self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
         self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
@@ -165,59 +169,15 @@ class LendingPoolCore(IconScoreBase):
     def get_id(self) -> str:
         return self._id.get()
 
-    @only_owner
+    @only_address_provider
     @external
-    def setStaking(self, _address: Address) -> None:
-        self._staking.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for addressDetail in _addressDetails:
+            self._addresses[addressDetail['name']] = addressDetail['address']
 
     @external(readonly=True)
-    def getStaking(self) -> Address:
-        return self._staking.get()
-
-    @only_owner
-    @external
-    def setLendingPool(self, _address: Address):
-        self._lendingPool.set(_address)
-
-    @external(readonly=True)
-    def getLendingPool(self) -> Address:
-        return self._lendingPool.get()
-
-    @only_owner
-    @external
-    def setLiquidationManager(self, _address: Address):
-        self._liquidation.set(_address)
-
-    @external(readonly=True)
-    def getLiquidationManager(self) -> Address:
-        return self._liquidation.get()
-
-    @only_owner
-    @external
-    def setDelegation(self, _address: Address):
-        self._delegation.set(_address)
-
-    @external(readonly=True)
-    def getDelegation(self) -> Address:
-        return self._delegation.get()
-
-    @only_owner
-    @external
-    def setGovernance(self, _address: Address):
-        self._governance.set(_address)
-
-    @external(readonly=True)
-    def getGovernance(self) -> Address:
-        return self._governance.get()
-
-    @external(readonly=True)
-    def getFeeProvider(self) -> Address:
-        return self._feeProvider.get()
-
-    @only_owner
-    @external
-    def setFeeProvider(self, _address: Address):
-        self._feeProvider.set(_address)
+    def getAddress(self, _name: str) -> Address:
+        return self._addresses[_name]
 
     def reservePrefix(self, _reserve: Address) -> bytes:
         return b'|'.join([RESERVE_DB_PREFIX, self._id.get().encode(), str(_reserve).encode()])

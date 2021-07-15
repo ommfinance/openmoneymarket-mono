@@ -15,6 +15,10 @@ class RewardPercentage(TypedDict):
     lendingPercentage: int
     borrowingPercentage: int
     
+class DistPercentage(TypedDict):
+    recipient: str
+    distPercentage: int
+   
 
 # An interface to fee provider
 class FeeProviderInterface(InterfaceScore):
@@ -137,6 +141,8 @@ class LendingPoolDataProvider(IconScoreBase):
     _STAKING = 'staking'
     _FEE_PROVIDER = 'feeProvider'
     _REWARD_PERCENTAGE = 'rewardPercentage'
+    _DIST_PERCENTAGE = 'distPercentage'
+    _RECIPIENTS = 'recipients'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -148,12 +154,20 @@ class LendingPoolDataProvider(IconScoreBase):
         self._staking = VarDB(self._STAKING, db, value_type=Address)
         self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
         self._rewardPercentage = DictDB(self._REWARD_PERCENTAGE, db, value_type=int, depth = 2)
+        self._distPercentage = DictDB(self._DIST_PERCENTAGE, db, value_type=int)
+        self._recipients = ArrayDB(self._RECIPIENTS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
+        self._recipients.put("supplyBorrow")
+        self._recipients.put("workerToken")
+        self._recipients.put("daoFund")
+        self._recipients.put("lp")
 
     def on_update(self) -> None:
         super().on_update()
+      
+
 
     @external(readonly=True)
     def name(self) -> str:
@@ -225,14 +239,14 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @only_owner
     @external
-    def setRewardPercentages(self, rewards: List[RewardPercentage]) -> None:
-        for reward in rewards:
+    def setRewardPercentages(self, _rewards: List[RewardPercentage]) -> None:
+        for reward in _rewards:
             reserve = reward['reserve']
             self._rewardPercentage[reserve]['total'] = reward['rewardPercentage']
             self._rewardPercentage[reserve]['lending'] = reward['lendingPercentage']
             self._rewardPercentage[reserve]['borrowing'] = reward['borrowingPercentage']
 
-    @external
+    @external(readonly=True)
     def getRewardPercentages(self, _reserve: Address) -> dict:
         response = {}
         response['rewardPercentage'] = self._rewardPercentage[reserve]['total']
@@ -240,6 +254,26 @@ class LendingPoolDataProvider(IconScoreBase):
         response['borrowingPercentage'] = self._rewardPercentage[reverse]['borrowing']
 
         return response
+    
+    @external(readonly=True)
+    def getRecipients(self) -> list:
+        return [recipient for recipient in self._recipients]
+
+    @only_owner
+    @external
+    def setDistPercentages(self, _percentages: List[DistPercentage]) -> None:
+        for percentage in _percentages:
+            recipient = percentage['recipient']
+            self._distPercentage[recipient] = percentage['distPercentage']
+            
+
+    @external(readonly=True)
+    def getDistPercentages(self) -> dict:
+        return {
+            recipient: self._distPercentage[recipient]
+            for recipient in self._recipients
+        }
+
     
     @external(readonly=True)
     def getReserveAccountData(self) -> dict:
@@ -675,4 +709,4 @@ class LendingPoolDataProvider(IconScoreBase):
         decimals = supply['decimals']
         supply['principalUserBalance'] = convertToExa(supply['principalUserBalance'], decimals)
         supply['principalTotalSupply'] = convertToExa(supply['principalTotalSupply'], decimals)
-        return supply
+        return sup

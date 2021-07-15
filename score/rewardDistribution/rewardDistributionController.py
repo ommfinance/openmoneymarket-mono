@@ -311,7 +311,6 @@ class RewardDistributionController(RewardDistributionManager):
     def getRewards(self, _user: Address) -> dict:
         dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
         totalRewards = 0
-        userAssetList = []
         response = {}
         for asset in self._assets:
             supply = dataProvider.getAssetPrincipalSupply(asset, _user)
