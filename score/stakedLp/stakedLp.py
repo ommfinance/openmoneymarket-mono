@@ -102,7 +102,7 @@ class StakedLp(IconScoreBase):
         return self._unstaking_period.get()
 
     @external(readonly=True)
-    def details_balanceOf(self, _owner: Address, _id: int) -> dict:
+    def balanceOf(self, _owner: Address, _id: int) -> dict:
         lp = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
         userBalance = lp.balanceOf(_owner, _id)
 
@@ -111,10 +111,15 @@ class StakedLp(IconScoreBase):
         else:
             available_balance = self._poolStakeDetails[_owner][_id][Status.AVAILABLE]
         return {
-            "totalBalance": userBalance,
-            "availableBalance": available_balance,
-            "stakedBalance": self._poolStakeDetails[_owner][_id][Status.STAKED],
+            "userTotalBalance": userBalance,
+            "userAvailableBalance": available_balance,
+            "userStakedBalance": self._poolStakeDetails[_owner][_id][Status.STAKED],
+            "totalStakedBalance":self._totalStaked[_id]
         }
+
+    @external(readonly=True)
+    def detailsBalanceOf(self, _owner: Address) -> dict:
+        return {_id: self.balanceOf(_owner, _id) for _id in self._supportedPools}
 
     @only_owner
     @external
@@ -139,52 +144,7 @@ class StakedLp(IconScoreBase):
     def getSupportedPools(self) -> dict:
         return {pool: self._addressMap[pool] for pool in self._supportedPools}
 
-    def _makeAvailable(self, _from: Address):
-        # Check if the unstaking period has already been reached.
-        for pool in self._supportedPools:
-            if self._poolStakeDetails[_from][pool][Status.UNSTAKING_PERIOD] <= self.now():
-                curr_unstaked = self._poolStakeDetails[_from][pool][Status.UNSTAKING]
-                self._poolStakeDetails[_from][pool][Status.UNSTAKING] = 0
-                self._poolStakeDetails[_from][pool][Status.AVAILABLE] += curr_unstaked
-
-    @only_owner
-    @external
-    def add_to_lockList(self, _user: Address):
-        if _user not in self._lock_list:
-            self._lock_list.put(_user)
-
-        staked_balance = 0
-        staked = {}
-        for pool in self._supportedPools:
-            staked[pool] = self._poolStakeDetails[_user][pool][Status.AVAILABLE]
-            staked_balance += staked[pool]
-
-        if staked_balance > 0:
-            for pool in self._supportedPools:
-                # Check if the unstaking period has already been reached.
-                self._makeAvailable(_user)
-                self._poolStakeDetails[_user][pool][Status.STAKED] = 0
-                self._poolStakeDetails[_user][pool][Status.UNSTAKING] += staked[pool]
-                self._poolStakeDetails[_user][pool][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
-                self._totalStaked[pool] = self._totalStaked[pool] - staked[pool]
-                # stake_address_changes = self._stake_changes[self._stake_address_update_db.get()]
-                # stake_address_changes.put(_user)
-
-    @only_owner
-    @external
-    def remove_from_lockList(self, _user: Address):
-        self._require(_user in self._lock_list, f'Cannot remove,the user {_user} is not in lock list')
-        top = self._lock_list.pop()
-        if top != _user:
-            for i in range(len(self._lock_list)):
-                if self._lock_list[i] == _user:
-                    self._lock_list[i] = top
-
-    @external(readonly=True)
-    def get_locklist_addresses(self) -> list:
-        return [user for user in self._lock_list]
-
-    def _first_time(self, _from: Address, _id: int,_userBalance:int) -> bool:
+    def _first_time(self, _from: Address, _id: int, _userBalance: int) -> bool:
         if (
                 self._poolStakeDetails[_from][_id][Status.AVAILABLE] == 0
                 and self._poolStakeDetails[_from][_id][Status.STAKED] == 0
@@ -211,7 +171,6 @@ class StakedLp(IconScoreBase):
         self._check_first_time(_user, _id, userBalance)
         StakedLp._require(userBalance >= _value,
                           f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {userBalance}')
-        StakedLp._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
         new_stake = _value
         stake_increment = new_stake - previousUserStaked
         StakedLp._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
