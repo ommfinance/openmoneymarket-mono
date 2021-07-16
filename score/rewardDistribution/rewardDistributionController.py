@@ -123,7 +123,7 @@ class RewardDistributionController(RewardDistributionManager):
         pass
 
     @eventlog
-    def RewardsAccrued(self, _user: Address, _rewards: int) -> None:
+    def RewardsAccrued(self, _user: Address, _asset: Address, _rewards: int) -> None:
         pass
 
     @eventlog
@@ -259,11 +259,13 @@ class RewardDistributionController(RewardDistributionManager):
         return response
 
     @external
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
-        accruedRewards = self._updateUserReserveInternal(_user, self.msg.sender, _userBalance, _totalSupply)
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
+        if _asset == None:
+            _asset = self.msg.sender
+        accruedRewards = self._updateUserReserveInternal(_user, _asset, _userBalance, _totalSupply)
         if accruedRewards != 0:
-            self._usersUnclaimedRewards[_user] += accruedRewards
-            self.RewardsAccrued(_user, accruedRewards)
+            self._usersUnclaimedRewards[_user][_asset] += accruedRewards
+            self.RewardsAccrued(_user, _asset, accruedRewards)
 
     @external(readonly=True)
     def getRewards(self, _user: Address) -> dict:
