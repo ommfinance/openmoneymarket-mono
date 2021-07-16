@@ -36,6 +36,9 @@ class AddressProvider(IconScoreBase):
     GOVERNANCE = "governance"
     ADDRESS_PROVIDER = "addressProvider"
     RESERVE = "reserve"
+    WORKER_TOKEN = "workerToken"
+    DAO_FUND = "daoFund"
+
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -104,6 +107,13 @@ class AddressProvider(IconScoreBase):
         self.setLendingPoolAddresses()
         self.setLendingPoolCoreAddresses()
         self.setLiquidationManagerAddresses()
+        self.setOmmTokenAddresses()
+        self.setoICXAddresses()
+        self.setoUSDsAddresses()
+        self.setoIUSDCAddresses()
+        self.setDelegationAddresses()
+        self.setRewardAddresses()
+     
 
     @only_owner
     @external
@@ -231,3 +241,45 @@ class AddressProvider(IconScoreBase):
 
         oIUSDC = self.create_interface_score(self._addresses[self.oIUSDC], AddressInterface)
         oIUSDC.setAddresses(oIUSDCAddressDetails)
+
+    @only_owner
+    @external  
+    def setDelegationAddresses(self) -> None:
+        delegationAddressDetails: AddressDetails = [{"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
+                                                {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]},
+                                                {"name": self.ADDRESS_PROVIDER, "address": self.address},
+                                                ]
+
+        delegation = self.create_interface_score(self._addresses[self.DELEGATION], AddressInterface)
+        delegation.setAddresses(daoFundAddressDetails)
+
+    @only_owner
+    @external  
+    def setRewardAddresses(self) -> None:
+        rewardAddressDetails: AddressDetails = [{"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
+                                                {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]},
+                                                {"name": self.WORKER_TOKEN, "address": self._addresses[self.WORKER_TOKEN]},
+                                                {"name": self.DAO_FUND, "address": self._addresses[self.DAO_FUND]},
+
+
+
+                                                
+                                                ]
+
+        reward = self.create_interface_score(self._addresses[self.REWARD], AddressInterface)
+        reward.setAddresses(rewardAddressDetails)
+    
+
+   
+
+
+   
+
+
+
+
+
+
+        
+
+        

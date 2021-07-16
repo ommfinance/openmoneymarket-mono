@@ -6,6 +6,10 @@ TAG = 'OMM_Token_IRC_2'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6
 MICROSECONDS = 10 ** 6
 
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
+
 
 class PrepDelegationDetails(TypedDict):
     prepAddress: Address
@@ -53,11 +57,8 @@ class IRC2(TokenStandard, IconScoreBase):
     _STAKED_BALANCES = 'staked_balances'
     _TOTAL_STAKED_BALANCE = 'total_stake_balance'
     _UNSTAKING_PERIOD = 'unstaking_period'
-    _DELEGATION = 'delegation'
-    _REWARDS = 'rewards'
-    _LENDING_POOL = 'lendingPool'
-    _REWARD_DISTRIBUTION = 'reward-distribution-manager'
     _ADDRESSES = "addresses"
+    _CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -77,6 +78,7 @@ class IRC2(TokenStandard, IconScoreBase):
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
         self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
     def on_install(
             self,
@@ -163,7 +165,6 @@ class IRC2(TokenStandard, IconScoreBase):
         """
         return self._balances[_owner]
 
-
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
         detail_balance = self.details_balanceOf(_owner)
@@ -178,15 +179,17 @@ class IRC2(TokenStandard, IconScoreBase):
         detail_balance = self.details_balanceOf(_owner)
         return detail_balance["unstakingBalance"]
 
-    @only_address_provider
+    @origin_owner
     @external
     def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for addressDetail in _addressDetails:
-            self._addresses[addressDetail['name']] = addressDetail['address']
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
 
     @external(readonly=True)
-    def getAddress(self, _name: str) -> Address:
-        return self._addresses[_name]
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @only_owner
     @external
@@ -408,10 +411,10 @@ class IRC2(TokenStandard, IconScoreBase):
                                                              Status.AVAILABLE] - stake_increment
         self._staked_balances[_user][Status.STAKED] = _value
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
-        delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
+        delegation = self.create_interface_score(self._addresses["delegation"], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
-        rewardDistribution = self.create_interface_score(self.getRewardDistribution(), RewardDistributionInterface)
+        rewardDistribution = self.create_interface_score(self._addresses["rewards"], RewardDistributionInterface)
         rewardDistribution.handleAction(_user, old_stake, old_total_supply)
 
     @only_lending_pool
@@ -434,10 +437,10 @@ class IRC2(TokenStandard, IconScoreBase):
         self._total_staked_balance.set(self._total_staked_balance.get() - _value)
 
         # update the prep delegations
-        delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
+        delegation = self.create_interface_score(self._addresses["delegation"], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
-        rewardDistribution = self.create_interface_score(self.getRewardDistribution(), RewardDistributionInterface)
+        rewardDistribution = self.create_interface_score(self._addresses["rewards"], RewardDistributionInterface)
         rewardDistribution.handleAction(_user, staked_balance, before_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
@@ -468,7 +471,7 @@ class IRC2(TokenStandard, IconScoreBase):
         self._total_supply.set(self._total_supply.get() + _amount)
         self._balances[self.address] += _amount
 
-        self._transfer(self.address, self._rewards.get(), _amount, b'Transferred to Rewards SCORE')
+        self._transfer(self.address, self._addresses["rewards"], _amount, b'Transferred to Rewards SCORE')
 
         # Emits an event log Mint
         self.Mint(_amount, _data)

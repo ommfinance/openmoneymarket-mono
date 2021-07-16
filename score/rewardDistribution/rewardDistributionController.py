@@ -6,6 +6,11 @@ DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 TAG = 'RewardDistributionController'
 
 
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
+
+
 class SupplyDetails(TypedDict):
     principalUserBalance: int
     principalTotalSupply: int
@@ -65,8 +70,6 @@ class DexInterface(InterfaceScore):
 
 class RewardDistributionController(RewardDistributionManager):
     USERS_UNCLAIMED_REWARDS = 'usersUnclaimedRewards'
-    DATA_PROVIDER = 'dataProvider'
-    OMM_TOKEN_ADDRESS = 'ommTokenAddress'
     DAY = 'day'
     TOKEN_VALUE = 'tokenValue'
     DEX = "dex"
@@ -75,18 +78,14 @@ class RewardDistributionController(RewardDistributionManager):
     CLAIMED_BIT_MAP = "claimedBitMap"
     REWARDS_ACTIVATE = "rewardsActivate"
     ASSET_NAME = "assetName"
+    ADDRESSES = "addresses"
+    CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._day = VarDB(self.DAY, db, value_type=int)
-        self._tokenValue = DictDB(self.TOKEN_VALUE, db, value_type=int, depth=2)
-        self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth = 2)
+        self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth=2)
         self._assetName = DictDB(self.ASSET_NAME, db, value_type=str)
-        self._dataProviderAddress = VarDB(self.DATA_PROVIDER, db, value_type=Address)
-        self._ommTokenAddress = VarDB(self.OMM_TOKEN_ADDRESS, db, value_type=Address)
-        self._workerTokenAddress = VarDB('workerTokenAddress', db, value_type=Address)
-        self._daoFundAddress = VarDB('daoFundAddress', db, value_type=Address)
-        
         self._recipients = ArrayDB('recipients', db, value_type=str)
 
         self._precompute = DictDB('preCompute', db, value_type=bool)
@@ -103,8 +102,8 @@ class RewardDistributionController(RewardDistributionManager):
         self._pool_id = DictDB(self.POOL_ID, db, value_type=int)
         self._rewardsBatchSize = VarDB(self.REWARDS_BATCH_SIZE, db, value_type=int)
         self._rewardsActivate = VarDB(self.REWARDS_ACTIVATE, db, value_type=int)
-
-        self._lendingPool = VarDB('lendingPool', db, value_type=Address)
+        self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
@@ -136,30 +135,17 @@ class RewardDistributionController(RewardDistributionManager):
     def name(self) -> str:
         return "RewardDistributionController"
 
+    @origin_owner
     @external
-    def setLendingPoolDataProvider(self, _address: Address):
-        self._dataProviderAddress.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
 
     @external(readonly=True)
-    def getLendingPoolDataProvider(self) -> Address:
-        return self._dataProviderAddress.get()
-
-    @only_owner
-    @external
-    def setLendingPool(self, _address: Address):
-        self._lendingPool.set(_address)
-
-    @external(readonly=True)
-    def getLendingPool(self) -> Address:
-        return self._lendingPool.get()
-
-    @external
-    def setOmm(self, _address: Address):
-        self._ommTokenAddress.set(_address)
-
-    @external(readonly=True)
-    def getOmm(self) -> Address:
-        return self._ommTokenAddress.get()
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @only_owner
     @external
@@ -252,8 +238,6 @@ class RewardDistributionController(RewardDistributionManager):
         else:
             return self._distPercentage[_recipient][low - 1]
 
-    
-
     @only_owner
     @external
     def setAdmin(self, _address: Address):
@@ -263,44 +247,9 @@ class RewardDistributionController(RewardDistributionManager):
     def getAdmin(self) -> Address:
         return self._admin.get()
 
-    @only_owner
-    @external
-    def setDaoFund(self, _address: Address):
-        self._daoFundAddress.set(_address)
-
-    @external(readonly=True)
-    def getDaoFund(self) -> Address:
-        return self._daoFundAddress.get()
-
-    @only_owner
-    @external
-    def setDex(self, _address: Address):
-        self._dex.set(_address)
-
-    @external(readonly=True)
-    def getDex(self) -> Address:
-        return self._dex.get()
-
-    @only_owner
-    @external
-    def setWorkerToken(self, _address: Address):
-        self._workerTokenAddress.set(_address)
-
-    @external(readonly=True)
-    def getWorkerToken(self) -> Address:
-        return self._workerTokenAddress.get()
-
-    @external(readonly=True)
-    def readValues(self, _recipient: str) -> dict:
-        response = {"precompute": self._precompute[_recipient], "distComplete": self._distComplete[_recipient],
-                    "totalAmount": self._totalAmount[_recipient],
-                    "tokenDistTracker": self._tokenDistTracker[_recipient], "distIndex": self._distIndex[_recipient]}
-
-        return response
-
     @external
     def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
-        if _asset == None:
+        if _asset is None:
             _asset = self.msg.sender
         accruedRewards = self._updateUserReserveInternal(_user, _asset, _userBalance, _totalSupply)
         if accruedRewards != 0:
@@ -309,7 +258,7 @@ class RewardDistributionController(RewardDistributionManager):
 
     @external(readonly=True)
     def getRewards(self, _user: Address) -> dict:
-        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
+        dataProvider = self.create_interface_score(self._addresses['lendingPoolDataProvider'], DataProviderInterface)
         totalRewards = 0
         response = {}
         for asset in self._assets:
@@ -321,12 +270,6 @@ class RewardDistributionController(RewardDistributionManager):
             response[self._assetName[asset]] = unclaimedRewards
             totalRewards += unclaimedRewards
 
-        recipientSet = {"daoFund", "worker"}
-        for recipient in self._recipients:
-            tokenAmount = self._tokenValue[_user][recipient]
-            response[recipient] = tokenAmount
-            totalRewards += tokenAmount
-
         response['totalRewards'] = totalRewards
 
         return response
@@ -335,35 +278,35 @@ class RewardDistributionController(RewardDistributionManager):
     @external
     def claimRewards(self) -> int:
         user = self.msg.sender
-        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
+        dataProvider = self.create_interface_score(self._addresses['lendingPoolDataProvider'], DataProviderInterface)
 
         userAssetList = []
         unclaimedRewards = 0
         for asset in self._assets:
-            unclaimedRewards += self._usersUnclaimedRewards[_user][asset]
+            unclaimedRewards += self._usersUnclaimedRewards[user][asset]
             supply = dataProvider.getAssetPrincipalSupply(asset, user)
             userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
                                                 'totalBalance': supply['principalTotalSupply']}
             userAssetList.append(userAssetDetails)
             self._usersUnclaimedRewards[user][asset] = 0
 
-        accruedRewards = self._claimRewards(_user, userAssetList)
+        accruedRewards = self._claimRewards(user, userAssetList)
         if accruedRewards != 0:
             unclaimedRewards += accruedRewards
             self.RewardsAccrued(user, accruedRewards)
-        
+
         if unclaimedRewards == 0:
             return 0
-        
-        ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
-        ommToken.transfer(_user, unclaimedRewards)
+
+        ommToken = self.create_interface_score(self._addresses["ommToken"], TokenInterface)
+        ommToken.transfer(user, unclaimedRewards)
 
         self.RewardsClaimed(user, unclaimedRewards, 'Asset rewards')
 
     @external
     def distribute(self) -> None:
-        worker = self.create_interface_score(self._workerTokenAddress.get(), WorkerTokenInterface)
-        ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
+        worker = self.create_interface_score(self._addresses['workerToken'], WorkerTokenInterface)
+        ommToken = self.create_interface_score(self._addresses['ommToken'], TokenInterface)
         day: int = self._day.get()
 
         if self._distComplete['daoFund']:
@@ -380,8 +323,8 @@ class RewardDistributionController(RewardDistributionManager):
                 if tokenDistTracker <= 0:
                     break
                 tokenAmount = exaMul(exaDiv(worker.balanceOf(user), totalSupply), tokenDistTracker)
-                self._tokenValue[user]['worker'] += tokenAmount
                 self.Distribution("worker", user, tokenAmount)
+                ommToken.transfer(user, tokenAmount)
                 totalSupply -= worker.balanceOf(user)
                 tokenDistTracker -= tokenAmount
 
@@ -389,13 +332,12 @@ class RewardDistributionController(RewardDistributionManager):
 
         elif not self._distComplete['daoFund']:
             self.State("distribute daoFund")
-            daoFundAddress = self._daoFundAddress.get()
+            daoFundAddress = self._addresses['daoFund']
             tokenDistTrackerDaoFund: int = self._tokenDistTracker['daoFund']
             ommToken.transfer(daoFundAddress, tokenDistTrackerDaoFund)
             self._distComplete['daoFund'] = True
             self.Distribution("daoFund", daoFundAddress, tokenDistTrackerDaoFund)
             self._day.set(day + 1)
-
 
     @external(readonly=True)
     def getDistributedDay(self) -> int:
@@ -404,152 +346,16 @@ class RewardDistributionController(RewardDistributionManager):
     def _initialize(self) -> None:
         day: int = self._day.get()
         tokenDistributionPerDay: int = self.tokenDistributionPerDay(day)
-        ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
+        ommToken = self.create_interface_score(self._addresses['ommToken'], TokenInterface)
         ommToken.mint(tokenDistributionPerDay)
 
         for recipient in ('worker', 'daoFund'):
             self._distComplete[recipient] = False
             self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay, self.distPercentageAt(recipient, day))
 
-    
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
         pass
-
-    @external(readonly=True)
-    def getDexRewards(self, _account: Address, _start: int = 0, _end: int = 0) -> int:
-        start, end = self._checkStartEnd(_start, _end)
-        rewards = 0
-        for day in range(start, end):
-            rewards += self._getRewardsForDay(_account, day)
-
-        return rewards
-
-    @external(readonly=True)
-    def getDaoFundRewards(self, _start: int = 0, _end: int = 0) -> int:
-        _start, _end = self._checkStartEnd(_start, _end)
-        rewards = 0
-        for day in range(_start, _end):
-            if not self._is_claimed(self._daoFundAddress.get(), day):
-                rewards += self._getRewardsForDaoFund(day)
-
-        return rewards
-
-    def _checkStartEnd(self, _start: int, _end: int) -> (int, int):
-        if _start == 0 and _end == 0:
-            _end = self._day.get()
-            _start = max(0, _end - self._rewardsBatchSize.get())
-        elif _end == 0:
-            _end = min(self._day.get(), _start + self._rewardsBatchSize.get())
-        elif _start == 0:
-            _start = max(0, _end - self._rewardsBatchSize.get())
-
-        if not (0 <= _start < self._day.get()):
-            revert("Invalid value of start provided")
-        if not (0 < _end < self._day.get()):
-            revert("Invalid value of end provided")
-        if _start >= _end:
-            revert("Start must not be greater than or equal to end.")
-        if _end - _start > self._rewardsBatchSize.get():
-            revert(f"Maximum allowed range is {self._rewardsBatchSize.get()}")
-        return _start, _end
-
-    def _getRewardsForDay(self, _account: Address, _day: int) -> int:
-
-        if self._is_claimed(_account, _day):
-            return 0
-
-        dex = self.create_interface_score(self._dex.get(), DexInterface)
-
-        userLp = dex.balanceOfAt(_account, self._pool_id['OMM/sICX'], _day)
-        totalLp = dex.totalSupplyAt(self._pool_id['OMM/sICX'], _day)
-
-        tokenDistributionPerDay = self.tokenDistributionPerDay(_day)
-
-        equivalentReward = 0
-        if userLp > 0 and totalLp > 0:
-            # TODO snapshot in dist percentage
-            totalReward = exaMul(tokenDistributionPerDay, self.distPercentageAt('ommICX', _day))
-            equivalentReward = exaDiv(exaMul(userLp, totalReward), totalLp)
-
-        userLp1 = dex.balanceOfAt(_account, self._pool_id['OMM/USDS'], _day)
-        totalLp1 = dex.totalSupplyAt(self._pool_id['OMM/USDS'], _day)
-        userLp2 = convertToExa(dex.balanceOfAt(_account, self._pool_id['OMM/IUSDC'], _day), 12)
-        totalLp2 = convertToExa(dex.totalSupplyAt(self._pool_id['OMM/IUSDC'], _day), 12)
-        userLpSum = userLp1 + userLp2
-        totalLpSum = totalLp1 + totalLp2
-
-        if userLpSum > 0 and totalLpSum > 0:
-            totalReward = exaMul(tokenDistributionPerDay, self.distPercentageAt('dex', _day))
-            equivalentReward += exaDiv(exaMul(userLpSum, totalReward), totalLpSum)
-
-        return equivalentReward
-
-    def _getRewardsForDaoFund(self, _day: int) -> int:
-        if self._is_claimed(self._daoFundAddress.get(), _day):
-            return 0
-        tokenDistributionPerDay = self.tokenDistributionPerDay(_day)
-        totalReward = exaMul(tokenDistributionPerDay, self.distPercentageAt('daoFund', _day))
-        return totalReward
-
-    def _setClaimed(self, _account: Address, _day: int):
-        claimed_bit_map = DictDB(self.CLAIMED_BIT_MAP + str(_account), self.db, value_type=int)
-        claimed_word_index = _day // 256
-        claimed_bit_index = _day % 256
-        claimed_bit_map[claimed_word_index] = claimed_bit_map[claimed_word_index] | (1 << claimed_bit_index)
-
-    def _is_claimed(self, _account: Address, _day: int) -> bool:
-        claimed_bit_map = DictDB(self.CLAIMED_BIT_MAP + str(_account), self.db, value_type=int)
-        claimed_word_index = _day // 256
-        claimed_bit_index = _day % 256
-        claimed_word = claimed_bit_map[claimed_word_index]
-        mask = (1 << claimed_bit_index)
-        return claimed_word & mask == mask
-
-    @external
-    def claimDexRewards(self, _start: int = 0, _end: int = 0) -> None:
-        if not self._rewardsActivate.get():
-            revert(f"OMM Rewards: Claim has not been activated")
-
-        start, end = self._checkStartEnd(_start, _end)
-        account = self.msg.sender
-
-        totalRewards = 0
-        for day in range(start, end):
-            rewards = self._getRewardsForDay(account, day)
-            if rewards:
-                self._setClaimed(account, day)
-            totalRewards += rewards
-
-        try:
-            ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
-            ommToken.transfer(self.msg.sender, totalRewards)
-            self.Claimed(account, start, end, totalRewards)
-        except BaseException as e:
-            revert(f"Error in claiming rewards. Error: {e}")
-
-    @external
-    def claimDaoFundRewards(self, _start: int = 0, _end: int = 0) -> None:
-
-        if not self._rewardsActivate.get():
-            revert(f"OMM Rewards: Claim has not been activated")
-
-        start, end = self._checkStartEnd(_start, _end)
-        account = self._daoFundAddress.get()
-
-        totalRewards = 0
-        for day in range(start, end):
-            rewards = self._getRewardsForDaoFund(day)
-            if rewards:
-                self._setClaimed(account, day)
-            totalRewards += rewards
-
-        try:
-            ommToken = self.create_interface_score(self._ommTokenAddress.get(), TokenInterface)
-            ommToken.transfer(self.msg.sender, totalRewards)
-            self.Claimed(account, start, end, totalRewards)
-        except BaseException as e:
-            revert(f"Error in claiming rewards. Error: {e}")
 
     @eventlog(indexed=1)
     def Claimed(self, _address: Address, _start: int, _end: int, _rewards: int):

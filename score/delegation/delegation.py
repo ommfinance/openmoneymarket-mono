@@ -1,6 +1,9 @@
 from .Math import *
 from .utils.checks import *
 
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 class PrepDelegations(TypedDict):
     _address: Address
@@ -33,21 +36,21 @@ class Delegation(IconScoreBase):
     _USER_VOTES = 'userVotes'
     _TOTAL_VOTES = 'totalVotes'
     _EQUAL_DISTRIBUTION = 'equalDistribution'
-    _OMM_TOKEN = 'ommToken'
-    _LENDING_POOL_CORE = 'lendingPoolCore'
     _CONTRIBUTORS = 'contributors'
     _VOTE_THRESHOLD = 'voteThreshold'
+    _ADDRESSES = 'addresses'
+    _CONTRACTS = 'contracts'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._preps = ArrayDB(self._PREPS, db, Address)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._userPreps = DictDB(self._USER_PREPS, db, value_type=Address, depth=2)
         self._percentageDelegations = DictDB(self._PERCENTAGE_DELEGATIONS, db, value_type=int, depth=2)
         self._prepVotes = DictDB(self._PREP_VOTES, db, value_type=int)
         self._userVotes = DictDB(self._USER_VOTES, db, value_type=int)
         self._totalVotes = VarDB(self._TOTAL_VOTES, db, value_type=int)
-        self._ommToken = VarDB(self._OMM_TOKEN, db, value_type=Address)
-        self._lendingPoolCore = VarDB(self._LENDING_POOL_CORE, db, value_type=Address)
         self._contributors = ArrayDB(self._CONTRIBUTORS, db, value_type=Address)
         self._voteThreshold = VarDB(self._VOTE_THRESHOLD, db, value_type=int)
 
@@ -71,14 +74,17 @@ class Delegation(IconScoreBase):
     def DelegationUpdated(self, _before: str, _after: str):
         pass
 
-    @only_owner
+    @origin_owner
     @external
-    def setOmmToken(self, _address: Address):
-        self._ommToken.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
 
     @external(readonly=True)
-    def getOmmToken(self) -> Address:
-        return self._ommToken.get()
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @only_owner
     @external
@@ -89,14 +95,6 @@ class Delegation(IconScoreBase):
     def getVoteThreshold(self) -> int:
         return self._voteThreshold.get()
 
-    @only_owner
-    @external
-    def setLendingPoolCore(self, _address: Address):
-        self._lendingPoolCore.set(_address)
-
-    @external(readonly=True)
-    def getLendingPoolCore(self) -> Address:
-        return self._lendingPoolCore.get()
 
     @only_owner
     @external
@@ -140,7 +138,7 @@ class Delegation(IconScoreBase):
         return self._distributeVoteToContributors() == self.getUserDelegationDetails(_user)
 
     def _resetUser(self, _user: Address):
-        if self.msg.sender == self._ommToken.get() or self.msg.sender == _user:
+        if self.msg.sender == self._addresses["ommToken"] or self.msg.sender == _user:
             for index in range(5):
 
                 # removing votes
@@ -162,7 +160,7 @@ class Delegation(IconScoreBase):
 
     @external
     def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
-        if _user is not None and self.msg.sender == self._ommToken.get():
+        if _user is not None and self.msg.sender == self._addresses["ommToken"]:
             user = _user
         else:
             user = self.msg.sender
@@ -180,7 +178,7 @@ class Delegation(IconScoreBase):
                                                   f'delegations provided {_delegations}')
             delegations = _delegations
 
-        omm_token = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
+        omm_token = self.create_interface_score(self._addresses["ommToken"], OmmTokenInterface)
         user_staked_token = omm_token.details_balanceOf(user)['stakedBalance']
         if len(delegations) > 0:
             # resetting previous delegation preferences
@@ -219,7 +217,7 @@ class Delegation(IconScoreBase):
 
             # updating the delegation if there is change in previous delegation
             if updated_delegation != initialDelegation:
-                core = self.create_interface_score(self._lendingPoolCore.get(), LendingPoolCoreInterface)
+                core = self.create_interface_score(self._addresses["lendingPoolCore"], LendingPoolCoreInterface)
                 core.updatePrepDelegations(updated_delegation)
                 self.DelegationUpdated(f'{initialDelegation}', f'{updated_delegation}')
 
@@ -248,7 +246,7 @@ class Delegation(IconScoreBase):
     @external(readonly=True)
     def userPrepVotes(self, _user: Address) -> dict:
         response = {}
-        omm_token = self.create_interface_score(self._ommToken.get(), OmmTokenInterface)
+        omm_token = self.create_interface_score(self._addresses["ommToken"], OmmTokenInterface)
         user_staked_token = omm_token.details_balanceOf(_user)['stakedBalance']
         for index in range(5):
             prep: Address = self._userPreps[_user][index]
