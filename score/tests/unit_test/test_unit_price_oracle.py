@@ -18,10 +18,13 @@ class TestPriceOracle(ScoreTestCase):
         self.mock_band_oracle = Address.from_string(f"cx{'1232' * 10}")
         self.mock_address_provider = Address.from_string(f"cx{'1234' * 10}")
 
-        self.set_msg(self._owner)
-        self.score.setDataSource(self.mock_lp_address)
-        self.score.setBandOracle(self.mock_band_oracle)
-        self.score.setAddressProvider(self.mock_address_provider)
+        self.set_tx(origin=self._owner)
+
+        self.score.setAddresses([
+            {"name": 'lendingPoolDataProvider', "address": self.mock_lp_address},
+            {"name": "bandOracle", "address": self.mock_band_oracle},
+            {"name": "addressProvider", "address": self.mock_address_provider}
+        ])
 
     def test_get_reference_data_for_omm(self):
         self.set_msg(self._owner)
@@ -32,7 +35,6 @@ class TestPriceOracle(ScoreTestCase):
         self.score.set_reference_data("USDC", "USD", 12 * EXA // 10)
         self.score.set_reference_data("ICX", "USD", 5 * EXA // 10)
         self.set_msg(None)
-
 
         _reserve_address = {
             "USDS": Address.from_string(f"cx{'9841' * 10}"),
