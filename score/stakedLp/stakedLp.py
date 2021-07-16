@@ -102,7 +102,7 @@ class StakedLp(IconScoreBase):
         return self._unstaking_period.get()
 
     @external(readonly=True)
-    def details_balanceOf(self, _owner: Address, _id: int) -> dict:
+    def balanceOf(self, _owner: Address, _id: int) -> dict:
         lp = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
         userBalance = lp.balanceOf(_owner, _id)
 
@@ -111,14 +111,15 @@ class StakedLp(IconScoreBase):
         else:
             available_balance = self._poolStakeDetails[_owner][_id][Status.AVAILABLE]
         return {
-            "totalBalance": userBalance,
-            "availableBalance": available_balance,
-            "stakedBalance": self._poolStakeDetails[_owner][_id][Status.STAKED],
+            "userTotalBalance": userBalance,
+            "userAvailableBalance": available_balance,
+            "userStakedBalance": self._poolStakeDetails[_owner][_id][Status.STAKED],
+            "totalStakedBalance":self._totalStaked[_id]
         }
 
     @external(readonly=True)
-    def balanceOf(self, _owner: Address) -> dict:
-        return {_id: self.details_balanceOf(_owner, _id) for _id in self._supportedPools}
+    def detailsBalanceOf(self, _owner: Address) -> dict:
+        return {_id: self.balanceOf(_owner, _id) for _id in self._supportedPools}
 
     @only_owner
     @external
