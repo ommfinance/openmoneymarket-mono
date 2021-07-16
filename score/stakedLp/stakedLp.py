@@ -28,13 +28,14 @@ class StakedLp(IconScoreBase):
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._supportedPools = ArrayDB('supportedPools', db, int)
-        self._poolStakeDetails = DictDB('poolStakeDetails', db, value_type=Address, depth=3)
+        self._poolStakeDetails = DictDB('poolStakeDetails', db, value_type=int, depth=3)
         self._totalStaked = DictDB('totalStaked', db, value_type=int)
         self._dex = VarDB('dex', db, value_type=Address)
         self._addressMap = DictDB('addressMap', db, value_type=Address)
         self._rewards = VarDB('rewards', db, value_type=Address)
         self._minimumStake = VarDB('minimumStake', db, value_type=int)
         self._unstakingTime = VarDB('unstakingTime', db, value_type=int)
+        self._lock_list = ArrayDB('lock_list', db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -47,7 +48,7 @@ class StakedLp(IconScoreBase):
     @staticmethod
     def _require(_condition: bool, _message: str):
         if not _condition:
-            revert(_message)
+            revert(f'{TAG}: {_message}')
 
     @external(readonly=True)
     def name(self) -> str:
@@ -64,11 +65,11 @@ class StakedLp(IconScoreBase):
 
     @only_owner
     @external
-    def setDex(self, _id: int):
-        self._dex.set(_id)
+    def setDex(self, _address: Address):
+        self._dex.set(_address)
 
     @external(readonly=True)
-    def getDex(self) -> int:
+    def getDex(self) -> Address:
         return self._dex.get()
 
     @only_owner
@@ -91,8 +92,7 @@ class StakedLp(IconScoreBase):
         Set the minimum staking period
         :param _time: Staking time period in days.
         """
-        if _time < 0:
-            revert(f"{TAG}: ""Time cannot be negative.")
+        StakedLp._require(_time >= 0, "Time cannot be negative.")
         # total_time = _time * DAY_TO_MICROSECOND  # convert days to microseconds
         total_time = _time * MICROSECONDS
         self._unstaking_period.set(total_time)
@@ -106,7 +106,7 @@ class StakedLp(IconScoreBase):
         lp = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
         userBalance = lp.balanceOf(_owner, _id)
 
-        if self._first_time(_owner, _id,userBalance):
+        if self._first_time(_owner, _id, userBalance):
             available_balance = userBalance
         else:
             available_balance = self._poolStakeDetails[_owner][_id][Status.AVAILABLE]
@@ -120,8 +120,8 @@ class StakedLp(IconScoreBase):
     @external
     def addPool(self, _pool: Address, _id: int) -> None:
         self._addressMap[_id] = _pool
-        if _prep not in self._supportedPools:
-            self._supportedPools.put(_prep)
+        if _id not in self._supportedPools:
+            self._supportedPools.put(_id)
 
     @only_owner
     @external
@@ -202,19 +202,18 @@ class StakedLp(IconScoreBase):
     def _stake(self, _user: Address, _id: int, _value: int) -> None:
         StakedLp._require(_id in self._supportedPools, f'pool with id:{_id} is not supported')
         lp = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
-        userBalance = lp.balanceOf(_from, _id)
+        userBalance = lp.balanceOf(_user, _id)
         previousUserStaked = self._poolStakeDetails[_user][_id][Status.STAKED]
         previousTotalStaked = self._totalStaked[_id]
         StakedLp._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
         StakedLp._require(_value > self._minimumStake.get(),
                           f'Amount to stake:{_value} is smaller the minimum stake:{self._minimumStake.get()}')
-        self._check_first_time(_user, _pool, userBalance)
+        self._check_first_time(_user, _id, userBalance)
         StakedLp._require(userBalance >= _value,
                           f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {userBalance}')
         StakedLp._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
-        old_stake = self._poolStakeDetails[_user][_id][Status.STAKED]
         new_stake = _value
-        stake_increment = new_stake - old_stake
+        stake_increment = new_stake - previousUserStaked
         StakedLp._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
         self._poolStakeDetails[_user][_id][Status.AVAILABLE] = self._poolStakeDetails[_user][_id][
                                                                    Status.AVAILABLE] - stake_increment
@@ -232,10 +231,9 @@ class StakedLp(IconScoreBase):
 
         previousUserStaked = self._poolStakeDetails[_user][_id][Status.STAKED]
         previousTotalStaked = self._totalStaked[_id]
-        staked_balance = self._poolStakeDetails[_user][_id][Status.STAKED]
-        StakedLp._require(staked_balance >= _value, f'Cannot unstake,user dont have enough staked  balance'
-                                                    f'amount to unstake {_value}'
-                                                    f'staked balance of user:{_user} is  {staked_balance}')
+        StakedLp._require(previousUserStaked >= _value, f'Cannot unstake,user dont have enough staked balance '
+                                                    f'amount to unstake {_value} '
+                                                    f'staked balance of user: {_user} is  {previousUserStaked}')
         StakedLp._require(_user not in self._lock_list, f'Cannot unstake,the address {_user} is locked')
         self._poolStakeDetails[_user][_id][Status.STAKED] -= _value
         self._poolStakeDetails[_user][_id][Status.AVAILABLE] += _value
