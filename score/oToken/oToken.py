@@ -502,7 +502,7 @@ class OToken(IconScoreBase, TokenStandard):
         """
 
         if amount <= 0:
-            revert(f'{TAG}: ',
+            revert(f'{TAG}: '
                    f'Invalid value: {amount} to burn')
 
         self._totalSupply.set(self._totalSupply.get() - amount)
