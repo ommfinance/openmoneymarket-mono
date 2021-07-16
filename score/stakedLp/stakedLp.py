@@ -106,7 +106,7 @@ class StakedLp(IconScoreBase):
         lp = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
         userBalance = lp.balanceOf(_owner, _id)
 
-        if self._first_time(_owner, _id,userBalance):
+        if self._first_time(_owner, _id, userBalance):
             available_balance = userBalance
         else:
             available_balance = self._poolStakeDetails[_owner][_id][Status.AVAILABLE]
@@ -115,6 +115,10 @@ class StakedLp(IconScoreBase):
             "availableBalance": available_balance,
             "stakedBalance": self._poolStakeDetails[_owner][_id][Status.STAKED],
         }
+
+    @external(readonly=True)
+    def balanceOf(self, _owner: Address) -> dict:
+        return {_id: self.details_balanceOf(_owner, _id) for _id in self._supportedPools}
 
     @only_owner
     @external
@@ -139,7 +143,7 @@ class StakedLp(IconScoreBase):
     def getSupportedPools(self) -> List[Address]:
         return {pool: self._addressMap[pool] for pool in self._supportedPools}
 
-    def _first_time(self, _from: Address, _id: int,_userBalance:int) -> bool:
+    def _first_time(self, _from: Address, _id: int, _userBalance: int) -> bool:
         if (
                 self._poolStakeDetails[_from][_id][Status.AVAILABLE] == 0
                 and self._poolStakeDetails[_from][_id][Status.STAKED] == 0
@@ -166,7 +170,6 @@ class StakedLp(IconScoreBase):
         self._check_first_time(_user, _pool, userBalance)
         StakedLp._require(userBalance >= _value,
                           f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {userBalance}')
-        StakedLp._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
         old_stake = self._poolStakeDetails[_user][_id][Status.STAKED]
         new_stake = _value
         stake_increment = new_stake - old_stake
