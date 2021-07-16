@@ -35,7 +35,6 @@ class StakedLp(IconScoreBase):
         self._rewards = VarDB('rewards', db, value_type=Address)
         self._minimumStake = VarDB('minimumStake', db, value_type=int)
         self._unstakingTime = VarDB('unstakingTime', db, value_type=int)
-        self._lock_list = ArrayDB('lock_list', db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -193,7 +192,6 @@ class StakedLp(IconScoreBase):
         StakedLp._require(previousUserStaked >= _value, f'Cannot unstake,user dont have enough staked balance '
                                                     f'amount to unstake {_value} '
                                                     f'staked balance of user: {_user} is  {previousUserStaked}')
-        StakedLp._require(_user not in self._lock_list, f'Cannot unstake,the address {_user} is locked')
         self._poolStakeDetails[_user][_id][Status.STAKED] -= _value
         self._poolStakeDetails[_user][_id][Status.AVAILABLE] += _value
         self._totalStaked[_id] = self._totalStaked[_id] - _value
