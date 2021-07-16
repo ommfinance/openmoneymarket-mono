@@ -1,6 +1,6 @@
-from .Math import *
 from .utils.checks import *
 
+MICROSECONDS=10**6
 
 class RewardInterface(InterfaceScore):
     @interface
@@ -94,11 +94,11 @@ class StakedLp(IconScoreBase):
         StakedLp._require(_time >= 0, "Time cannot be negative.")
         # total_time = _time * DAY_TO_MICROSECOND  # convert days to microseconds
         total_time = _time * MICROSECONDS
-        self._unstaking_period.set(total_time)
+        self._unstakingTime.set(total_time)
 
     @external(readonly=True)
     def getUnstakingPeriod(self) -> int:
-        return self._unstaking_period.get()
+        return self._unstakingTime.get()
 
     @external(readonly=True)
     def balanceOf(self, _owner: Address, _id: int) -> dict:
@@ -160,13 +160,15 @@ class StakedLp(IconScoreBase):
 
     def _stake(self, _user: Address, _id: int, _value: int) -> None:
         StakedLp._require(_id in self._supportedPools, f'pool with id:{_id} is not supported')
+        StakedLp._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
+        StakedLp._require(_value > self._minimumStake.get(),
+                          f'Amount to stake:{_value} is smaller the minimum stake:{self._minimumStake.get()}')
+
         lp = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
         userBalance = lp.balanceOf(_user, _id)
         previousUserStaked = self._poolStakeDetails[_user][_id][Status.STAKED]
         previousTotalStaked = self._totalStaked[_id]
-        StakedLp._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
-        StakedLp._require(_value > self._minimumStake.get(),
-                          f'Amount to stake:{_value} is smaller the minimum stake:{self._minimumStake.get()}')
+
         self._check_first_time(_user, _id, userBalance)
         StakedLp._require(userBalance >= _value,
                           f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {userBalance}')
@@ -208,7 +210,7 @@ class StakedLp(IconScoreBase):
             d = json_loads(_data.decode("utf-8"))
         except BaseException as e:
             revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')
-        if set(d.keys()) != {"method", "params"}:
+        if set(d.keys()) != {"method"}:
             revert(f'{TAG}: Invalid parameters.')
         if d["method"] == "stake":
             self._stake(_from, _id, _value)
