@@ -222,7 +222,7 @@ class AddressProvider(IconScoreBase):
         oIUSDCAddressDetails: List[AddressDetails] = [
             {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
             {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
-            {"name": self.RESERVE, "address": self._addresses[self.USDs]},
+            {"name": self.RESERVE, "address": self._addresses[self.IUSDC]},
             {"name": self.ADDRESS_PROVIDER, "address": self.address},
             {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self.LENDING_POOL_DATA_PROVIDER},
             {"name": self.LENDING_POOL, "address": self.LENDING_POOL},
