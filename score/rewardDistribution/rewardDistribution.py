@@ -1,4 +1,3 @@
-
 from .Math import *
 from .utils.checks import *
 
@@ -77,43 +76,38 @@ class RewardDistributionManager(IconScoreBase):
 
     @only_owner
     @external
-    def configureAssetEmission(self, _assetConfig: List[AssetConfig]) -> None:
+    def configureEmissionPerSecond(self, asset: Address, distPercentage: int):
+        self._distPercentage[asset] = distPercentage
+        emissionPerSecond = self._getEmissionPerSecond(distPercentage)
+        token = self.create_interface_score(asset, TokenInterface)
+        totalBalance = token.totalSupply()
+        self._updateAssetStateInternal(asset, totalBalance)
+        self._emissionPerSecond[asset] = emissionPerSecond
+        self.AssetConfigUpdated(asset, emissionPerSecond)
+        if asset not in self._assets:
+            self._assets.put(asset)
 
+    @only_owner
+    @external
+    def configureAssetEmission(self, _assetConfig: List[AssetConfig]) -> None:
         for config in _assetConfig:
             asset = config['asset']
             distPercentage = config['distPercentage']
-            self._distPercentage[asset] = distPercentage
-            emissionPerSecond = exaDiv(self.tokenDistributionPerDay(self.getDay()) // 86400, distPercentage)
-            token = self.create_interface_score(asset, TokenInterface)
-            totalBalance = token.totalSupply()
-            self._updateAssetStateInternal(asset, totalBalance)
-            self._emissionPerSecond[asset] = emissionPerSecond
-            self.AssetConfigUpdated(asset, emissionPerSecond)
-            if asset not in self._assets:
-                self._assets.put(asset)
+            self.configureEmissionPerSecond(asset, distPercentage)
 
     @only_owner
     @external
     def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
-
         for config in _assetConfig:
             asset = config['asset']
             distPercentage = config['distPercentage']
-            self._distPercentage[asset] = distPercentage
-            emissionPerSecond = exaDiv(self.tokenDistributionPerDay(self.getDay()) // 86400, distPercentage)
-            token = self.create_interface_score(asset, TokenInterface)
-            totalBalance = token.totalSupply()
-            self._updateAssetStateInternal(asset, totalBalance)
-            self._emissionPerSecond[asset] = emissionPerSecond
-            self.AssetConfigUpdated(asset, emissionPerSecond)
-            if asset not in self._assets:
-                self._assets.put(asset)
+            self.configureEmissionPerSecond(asset, distPercentage)
 
     @only_owner
     def updateEmissionPerSecond(self) -> None:
         for asset in self._assets:
-            emissionPerSecond = exaDiv(self.tokenDistributionPerDay(self.getDay()) // 86400,
-                                       self._distPercentage[asset])
+            distPercentage = self._distPercentage[asset]
+            emissionPerSecond = self._getEmissionPerSecond(distPercentage)
             token = self.create_interface_score(asset, TokenInterface)
             totalBalance = token.total_staked_balance()
             self._updateAssetStateInternal(asset, totalBalance)
@@ -181,6 +175,10 @@ class RewardDistributionManager(IconScoreBase):
     @staticmethod
     def _getRewards(_userBalance: int, _assetIndex: int, _userIndex: int) -> int:
         return exaMul(_userBalance, _assetIndex - _userIndex)
+
+    def _getEmissionPerSecond(self, distributionPercent):
+        distributionPerDay = self.tokenDistributionPerDay(self.getDay());
+        return exaDiv(distributionPerDay // 86400, distributionPercent)
 
     @external(readonly=True)
     def tokenDistributionPerDay(self, _day: int) -> int:

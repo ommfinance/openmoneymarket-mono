@@ -95,7 +95,7 @@ class RewardDistributionController(RewardDistributionManager):
         self._distComplete = DictDB('distComplete', db, value_type=bool)
         self._distIndex = DictDB('distIndex', db, value_type=int)
         self._tokenDistTracker = DictDB('tokenDistTracker', db, value_type=int)
-        self._distPercentage = DictDB('distPercentage', db, value_type=int, depth=2)
+        self._daoFundDistPercentage = DictDB('daoFundDistPercentage', db, value_type=int, depth=2)
         self._offset = DictDB('offset', db, value_type=int)
         self._admin = VarDB('admin', db, value_type=Address)
         self._dex = VarDB(self.DEX, db, value_type=Address)
@@ -160,30 +160,30 @@ class RewardDistributionController(RewardDistributionManager):
     @external
     def setDistPercentage(self, _ommICX: int, _dex: int, _worker: int, _daoFund: int):
         currentDay = self.getDay()
-        length = self._distPercentage["length"][0]
+        length = self._daoFundDistPercentage["length"][0]
         if length == 0:
-            self._distPercentage['ommICX'][length] = _ommICX
-            self._distPercentage['dex'][length] = _dex
-            self._distPercentage['worker'][length] = _worker
-            self._distPercentage['daoFund'][length] = _daoFund
-            self._distPercentage["ids"][length] = currentDay
-            self._distPercentage["length"][0] += 1
+            self._daoFundDistPercentage['ommICX'][length] = _ommICX
+            self._daoFundDistPercentage['dex'][length] = _dex
+            self._daoFundDistPercentage['worker'][length] = _worker
+            self._daoFundDistPercentage['daoFund'][length] = _daoFund
+            self._daoFundDistPercentage["ids"][length] = currentDay
+            self._daoFundDistPercentage["length"][0] += 1
             return
         else:
-            lastDay = self._distPercentage["ids"][length - 1]
+            lastDay = self._daoFundDistPercentage["ids"][length - 1]
 
         if lastDay < currentDay:
-            self._distPercentage["ids"][length] = currentDay
-            self._distPercentage['ommICX'][length] = _ommICX
-            self._distPercentage['dex'][length] = _dex
-            self._distPercentage['worker'][length] = _worker
-            self._distPercentage['daoFund'][length] = _daoFund
-            self._distPercentage["length"][0] += 1
+            self._daoFundDistPercentage["ids"][length] = currentDay
+            self._daoFundDistPercentage['ommICX'][length] = _ommICX
+            self._daoFundDistPercentage['dex'][length] = _dex
+            self._daoFundDistPercentage['worker'][length] = _worker
+            self._daoFundDistPercentage['daoFund'][length] = _daoFund
+            self._daoFundDistPercentage["length"][0] += 1
         else:
-            self._distPercentage['ommICX'][length - 1] = _ommICX
-            self._distPercentage['dex'][length - 1] = _dex
-            self._distPercentage['worker'][length - 1] = _worker
-            self._distPercentage['daoFund'][length - 1] = _daoFund
+            self._daoFundDistPercentage['ommICX'][length - 1] = _ommICX
+            self._daoFundDistPercentage['dex'][length - 1] = _dex
+            self._daoFundDistPercentage['worker'][length - 1] = _worker
+            self._daoFundDistPercentage['daoFund'][length - 1] = _daoFund
 
     @only_owner
     @external
@@ -222,21 +222,21 @@ class RewardDistributionController(RewardDistributionManager):
         if _day < 0:
             revert(f"{TAG}: "f"IRC2Snapshot: day:{_day} must be equal to or greater then Zero")
         low = 0
-        high = self._distPercentage["length"][0]
+        high = self._daoFundDistPercentage["length"][0]
 
         while low < high:
             mid = (low + high) // 2
-            if self._distPercentage["ids"][mid] > _day:
+            if self._daoFundDistPercentage["ids"][mid] > _day:
                 high = mid
             else:
                 low = mid + 1
 
-        if self._distPercentage["ids"][0] == _day:
-            return self._distPercentage[_recipient][0]
+        if self._daoFundDistPercentage["ids"][0] == _day:
+            return self._daoFundDistPercentage[_recipient][0]
         elif low == 0:
             return 0
         else:
-            return self._distPercentage[_recipient][low - 1]
+            return self._daoFundDistPercentage[_recipient][low - 1]
 
     @only_owner
     @external
