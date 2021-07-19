@@ -1,5 +1,7 @@
 from .utils.checks import *
 
+REWARDS = 'rewards'
+LENDING_POOL_CORE = 'lendingPoolCore'
 
 class Constant(TypedDict):
     reserve: Address
@@ -7,6 +9,11 @@ class Constant(TypedDict):
     baseBorrowRate: int
     slopeRate1: int
     slopeRate2: int
+
+
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 
 class ReserveAttributes(TypedDict):
@@ -73,14 +80,18 @@ class CoreInterface(InterfaceScore):
         pass
 
 
+LENDING_POOL_CORE = 'lendingPoolCore'
+REWARDS = 'rewards'
+
+
 class Governance(IconScoreBase):
-    REWARDS = 'rewards'
-    LENDING_POOL_CORE = 'lendingPoolCore'
+    _CONTRACTS = 'contracts'
+    _ADDRESSES = 'addresses'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._rewards = VarDB(self.REWARDS, db, value_type=Address)
-        self._lendingPoolCore = VarDB(self.LENDING_POOL_CORE, db, value_type=Address)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
@@ -92,80 +103,74 @@ class Governance(IconScoreBase):
     def name(self) -> str:
         return "OmmGovernanceManager"
 
-    @only_owner
+    @origin_owner
     @external
-    def setRewards(self, _address: Address):
-        self._rewards.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
 
     @external(readonly=True)
-    def getRewards(self) -> Address:
-        return self._rewards.get()
-
-    @only_owner
-    @external
-    def setLendingPoolCore(self, _address: Address):
-        self._lendingPoolCore.set(_address)
-
-    @external(readonly=True)
-    def getLendingPoolCore(self) -> Address:
-        return self._lendingPoolCore.get()
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @only_owner
     @external
     def setStartTimestamp(self, _timestamp: int) -> None:
-        rewards = self.create_interface_score(self._rewards.get(), RewardInterface)
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         rewards.setStartTimestamp(_timestamp)
 
     @only_owner
     @external
     def setReserveActiveStatus(self, _reserve: Address, _status: bool):
-        core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateIsActive(_reserve, _status)
 
     @only_owner
     @external
     def setReserveFreezeStatus(self, _reserve: Address, _status: bool):
-        core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateIsFreezed(_reserve, _status)
 
     @only_owner
     @external
     def setReserveConstants(self, _constants: List[Constant]):
-        core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.setReserveConstants(_constants)
 
     @only_owner
     @external
     def initializeReserve(self, _reserve: ReserveAttributes):
-        core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.addReserveData(_reserve)
 
     @only_owner
     @external
     def updateBaseLTVasCollateral(self, _reserve: Address, _baseLtv: int):
-        core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateBaseLTVasCollateral(_reserve, _baseLtv)
 
     @only_owner
     @external
     def updateLiquidationThreshold(self, _reserve: Address, _liquidationThreshold: int):
-        core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateLiquidationThreshold(_reserve, _liquidationThreshold)
 
     @only_owner
     @external
     def updateLiquidationBonus(self, _reserve: Address, _liquidationBonus: int):
-        core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateLiquidationBonus(_reserve, _liquidationBonus)
 
     @only_owner
     @external
     def updateBorrowingEnabled(self, _reserve: Address, _borrowingEnabled: bool):
-        core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateBorrowingEnabled(_reserve, _borrowingEnabled)
 
     @only_owner
     @external
     def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
-        core = self.create_interface_score(self._lendingPoolCore.get(), CoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateUsageAsCollateralEnabled(_reserve, _usageAsCollateralEnabled)
