@@ -164,7 +164,7 @@ class DToken(IconScoreBase, TokenStandard):
         else:
             decimals = self._decimals.get()
             balance = exaDiv(
-                exaMul(convertToExa(_balance, decimals), core.getNormalizedDebt(self.getReserve())),
+                exaMul(convertToExa(_balance, decimals), core.getNormalizedDebt(self._addresses[RESERVE])),
                 userIndex)
             return convertExaToOther(balance, decimals)
 
@@ -176,7 +176,7 @@ class DToken(IconScoreBase, TokenStandard):
         if previousUserIndex != 0:
             balanceInExa = exaDiv(
                 exaMul(convertToExa(previousPrincipalBalance, decimals),
-                       core.getReserveBorrowCumulativeIndex(self.getReserve())), previousUserIndex)
+                       core.getReserveBorrowCumulativeIndex(self._addresses[RESERVE])), previousUserIndex)
             balance = convertExaToOther(balanceInExa, decimals)
         else:
             balance = previousPrincipalBalance
@@ -184,7 +184,7 @@ class DToken(IconScoreBase, TokenStandard):
         if balanceIncrease > 0:
             self._mint(_user, balanceIncrease)
 
-        userIndex = core.getReserveBorrowCumulativeIndex(self.getReserve())
+        userIndex = core.getReserveBorrowCumulativeIndex(self._addresses[RESERVE])
         self._userIndexes[_user] = userIndex
 
         return {
@@ -233,7 +233,7 @@ class DToken(IconScoreBase, TokenStandard):
         else:
             decimals = self._decimals.get()
             balance = exaDiv(
-                exaMul(convertToExa(principalTotalSupply, decimals), core.getNormalizedDebt(self.getReserve())),
+                exaMul(convertToExa(principalTotalSupply, decimals), core.getNormalizedDebt(self._addresses[RESERVE])),
                 borrowIndex)
             return convertExaToOther(balance, decimals)
 
@@ -244,7 +244,7 @@ class DToken(IconScoreBase, TokenStandard):
         if _balanceIncrease > 0:
             self._mint(_user, _balanceIncrease)
         core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
-        userIndex = core.getReserveBorrowCumulativeIndex(self.getReserve())
+        userIndex = core.getReserveBorrowCumulativeIndex(self._addresses[RESERVE])
         self._userIndexes[_user] = userIndex
 
     @only_lending_pool_core
