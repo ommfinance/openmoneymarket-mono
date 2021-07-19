@@ -81,6 +81,7 @@ class RewardDistributionController(RewardDistributionManager):
         self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth=2)
         self._assetName = DictDB(self.ASSET_NAME, db, value_type=str)
         self._recipients = ArrayDB('recipients', db, value_type=str)
+        self._dailyDistributionPercentage = DictDB('dailyDistributionPercentage', db, value_type=int)
 
         self._precompute = DictDB('preCompute', db, value_type=bool)
         self._compIndex = DictDB('compIndex', db, value_type=int)
@@ -89,7 +90,6 @@ class RewardDistributionController(RewardDistributionManager):
         self._distComplete = DictDB('distComplete', db, value_type=bool)
         self._distIndex = DictDB('distIndex', db, value_type=int)
         self._tokenDistTracker = DictDB('tokenDistTracker', db, value_type=int)
-        self._dailyRecipientDistPercentage = DictDB('dailyRecipientDistPercentage', db, value_type=int, depth=2)
         self._offset = DictDB('offset', db, value_type=int)
         self._pool_id = DictDB(self.POOL_ID, db, value_type=int)
         self._rewardsBatchSize = VarDB(self.REWARDS_BATCH_SIZE, db, value_type=int)
@@ -99,7 +99,7 @@ class RewardDistributionController(RewardDistributionManager):
 
     def on_install(self) -> None:
         super().on_install()
-        self._recipients.put('dex')
+        self._recipients.put('worker')
         self._recipients.put('daoFund')
         self._distComplete['daoFund'] = True
         self._rewardsBatchSize.set(50)
@@ -150,32 +150,12 @@ class RewardDistributionController(RewardDistributionManager):
 
     @only_owner
     @external
-    def setDistPercentage(self, _ommICX: int, _dex: int, _worker: int, _daoFund: int):
-        currentDay = self.getDay()
-        length = self._dailyRecipientDistPercentage["length"][0]
-        if length == 0:
-            self._dailyRecipientDistPercentage['ommICX'][length] = _ommICX
-            self._dailyRecipientDistPercentage['dex'][length] = _dex
-            self._dailyRecipientDistPercentage['worker'][length] = _worker
-            self._dailyRecipientDistPercentage['daoFund'][length] = _daoFund
-            self._dailyRecipientDistPercentage["ids"][length] = currentDay
-            self._dailyRecipientDistPercentage["length"][0] += 1
-            return
-        else:
-            lastDay = self._dailyRecipientDistPercentage["ids"][length - 1]
+    def setDailyDistributionPercentage(self, _recipient: str, _percentage: int):
+        self._dailyDistributionPercentage[_recipient] = int
 
-        if lastDay < currentDay:
-            self._dailyRecipientDistPercentage["ids"][length] = currentDay
-            self._dailyRecipientDistPercentage['ommICX'][length] = _ommICX
-            self._dailyRecipientDistPercentage['dex'][length] = _dex
-            self._dailyRecipientDistPercentage['worker'][length] = _worker
-            self._dailyRecipientDistPercentage['daoFund'][length] = _daoFund
-            self._dailyRecipientDistPercentage["length"][0] += 1
-        else:
-            self._dailyRecipientDistPercentage['ommICX'][length - 1] = _ommICX
-            self._dailyRecipientDistPercentage['dex'][length - 1] = _dex
-            self._dailyRecipientDistPercentage['worker'][length - 1] = _worker
-            self._dailyRecipientDistPercentage['daoFund'][length - 1] = _daoFund
+    @external(readonly=True)
+    def getDailyDistributionPercentage(self, _recipient: str) -> int:
+        return self._dailyDistributionPercentage[_recipient]
 
     @only_owner
     @external
@@ -208,27 +188,6 @@ class RewardDistributionController(RewardDistributionManager):
     @external(readonly=True)
     def getRecipients(self) -> list:
         return [item for item in self._recipients]
-
-    @external(readonly=True)
-    def distPercentageAt(self, _recipient: str, _day: int) -> int:
-        if _day < 0:
-            revert(f"{TAG}: "f"IRC2Snapshot: day:{_day} must be equal to or greater then Zero")
-        low = 0
-        high = self._dailyRecipientDistPercentage["length"][0]
-
-        while low < high:
-            mid = (low + high) // 2
-            if self._dailyRecipientDistPercentage["ids"][mid] > _day:
-                high = mid
-            else:
-                low = mid + 1
-
-        if self._dailyRecipientDistPercentage["ids"][0] == _day:
-            return self._dailyRecipientDistPercentage[_recipient][0]
-        elif low == 0:
-            return 0
-        else:
-            return self._dailyRecipientDistPercentage[_recipient][low - 1]
 
     @external
     def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
@@ -334,7 +293,7 @@ class RewardDistributionController(RewardDistributionManager):
 
         for recipient in ('worker', 'daoFund'):
             self._distComplete[recipient] = False
-            self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay, self.distPercentageAt(recipient, day))
+            self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay, self._dailyDistributionPercentage[recipient])
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
