@@ -179,7 +179,8 @@ class OToken(IconScoreBase, TokenStandard):
         else:
             decimals = self._decimals.get()
             balance = exaDiv(
-                exaMul(convertToExa(principalTotalSupply, decimals), core.getNormalizedIncome(self.getReserve())),
+                exaMul(convertToExa(principalTotalSupply, decimals),
+                       core.getNormalizedIncome(self._addresses['reserve'])),
                 borrowIndex)
             return convertExaToOther(balance, decimals)
 
@@ -208,7 +209,7 @@ class OToken(IconScoreBase, TokenStandard):
         else:
             decimals = self._decimals.get()
             balance = exaDiv(
-                exaMul(convertToExa(_balance, decimals), core.getNormalizedIncome(self.getReserve())),
+                exaMul(convertToExa(_balance, decimals), core.getNormalizedIncome(self._addresses['reserve'])),
                 userIndex)
             return convertExaToOther(balance, decimals)
 
@@ -296,7 +297,7 @@ class OToken(IconScoreBase, TokenStandard):
             convertToExa(beforeTotalSupply, decimals))
         self.Redeem(_user, amountToRedeem, balanceIncrease, index)
         return {
-            'reserve': self.getReserve(),
+            'reserve': self._addresses['reserve'],
             'amountToRedeem': amountToRedeem,
             'oTokenRemaining': currentBalance - amountToRedeem
         }
@@ -434,7 +435,7 @@ class OToken(IconScoreBase, TokenStandard):
         """
 
         if amount < 0:
-            revert(f'{TAG}: ',
+            revert(f'{TAG}: '
                    f'Invalid value: {amount} to mint')
 
         self._totalSupply.set(self._totalSupply.get() + amount)
@@ -455,7 +456,7 @@ class OToken(IconScoreBase, TokenStandard):
         """
 
         if amount <= 0:
-            revert(f'{TAG}: ',
+            revert(f'{TAG}: '
                    f'Invalid value: {amount} to burn')
 
         self._totalSupply.set(self._totalSupply.get() - amount)
