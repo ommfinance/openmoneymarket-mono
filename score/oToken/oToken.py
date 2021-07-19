@@ -21,7 +21,7 @@ class LendingPoolCoreInterface(InterfaceScore):
 
 class DistributionManager(InterfaceScore):
     @interface
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
         pass
 
 
