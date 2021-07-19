@@ -5,6 +5,8 @@ from .utils.checks import *
 
 RESERVE_DB_PREFIX = b'reserve'
 USER_DB_PREFIX = b'userReserve'
+STAKING = "staking"
+FEE_PROVIDER = "feeProvider"
 
 
 class AddressDetails(TypedDict):
@@ -121,14 +123,14 @@ class LendingPoolCore(IconScoreBase):
     _ID = 'id'
     _RESERVE_LIST = 'reserveList'
     _CONSTANTS = 'constants'
-    ADDRESSES = 'addresses'
-    CONTRACTS = 'contracts'
+    _ADDRESSES = 'addresses'
+    _CONTRACTS = 'contracts'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._id = VarDB(self._ID, db, str)
-        self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self.ADDRESSES, db, value_type=Address)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
         self.reserve = ReserveDataDB(db)
