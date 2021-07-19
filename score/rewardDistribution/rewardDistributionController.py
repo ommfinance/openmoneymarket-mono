@@ -124,7 +124,7 @@ class RewardDistributionController(RewardDistributionManager):
         pass
 
     @eventlog
-    def RewardsAccrued(self, _user: Address, _rewards: int) -> None:
+    def RewardsAccrued(self, _user: Address, _asset: Address, _rewards: int) -> None:
         pass
 
     @eventlog

@@ -12,3 +12,5 @@ class Steps(enum.Enum):
     REPAY_ICX = 8
     REDEEM_USDS = 9
     REPAY_USDS = 10
+    STAKE_LP = 11
+    UNSTAKE_LP = 12

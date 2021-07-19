@@ -86,7 +86,7 @@ class OMMTestBase(TestUtils):
     DIR = ROOT
 
     CONTRACTS = ['addressProvider', 'daoFund', 'delegation', 'lendingPool', 'feeProvider',
-                 'lendingPoolCore', 'lendingPoolDataProvider', 'liquidationManager',
+                 'lendingPoolCore', 'lendingPoolDataProvider', 'liquidationManager', 'stakedLp',
                  'ommToken', 'priceOracle', 'rewardDistribution', 'governance', 'worker_token']
     OTOKENS = ['oUSDS', 'oICX']
     DTOKENS = ['dUSDS', 'dICX']
@@ -386,6 +386,7 @@ class OMMTestBase(TestUtils):
         self._config_staking()
         self._config_fee_provider()
         self._config_debt_tokens()
+        self._config_stakedLp()
 
 
     def _deposit_for_fee_sharing(self):
@@ -440,6 +441,30 @@ class OMMTestBase(TestUtils):
              'params': {'_address': contracts['ommToken']}}
         ]
         self._get_transaction(settings_lendingPool)
+
+    def _config_stakedLp(self):
+        print(
+            "-------------------------------Configuring STAKED LP----------------------------------------------------")
+        contracts = self.contracts
+        settings_stakedLp = [
+            {'contract': 'stakedLp', 'method': 'setRewards',
+             'params': {'_address': contracts['rewardDistribution']}},
+            {'contract': 'stakedLp', 'method': 'setDex',
+             'params': {'_address': contracts['lpToken']}},
+            {'contract': 'stakedLp', 'method': 'addPool',
+             'params': {
+                '_pool': contracts['sicx'],
+                '_id': 1
+                }
+            },
+            {'contract': 'stakedLp', 'method': 'addPool',
+             'params': {
+                '_pool': contracts['usds'],
+                '_id': 2
+                }
+            }
+        ]
+        self._get_transaction(settings_stakedLp)
 
     def _config_fee_provider(self):
         print(
