@@ -304,7 +304,6 @@ class AddressProvider(IconScoreBase):
             {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]},
             {"name": self.WORKER_TOKEN, "address": self._addresses[self.WORKER_TOKEN]},
             {"name": self.DAO_FUND, "address": self._addresses[self.DAO_FUND]},
-            {"name": self.DEX, "address": self._addresses[self.DEX]},
             {"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
             {"name": self.GOVERNANCE, "address": self._addresses[self.GOVERNANCE]},
             {"name": self.ADDRESS_PROVIDER, "address": self.address}
