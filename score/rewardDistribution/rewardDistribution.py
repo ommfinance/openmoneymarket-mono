@@ -202,7 +202,7 @@ class RewardDistributionManager(IconScoreBase):
     def getDay(self) -> int:
         return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
 
-    @only_admin
+    @only_governance
     @external
     def setStartTimestamp(self, _timestamp: int):
         self._timestampAtStart.set(_timestamp)

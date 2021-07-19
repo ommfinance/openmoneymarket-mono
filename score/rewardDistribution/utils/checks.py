@@ -23,7 +23,7 @@ def only_governance(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._governanceAddress.get():
+        if self.msg.sender != self._addresses['governance']:
             revert(f"{TAG}: "f"SenderNotGovernanceError: (sender){self.msg.sender} (governance){self._governanceAddress.get()}")
 
         return func(self, *args, **kwargs)
@@ -31,7 +31,7 @@ def only_governance(func):
     return __wrapper
 
 
-def only_lendingPool(func):
+def only_lending_pool(func):
     if not isfunction(func):
         revert(f"{TAG}: ""NotAFunctionError")
 
@@ -40,20 +40,6 @@ def only_lendingPool(func):
         if self.msg.sender != self._lendingPool.get():
             revert(
                 f"{TAG}: "f"SenderNotLendingPoolError: (sender){self.msg.sender} (lendingPool){self._lendingPool.get()}")
-
-        return func(self, *args, **kwargs)
-
-    return __wrapper
-
-
-def only_admin(func):
-    if not isfunction(func):
-        revert(f"{TAG}: ""NotAFunctionError")
-
-    @wraps(func)
-    def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._admin.get():
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (admin){self._admin.get()}")
 
         return func(self, *args, **kwargs)
 
