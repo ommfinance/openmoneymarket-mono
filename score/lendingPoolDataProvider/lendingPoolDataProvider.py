@@ -27,6 +27,10 @@ class DistPercentage(TypedDict):
     recipient: str
     distPercentage: int
 
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
+
 
 # An interface to fee provider
 class FeeProviderInterface(InterfaceScore):
@@ -180,7 +184,7 @@ class LendingPoolDataProvider(IconScoreBase):
     def getSymbol(self, _reserve: Address) -> str:
         return self._symbol[_reserve]
 
-    @only_owner
+    @origin_owner
     @external
     def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
         for contracts in _addressDetails:
