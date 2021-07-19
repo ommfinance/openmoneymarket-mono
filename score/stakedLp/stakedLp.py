@@ -1,6 +1,13 @@
 from .utils.checks import *
 
 MICROSECONDS = 10 ** 6
+REWARDS = 'rewards'
+DEX = 'dex'
+
+
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 
 class RewardInterface(InterfaceScore):
@@ -31,11 +38,11 @@ class StakedLp(IconScoreBase):
         self._supportedPools = ArrayDB('supportedPools', db, int)
         self._poolStakeDetails = DictDB('poolStakeDetails', db, value_type=int, depth=3)
         self._totalStaked = DictDB('totalStaked', db, value_type=int)
-        self._dex = VarDB('dex', db, value_type=Address)
         self._addressMap = DictDB('addressMap', db, value_type=Address)
-        self._rewards = VarDB('rewards', db, value_type=Address)
         self._minimumStake = VarDB('minimumStake', db, value_type=int)
         self._unstakingTime = VarDB('unstakingTime', db, value_type=int)
+        self._addresses = DictDB('addresses', db, value_type=Address)
+        self._contracts = ArrayDB('contracts', db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
@@ -54,23 +61,17 @@ class StakedLp(IconScoreBase):
     def name(self) -> str:
         return "Omm Stake Lp"
 
-    @only_owner
+    @origin_owner
     @external
-    def setRewards(self, _address: Address):
-        self._rewards.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
 
     @external(readonly=True)
-    def getRewards(self) -> Address:
-        return self._rewards.get()
-
-    @only_owner
-    @external
-    def setDex(self, _address: Address):
-        self._dex.set(_address)
-
-    @external(readonly=True)
-    def getDex(self) -> Address:
-        return self._dex.get()
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @only_owner
     @external
@@ -103,7 +104,7 @@ class StakedLp(IconScoreBase):
 
     @external(readonly=True)
     def balanceOf(self, _owner: Address, _id: int) -> dict:
-        lp = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
+        lp = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
         userBalance = lp.balanceOf(_owner, _id)
 
         return {
@@ -161,7 +162,7 @@ class StakedLp(IconScoreBase):
         StakedLp._require(_value > self._minimumStake.get(),
                           f'Amount to stake:{_value} is smaller the minimum stake:{self._minimumStake.get()}')
 
-        lp = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
+        lp = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
         userBalance = lp.balanceOf(_user, _id)
         previousUserStaked = self._poolStakeDetails[_user][_id][Status.STAKED]
         previousTotalStaked = self._totalStaked[_id]
@@ -176,7 +177,7 @@ class StakedLp(IconScoreBase):
                                                                    Status.AVAILABLE] - stake_increment
         self._poolStakeDetails[_user][_id][Status.STAKED] = _value
         self._totalStaked[_id] = self._totalStaked[_id] + stake_increment
-        reward = self.create_interface_score(self._rewards.get(), RewardInterface)
+        reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         reward.handleAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])
 
     @external
@@ -194,9 +195,9 @@ class StakedLp(IconScoreBase):
         self._poolStakeDetails[_user][_id][Status.STAKED] -= _value
         self._poolStakeDetails[_user][_id][Status.AVAILABLE] += _value
         self._totalStaked[_id] = self._totalStaked[_id] - _value
-        reward = self.create_interface_score(self._rewards.get(), RewardInterface)
+        reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         reward.handleAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])
-        lpToken = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
+        lpToken = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
         lpToken.transfer(_user, _value, _id, b'transferBackToUser')
 
     @only_dex
