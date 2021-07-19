@@ -73,12 +73,10 @@ class TestStakedLP(ScoreTestCase):
         # GIVEN
         _user = create_address(AddressPrefix.CONTRACT)
         _pool_id1 = 1
-        self.score._poolStakeDetails[_user][_pool_id1][Status.AVAILABLE] = 15 * EXA
         self.score._poolStakeDetails[_user][_pool_id1][Status.STAKED] = 11 * EXA
         self.score._totalStaked[_pool_id1] = 26 * EXA
 
         _pool_id2 = 2
-        self.score._poolStakeDetails[_user][_pool_id2][Status.AVAILABLE] = 10 * EXA
         self.score._poolStakeDetails[_user][_pool_id2][Status.STAKED] = 25 * EXA
         self.score._totalStaked[_pool_id2] = 21 * EXA
 
@@ -91,14 +89,14 @@ class TestStakedLP(ScoreTestCase):
 
         expected_result = {
             _pool_id1: {
-                "userTotalBalance": 100 * EXA,
-                "userAvailableBalance": 15 * EXA,
+                "userTotalBalance": 111 * EXA,
+                "userAvailableBalance": 100 * EXA,
                 "userStakedBalance": 11 * EXA,
                 "totalStakedBalance": 26 * EXA
             },
             _pool_id2: {
-                "userTotalBalance": 100 * EXA,
-                "userAvailableBalance": 10 * EXA,
+                "userTotalBalance": 125 * EXA,
+                "userAvailableBalance": 100 * EXA,
                 "userStakedBalance": 25 * EXA,
                 "totalStakedBalance": 21 * EXA
             }

@@ -1,6 +1,7 @@
 from .utils.checks import *
 
-MICROSECONDS=10**6
+MICROSECONDS = 10 ** 6
+
 
 class RewardInterface(InterfaceScore):
     @interface
@@ -105,15 +106,11 @@ class StakedLp(IconScoreBase):
         lp = self.create_interface_score(self._dex.get(), LiquidityPoolInterface)
         userBalance = lp.balanceOf(_owner, _id)
 
-        if self._first_time(_owner, _id, userBalance):
-            available_balance = userBalance
-        else:
-            available_balance = self._poolStakeDetails[_owner][_id][Status.AVAILABLE]
         return {
-            "userTotalBalance": userBalance,
-            "userAvailableBalance": available_balance,
+            "userTotalBalance": userBalance + self._poolStakeDetails[_owner][_id][Status.STAKED],
+            "userAvailableBalance": userBalance,
             "userStakedBalance": self._poolStakeDetails[_owner][_id][Status.STAKED],
-            "totalStakedBalance":self._totalStaked[_id]
+            "totalStakedBalance": self._totalStaked[_id]
         }
 
     @external(readonly=True)
@@ -192,8 +189,8 @@ class StakedLp(IconScoreBase):
         previousUserStaked = self._poolStakeDetails[_user][_id][Status.STAKED]
         previousTotalStaked = self._totalStaked[_id]
         StakedLp._require(previousUserStaked >= _value, f'Cannot unstake,user dont have enough staked balance '
-                                                    f'amount to unstake {_value} '
-                                                    f'staked balance of user: {_user} is  {previousUserStaked}')
+                                                        f'amount to unstake {_value} '
+                                                        f'staked balance of user: {_user} is  {previousUserStaked}')
         self._poolStakeDetails[_user][_id][Status.STAKED] -= _value
         self._poolStakeDetails[_user][_id][Status.AVAILABLE] += _value
         self._totalStaked[_id] = self._totalStaked[_id] - _value
