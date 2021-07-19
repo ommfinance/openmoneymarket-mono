@@ -1,6 +1,11 @@
 from iconservice import *
 
 TAG = "OmmRewards"
+STAKED_LP = 'stakedLp'
+LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
+OMM_TOKEN = 'ommToken'
+WORKER_TOKEN = 'workerToken'
+DAO_FUND = 'daoFund'
 
 
 def only_owner(func):

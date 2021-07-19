@@ -4,16 +4,6 @@ from .utils.checks import *
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
 TAG = 'RewardDistributionController'
-LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
-OMM_TOKEN = 'ommToken'
-WORKER_TOKEN = 'workerToken'
-DAO_FUND = 'daoFund'
-
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
 
 class SupplyDetails(TypedDict):
     principalUserBalance: int
@@ -72,8 +62,6 @@ class RewardDistributionController(RewardDistributionManager):
     CLAIMED_BIT_MAP = "claimedBitMap"
     REWARDS_ACTIVATE = "rewardsActivate"
     ASSET_NAME = "assetName"
-    ADDRESSES = "addresses"
-    CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -94,8 +82,6 @@ class RewardDistributionController(RewardDistributionManager):
         self._pool_id = DictDB(self.POOL_ID, db, value_type=int)
         self._rewardsBatchSize = VarDB(self.REWARDS_BATCH_SIZE, db, value_type=int)
         self._rewardsActivate = VarDB(self.REWARDS_ACTIVATE, db, value_type=int)
-        self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
@@ -127,18 +113,6 @@ class RewardDistributionController(RewardDistributionManager):
     def name(self) -> str:
         return "RewardDistributionController"
 
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
-
     @only_owner
     @external
     def setAssetName(self, _asset: Address, _name: str):
@@ -151,7 +125,7 @@ class RewardDistributionController(RewardDistributionManager):
     @only_owner
     @external
     def setDailyDistributionPercentage(self, _recipient: str, _percentage: int):
-        self._dailyDistributionPercentage[_recipient] = int
+        self._dailyDistributionPercentage[_recipient] = _percentage
 
     @external(readonly=True)
     def getDailyDistributionPercentage(self, _recipient: str) -> int:
