@@ -128,7 +128,6 @@ class LendingPoolCore(IconScoreBase):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._id = VarDB(self._ID, db, str)
         self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
         self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
@@ -155,15 +154,6 @@ class LendingPoolCore(IconScoreBase):
     def name(self) -> str:
         return 'OmmLendingPoolCore'
 
-    @only_owner
-    @external
-    def set_id(self, _value: str):
-        self._id.set(_value)
-
-    @external(readonly=True)
-    def get_id(self) -> str:
-        return self._id.get()
-
     @origin_owner
     @external
     def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
@@ -181,10 +171,10 @@ class LendingPoolCore(IconScoreBase):
         return self._addresses[_name]
 
     def reservePrefix(self, _reserve: Address) -> bytes:
-        return b'|'.join([RESERVE_DB_PREFIX, self._id.get().encode(), str(_reserve).encode()])
+        return b'|'.join([RESERVE_DB_PREFIX, str(_reserve).encode()])
 
     def userReservePrefix(self, _reserve: Address, _user: Address) -> bytes:
-        return b'|'.join([USER_DB_PREFIX, self._id.get().encode(), str(_reserve).encode(), str(_user).encode()])
+        return b'|'.join([USER_DB_PREFIX, str(_reserve).encode(), str(_user).encode()])
 
     # Methods to update the states of a reserve
 
