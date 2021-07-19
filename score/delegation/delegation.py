@@ -9,6 +9,8 @@ class PrepDelegations(TypedDict):
     _address: Address
     _votes_in_per: int
 
+LENDING_POOL_CORE = 'lendingPoolCore'
+OMM_TOKEN = 'ommToken'
 
 class SystemInterface(InterfaceScore):
     @interface
@@ -138,7 +140,7 @@ class Delegation(IconScoreBase):
         return self._distributeVoteToContributors() == self.getUserDelegationDetails(_user)
 
     def _resetUser(self, _user: Address):
-        if self.msg.sender == self._addresses["ommToken"] or self.msg.sender == _user:
+        if self.msg.sender == self._addresses[OMM_TOKEN] or self.msg.sender == _user:
             for index in range(5):
 
                 # removing votes
@@ -160,7 +162,7 @@ class Delegation(IconScoreBase):
 
     @external
     def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
-        if _user is not None and self.msg.sender == self._addresses["ommToken"]:
+        if _user is not None and self.msg.sender == self._addresses[OMM_TOKEN]:
             user = _user
         else:
             user = self.msg.sender
@@ -178,7 +180,7 @@ class Delegation(IconScoreBase):
                                                   f'delegations provided {_delegations}')
             delegations = _delegations
 
-        omm_token = self.create_interface_score(self._addresses["ommToken"], OmmTokenInterface)
+        omm_token = self.create_interface_score(self._addresses[OMM_TOKEN], OmmTokenInterface)
         user_staked_token = omm_token.details_balanceOf(user)['stakedBalance']
         if len(delegations) > 0:
             # resetting previous delegation preferences
@@ -217,7 +219,7 @@ class Delegation(IconScoreBase):
 
             # updating the delegation if there is change in previous delegation
             if updated_delegation != initialDelegation:
-                core = self.create_interface_score(self._addresses["lendingPoolCore"], LendingPoolCoreInterface)
+                core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
                 core.updatePrepDelegations(updated_delegation)
                 self.DelegationUpdated(f'{initialDelegation}', f'{updated_delegation}')
 
@@ -246,7 +248,7 @@ class Delegation(IconScoreBase):
     @external(readonly=True)
     def userPrepVotes(self, _user: Address) -> dict:
         response = {}
-        omm_token = self.create_interface_score(self._addresses["ommToken"], OmmTokenInterface)
+        omm_token = self.create_interface_score(self._addresses[OMM_TOKEN], OmmTokenInterface)
         user_staked_token = omm_token.details_balanceOf(_user)['stakedBalance']
         for index in range(5):
             prep: Address = self._userPreps[_user][index]
