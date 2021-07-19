@@ -17,14 +17,14 @@ def only_owner(func):
     return __wrapper
 
 
-def only_admin(func):
+def only_rewards(func):
     if not isfunction(func):
         revert(f"{TAG}: ""NotAFunctionError")
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._admin.get():
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (admin){self._admin.get()}")
+        if self.msg.sender != self._addresses["rewards"]:
+            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (rewards){self._addresses["rewards"]}")
 
         return func(self, *args, **kwargs)
 

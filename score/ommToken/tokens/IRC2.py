@@ -5,6 +5,8 @@ from ..utils.consts import *
 TAG = 'OMM_Token_IRC_2'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6
 MICROSECONDS = 10 ** 6
+DELEGATION = 'delegation'
+REWARDS = 'rewards'
 
 class AddressDetails(TypedDict):
     name: str
@@ -236,23 +238,6 @@ class IRC2(TokenStandard, IconScoreBase):
 
     @only_owner
     @external
-    def setAdmin(self, _admin: Address) -> None:
-        """
-        Sets the authorized address.
-
-        :param _admin: The authorized admin address.
-        """
-        return self._admin.set(_admin)
-
-    @external(readonly=True)
-    def getAdmin(self) -> Address:
-        """
-        Returns the authorized admin address.
-        """
-        return self._admin.get()
-
-    @only_owner
-    @external
     def setMinimumStake(self, _min: int) -> None:
         """
         Sets the minimum stake.
@@ -411,10 +396,10 @@ class IRC2(TokenStandard, IconScoreBase):
                                                              Status.AVAILABLE] - stake_increment
         self._staked_balances[_user][Status.STAKED] = _value
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
-        delegation = self.create_interface_score(self._addresses["delegation"], DelegationInterface)
+        delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
-        rewardDistribution = self.create_interface_score(self._addresses["rewards"], RewardDistributionInterface)
+        rewardDistribution = self.create_interface_score(self._addresses[REWARDS], RewardDistributionInterface)
         rewardDistribution.handleAction(_user, old_stake, old_total_supply)
 
     @only_lending_pool
@@ -437,10 +422,10 @@ class IRC2(TokenStandard, IconScoreBase):
         self._total_staked_balance.set(self._total_staked_balance.get() - _value)
 
         # update the prep delegations
-        delegation = self.create_interface_score(self._addresses["delegation"], DelegationInterface)
+        delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
-        rewardDistribution = self.create_interface_score(self._addresses["rewards"], RewardDistributionInterface)
+        rewardDistribution = self.create_interface_score(self._addresses[REWARDS], RewardDistributionInterface)
         rewardDistribution.handleAction(_user, staked_balance, before_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
@@ -450,8 +435,7 @@ class IRC2(TokenStandard, IconScoreBase):
             self._staked_balances[_from][Status.UNSTAKING] = 0
             self._staked_balances[_from][Status.AVAILABLE] += curr_unstaked
 
-    @only_admin
-    def _mint(self, _amount: int, _data: bytes = None) -> None:
+    def _mint(self, _to: Address, _amount: int, _data: bytes = None) -> None:
         """
         Creates amount number of tokens, and assigns to account
         Increases the balance of that account and total supply.
@@ -469,9 +453,9 @@ class IRC2(TokenStandard, IconScoreBase):
             revert(f"ZeroValueError: _amount: {_amount}")
 
         self._total_supply.set(self._total_supply.get() + _amount)
-        self._balances[self.address] += _amount
+        self._balances[_to] += _amount
 
-        self._transfer(self.address, self._addresses["rewards"], _amount, b'Transferred to Rewards SCORE')
+        self.Transfer(ZERO_SCORE_ADDRESS, _to, _amount, _data)
 
         # Emits an event log Mint
         self.Mint(_amount, _data)
