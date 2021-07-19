@@ -2,6 +2,10 @@ from .IIRC2 import TokenStandard
 from .Math import *
 from .utils.checks import *
 
+REWARDS = 'rewards'
+RESERVE = 'reserve'
+LENDING_POOL_CORE = 'lendingPoolCore'
+LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
 
 class SupplyDetails(TypedDict):
     principalUserBalance: int
@@ -33,12 +37,6 @@ class DistributionManager(InterfaceScore):
 class DataProviderInterface(InterfaceScore):
     @interface
     def balanceDecreaseAllowed(self, _underlyingAssetAddress: Address, _user: Address, _amount: int):
-        pass
-
-
-class LendingPoolInterface(InterfaceScore):
-    @interface
-    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int):
         pass
 
 
@@ -171,8 +169,8 @@ class OToken(IconScoreBase, TokenStandard):
         Returns the total number of tokens in existence
 
         """
-        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
-        borrowIndex = core.getReserveLiquidityCumulativeIndex(self._addresses['reserve'])
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
+        borrowIndex = core.getReserveLiquidityCumulativeIndex(self._addresses[RESERVE])
         principalTotalSupply = self.principalTotalSupply()
         if borrowIndex == 0:
             return self._totalSupply.get()
@@ -180,7 +178,7 @@ class OToken(IconScoreBase, TokenStandard):
             decimals = self._decimals.get()
             balance = exaDiv(
                 exaMul(convertToExa(principalTotalSupply, decimals),
-                       core.getNormalizedIncome(self._addresses['reserve'])),
+                       core.getNormalizedIncome(self._addresses[RESERVE])),
                 borrowIndex)
             return convertExaToOther(balance, decimals)
 
@@ -201,7 +199,7 @@ class OToken(IconScoreBase, TokenStandard):
         return self._userIndexes[_user]
 
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
-        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
         userIndex = self._userIndexes[_user]
 
         if userIndex == 0:
@@ -209,7 +207,7 @@ class OToken(IconScoreBase, TokenStandard):
         else:
             decimals = self._decimals.get()
             balance = exaDiv(
-                exaMul(convertToExa(_balance, decimals), core.getNormalizedIncome(self._addresses['reserve'])),
+                exaMul(convertToExa(_balance, decimals), core.getNormalizedIncome(self._addresses[RESERVE])),
                 userIndex)
             return convertExaToOther(balance, decimals)
 
@@ -218,8 +216,8 @@ class OToken(IconScoreBase, TokenStandard):
         balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
         if balanceIncrease > 0:
             self._mint(_user, balanceIncrease)
-        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
-        userIndex = core.getNormalizedIncome(self._addresses['reserve'])
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
+        userIndex = core.getNormalizedIncome(self._addresses[RESERVE])
         self._userIndexes[_user] = userIndex
         return {
             'previousPrincipalBalance': previousPrincipalBalance,
@@ -244,8 +242,8 @@ class OToken(IconScoreBase, TokenStandard):
     # The transfer is only allowed if transferring this amount of the underlying collateral doesn't bring the health factor below 1
     @external(readonly=True)
     def isTransferAllowed(self, _user: Address, _amount: int) -> bool:
-        dataProvider = self.create_interface_score(self._addresses['lendingPoolDataProvider'], DataProviderInterface)
-        return dataProvider.balanceDecreaseAllowed(self._addresses['reserve'], _user, _amount)
+        dataProvider = self.create_interface_score(self._addresses[LENDING_POOL_DATA_PROVIDER], DataProviderInterface)
+        return dataProvider.balanceDecreaseAllowed(self._addresses[RESERVE], _user, _amount)
 
     @external(readonly=True)
     def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
@@ -297,7 +295,7 @@ class OToken(IconScoreBase, TokenStandard):
             convertToExa(beforeTotalSupply, decimals))
         self.Redeem(_user, amountToRedeem, balanceIncrease, index)
         return {
-            'reserve': self._addresses['reserve'],
+            'reserve': self._addresses[RESERVE],
             'amountToRedeem': amountToRedeem,
             'oTokenRemaining': currentBalance - amountToRedeem
         }
@@ -316,7 +314,7 @@ class OToken(IconScoreBase, TokenStandard):
         index = cumulated['index']
 
         self._mint(_user, _amount)
-        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(
             _user,
@@ -333,7 +331,7 @@ class OToken(IconScoreBase, TokenStandard):
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
         self._burn(_user, _value)
-        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(
             _user,
@@ -365,7 +363,7 @@ class OToken(IconScoreBase, TokenStandard):
         }
 
     def _callRewards(self, _fromPrevious: int, _toPrevious: int, _totalPrevious, _from: Address, _to: Address):
-        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
         decimals = self.decimals()
         totalPrevious = convertToExa(_totalPrevious, decimals)
         fromPrevious = convertToExa(_fromPrevious, decimals)

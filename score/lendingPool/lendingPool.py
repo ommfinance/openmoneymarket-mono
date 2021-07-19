@@ -177,14 +177,13 @@ class LendingPool(IconScoreBase):
     FEE_SHARING_TXN_LIMIT = 'feeSharingTxnLimit'
     BRIDGE_O_TOKEN = 'bridgeOToken'
     BRIDGE_FEE_THRESHOLD = "bridgeFeeThreshold"
-
     ADDRESSES = "addresses"
-    CONTRACTS = "_contracts"
+    CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self.CONTRACTS, db, value_type=Address)
+        self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
         self._borrowWallets = ArrayDB(self.BORROW_WALLETS, db, value_type=Address)
         self._depositWallets = ArrayDB(self.DEPOSIT_WALLETS, db, value_type=Address)
         self._borrowIndex = DictDB(self.BORROW_INDEX, db, value_type=int)

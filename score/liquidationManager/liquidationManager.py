@@ -1,6 +1,12 @@
 from .Math import *
 from .utils.checks import *
 
+LENDING_POOL_CORE = "lendingPoolCore"
+LENDING_POOL_DATA_PROVIDER = "lendingPoolDataProvider"
+PRICE_ORACLE = "priceOracle"
+FEE_PROVIDER = "feeProvider"
+STAKING = "staking"
+
 class AddressDetails(TypedDict):
     name: str
     address: Address
@@ -90,7 +96,7 @@ class LiquidationManager(IconScoreBase):
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self.ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
@@ -128,8 +134,6 @@ class LiquidationManager(IconScoreBase):
     @external(readonly=True)
     def getAddress(self, _name: str) -> Address:
         return self._addresses[_name]
-
-
 
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,

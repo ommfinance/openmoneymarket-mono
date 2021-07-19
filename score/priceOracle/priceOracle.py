@@ -1,6 +1,9 @@
 from .utils.Math import convertToExa, exaMul
 from .utils.checks import *
 
+BAND_ORACLE = 'bandOracle'
+DEX = 'dex'
+ADDRESS_PROVIDER = 'addressProvider'
 STABLE_TOKENS = ["USDS", "USDB"]
 
 OMM_TOKENS = [
@@ -118,7 +121,7 @@ class PriceOracle(IconScoreBase):
             return self._price[_base][_quote]
 
     def _get_omm_price(self, _base: str, _quote: str) -> int:
-        lp_token = self.create_interface_score(self.getAddress(LENDING_POOL_DATA_PROVIDER), DataSourceInterface)
+        lp_token = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
         address_provider = self.create_interface_score(self.getAddress(ADDRESS_PROVIDER), AddressProviderInterface)
         reserve_addresses = address_provider.getReserveAddresses()
 
