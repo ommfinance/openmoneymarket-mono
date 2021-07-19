@@ -179,10 +179,12 @@ class LendingPool(IconScoreBase):
     BRIDGE_FEE_THRESHOLD = "bridgeFeeThreshold"
 
     ADDRESSES = "addresses"
+    CONTRACTS = "_contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self.CONTRACTS, db, value_type=Address)
         self._borrowWallets = ArrayDB(self.BORROW_WALLETS, db, value_type=Address)
         self._depositWallets = ArrayDB(self.DEPOSIT_WALLETS, db, value_type=Address)
         self._borrowIndex = DictDB(self.BORROW_INDEX, db, value_type=int)
@@ -220,8 +222,14 @@ class LendingPool(IconScoreBase):
     @origin_owner
     @external
     def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for addressDetail in _addressDetails:
-            self._addresses[addressDetail['name']] = addressDetail['address']
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
+
+    @external(readonly=True)
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
     def getAddress(self, _name: str) -> Address:

@@ -85,10 +85,12 @@ class StakingInterface(InterfaceScore):
 
 class LiquidationManager(IconScoreBase):
     ADDRESSES = "addresses"
+    CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self.ADDRESSES, db, value_type=Address)
 
     def on_install(self) -> None:
         super().on_install()
@@ -114,8 +116,14 @@ class LiquidationManager(IconScoreBase):
     @origin_owner
     @external
     def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for addressDetail in _addressDetails:
-            self._addresses[addressDetail['name']] = addressDetail['address']
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
+
+    @external(readonly=True)
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
     def getAddress(self, _name: str) -> Address:

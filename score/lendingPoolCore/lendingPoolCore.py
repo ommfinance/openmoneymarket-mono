@@ -122,11 +122,13 @@ class LendingPoolCore(IconScoreBase):
     _RESERVE_LIST = 'reserveList'
     _CONSTANTS = 'constants'
     ADDRESSES = 'addresses'
+    CONTRACTS = 'contracts'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._id = VarDB(self._ID, db, str)
         self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self.ADDRESSES, db, value_type=Address)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
         self.reserve = ReserveDataDB(db)
@@ -163,8 +165,14 @@ class LendingPoolCore(IconScoreBase):
     @origin_owner
     @external
     def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for addressDetail in _addressDetails:
-            self._addresses[addressDetail['name']] = addressDetail['address']
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
+
+    @external(readonly=True)
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
     def getAddress(self, _name: str) -> Address:
