@@ -2,6 +2,9 @@ from .IIRC2 import TokenStandard
 from .Math import *
 from .utils.checks import *
 
+REWARDS = 'rewards'
+LENDING_POOL_CORE = 'lendingPoolCore'
+RESERVE = 'reserve'
 
 class SupplyDetails(TypedDict):
     principalUserBalance: int
@@ -24,21 +27,9 @@ class LendingPoolCoreInterface(InterfaceScore):
         pass
 
 
-class DataProviderInterface(InterfaceScore):
-    @interface
-    def balanceDecreaseAllowed(self, _underlyingAssetAddress: Address, _user: Address, _amount: int):
-        pass
-
-
 class DistributionManager(InterfaceScore):
     @interface
     def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
-        pass
-
-
-class LendingPoolInterface(InterfaceScore):
-    @interface
-    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int):
         pass
 
 
@@ -166,7 +157,7 @@ class DToken(IconScoreBase, TokenStandard):
         return self._userIndexes[_user]
 
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
-        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
         userIndex = self._userIndexes[_user]
         if userIndex == 0:
             return _balance
@@ -178,7 +169,7 @@ class DToken(IconScoreBase, TokenStandard):
             return convertExaToOther(balance, decimals)
 
     def _cumulateBalanceInternal(self, _user: Address) -> dict:
-        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
         previousUserIndex = self._userIndexes[_user]
         decimals = self._decimals.get()
         previousPrincipalBalance = self.principalBalanceOf(_user)
@@ -234,8 +225,8 @@ class DToken(IconScoreBase, TokenStandard):
         Returns the total number of tokens in existence
 
         """
-        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
-        borrowIndex = core.getReserveBorrowCumulativeIndex(self._addresses['reserve'])
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
+        borrowIndex = core.getReserveBorrowCumulativeIndex(self._addresses[RESERVE])
         principalTotalSupply = self.principalTotalSupply()
         if borrowIndex == 0:
             return self._totalSupply.get()
@@ -252,7 +243,7 @@ class DToken(IconScoreBase, TokenStandard):
     def _mintInterestAndUpdateIndex(self, _user: Address, _balanceIncrease: int):
         if _balanceIncrease > 0:
             self._mint(_user, _balanceIncrease)
-        core = self.create_interface_score(self._addresses['lendingPoolCore'], LendingPoolCoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
         userIndex = core.getReserveBorrowCumulativeIndex(self.getReserve())
         self._userIndexes[_user] = userIndex
 
@@ -263,7 +254,7 @@ class DToken(IconScoreBase, TokenStandard):
         beforeUserSupply = self.principalBalanceOf(_user)
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._mint(_user, _amount)
-        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         self.MintOnBorrow(_user, _amount, _balanceIncrease, self._userIndexes[_user])
@@ -275,7 +266,7 @@ class DToken(IconScoreBase, TokenStandard):
         beforeUserSupply = self.principalBalanceOf(_user)
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'loanRepaid')
-        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user) == 0:
@@ -288,7 +279,7 @@ class DToken(IconScoreBase, TokenStandard):
         beforeUserSupply = self.principalBalanceOf(_user)
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'userLiquidated')
-        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user) == 0:
