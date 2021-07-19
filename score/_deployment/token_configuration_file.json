@@ -1,0 +1,36 @@
+{
+  "dToken": [
+    {
+      "name": "Omm USDS Debt Token",
+      "symbol": "dUSDS",
+      "decimals": 18
+    },
+    {
+      "name": "Omm ICX Debt Token",
+      "symbol": "dICX",
+      "decimals": 18
+    },
+    {
+      "name": "Omm IUSDC Debt Token",
+      "symbol": "dIUSDC",
+      "decimals": 6
+    }
+  ],
+  "oToken": [
+    {
+      "name": "Omm USDS Interest Token",
+      "symbol": "oUSDS",
+      "decimals": 18
+    },
+    {
+      "name": "Omm ICX interest Token",
+      "symbol": "oICX",
+      "decimals": 18
+    },
+    {
+      "name": "Omm IUSDC Interest Token",
+      "symbol": "oIUSDC",
+      "decimals": 6
+    }
+  ]
+}
