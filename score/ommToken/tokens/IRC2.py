@@ -195,15 +195,14 @@ class IRC2(TokenStandard, IconScoreBase):
 
     @only_owner
     @external
-    def setUnstakingPeriod(self, _time: int) -> None:
+    def setUnstakingPeriod(self, _timeInSeconds: int) -> None:
         """
         Set the minimum staking period
-        :param _time: Staking time period in days.
+        :param _timeInSeconds: Staking time period in seconds.
         """
-        if _time < 0:
+        if _timeInSeconds < 0:
             revert(f"{TAG}: ""Time cannot be negative.")
-        # total_time = _time * DAY_TO_MICROSECOND  # convert days to microseconds
-        total_time = _time * MICROSECONDS
+        total_time = _timeInSeconds * MICROSECONDS
         self._unstaking_period.set(total_time)
 
     @external(readonly=True)

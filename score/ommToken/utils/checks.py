@@ -23,8 +23,9 @@ def only_rewards(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._addresses["rewards"]:
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (rewards){self._addresses["rewards"]}")
+        rewards = self._addresses["rewards"]
+        if self.msg.sender != rewards:
+            revert(f"{TAG}: SenderNotAuthorized: (sender){self.msg.sender} (rewards){rewards}")
 
         return func(self, *args, **kwargs)
 
