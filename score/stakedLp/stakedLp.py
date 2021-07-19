@@ -125,6 +125,10 @@ class StakedLp(IconScoreBase):
         if _id not in self._supportedPools:
             self._supportedPools.put(_id)
 
+    @external(readonly=True)
+    def getPoolById(self, _id: int ) -> Address:
+        return self._addressMap[_id]
+
     @only_owner
     @external
     def removePool(self, _pool: Address) -> None:
