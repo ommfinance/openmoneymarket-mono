@@ -2,11 +2,20 @@ from .IIRC2 import TokenStandard
 from .Math import *
 from .utils.checks import *
 
+REWARDS = 'rewards'
+RESERVE = 'reserve'
+LENDING_POOL_CORE = 'lendingPoolCore'
+LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
 
 class SupplyDetails(TypedDict):
     principalUserBalance: int
     principalTotalSupply: int
     decimals: int
+
+
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 
 class LendingPoolCoreInterface(InterfaceScore):
@@ -31,12 +40,6 @@ class DataProviderInterface(InterfaceScore):
         pass
 
 
-class LendingPoolInterface(InterfaceScore):
-    @interface
-    def redeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _oTokenbalanceAfterRedeem: int):
-        pass
-
-
 # An interface of tokenFallback.
 # Receiving SCORE that has implemented this interface can handle
 # the receiving or further routine.
@@ -55,13 +58,9 @@ class OToken(IconScoreBase, TokenStandard):
     _DECIMALS = 'decimals'
     _TOTAL_SUPPLY = 'total_supply'
     _BALANCES = 'balances'
-    _CORE_ADDRESS = 'core_address'
-    _RESERVE_ADDRESS = 'reserve_address'
-    _DATA_PROVIDER = 'data_provider'
-    _LENDING_POOL = 'lending_pool'
-    _LIQUIDATION = 'liquidation'
     _USER_INDEXES = 'user_indexes'
-    _DISTRIBUTION_MANAGER = 'distribution_manager'
+    _ADDRESSES = 'addresses'
+    _CONTRACTS = 'contracts'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -74,13 +73,9 @@ class OToken(IconScoreBase, TokenStandard):
         self._decimals = VarDB(self._DECIMALS, db, value_type=int)
         self._totalSupply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
         self._balances = DictDB(self._BALANCES, db, value_type=int)
-        self._coreAddress = VarDB(self._CORE_ADDRESS, db, Address)
-        self._reserveAddress = VarDB(self._RESERVE_ADDRESS, db, Address)
-        self._dataProviderAddress = VarDB(self._DATA_PROVIDER, db, value_type=Address)
-        self._lendingPoolAddress = VarDB(self._LENDING_POOL, db, value_type=Address)
-        self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
-        self._distributionManager = VarDB(self._DISTRIBUTION_MANAGER, db, value_type=Address)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
     def on_install(self, _name: str, _symbol: str, _decimals: int = 18) -> None:
         """
@@ -174,78 +169,37 @@ class OToken(IconScoreBase, TokenStandard):
         Returns the total number of tokens in existence
 
         """
-        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
-        borrowIndex = core.getReserveLiquidityCumulativeIndex(self._reserveAddress.get())
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
+        borrowIndex = core.getReserveLiquidityCumulativeIndex(self._addresses[RESERVE])
         principalTotalSupply = self.principalTotalSupply()
         if borrowIndex == 0:
             return self._totalSupply.get()
         else:
             decimals = self._decimals.get()
             balance = exaDiv(
-                exaMul(convertToExa(principalTotalSupply, decimals), core.getNormalizedIncome(self.getReserve())),
+                exaMul(convertToExa(principalTotalSupply, decimals),
+                       core.getNormalizedIncome(self._addresses[RESERVE])),
                 borrowIndex)
             return convertExaToOther(balance, decimals)
 
-    @only_owner
+    @origin_owner
     @external
-    def setLendingPoolCore(self, _address: Address):
-        self._coreAddress.set(_address)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
 
     @external(readonly=True)
-    def getLendingPoolCore(self) -> Address:
-        return self._coreAddress.get()
-
-    @only_owner
-    @external
-    def setLiquidation(self, _address: Address):
-        self._liquidation.set(_address)
-
-    @external(readonly=True)
-    def getLiquidation(self) -> Address:
-        return self._liquidation.get()
-
-    @only_owner
-    @external
-    def setReserve(self, _address: Address):
-        self._reserveAddress.set(_address)
-
-    @external(readonly=True)
-    def getReserve(self) -> Address:
-        return self._reserveAddress.get()
-
-    @only_owner
-    @external
-    def setLendingPoolDataProvider(self, _address: Address):
-        self._dataProviderAddress.set(_address)
-
-    @external(readonly=True)
-    def getLendingPoolDataProvider(self) -> Address:
-        return self._dataProviderAddress.get()
-
-    @only_owner
-    @external
-    def setLendingPool(self, _address: Address):
-        self._lendingPoolAddress.set(_address)
-
-    @external(readonly=True)
-    def getLendingPool(self) -> Address:
-        return self._lendingPoolAddress.get()
-
-    @only_owner
-    @external
-    def setDistributionManager(self, _address: Address):
-        self._distributionManager.set(_address)
-
-    @external(readonly=True)
-    def getDistributionManager(self) -> Address:
-        return self._distributionManager.get()
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         return self._userIndexes[_user]
 
     def _calculateCumulatedBalanceInternal(self, _user: Address, _balance: int) -> int:
-        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
         userIndex = self._userIndexes[_user]
 
         if userIndex == 0:
@@ -253,7 +207,7 @@ class OToken(IconScoreBase, TokenStandard):
         else:
             decimals = self._decimals.get()
             balance = exaDiv(
-                exaMul(convertToExa(_balance, decimals), core.getNormalizedIncome(self.getReserve())),
+                exaMul(convertToExa(_balance, decimals), core.getNormalizedIncome(self._addresses[RESERVE])),
                 userIndex)
             return convertExaToOther(balance, decimals)
 
@@ -262,10 +216,9 @@ class OToken(IconScoreBase, TokenStandard):
         balanceIncrease = self.balanceOf(_user) - previousPrincipalBalance
         if balanceIncrease > 0:
             self._mint(_user, balanceIncrease)
-        core = self.create_interface_score(self.getLendingPoolCore(), LendingPoolCoreInterface)
-        userIndex = core.getNormalizedIncome(self.getReserve())
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
+        userIndex = core.getNormalizedIncome(self._addresses[RESERVE])
         self._userIndexes[_user] = userIndex
-        # self._userIndexes[_user] = 1000000234 * 10 ** 10
         return {
             'previousPrincipalBalance': previousPrincipalBalance,
             'principalBalance': previousPrincipalBalance + balanceIncrease,
@@ -289,8 +242,8 @@ class OToken(IconScoreBase, TokenStandard):
     # The transfer is only allowed if transferring this amount of the underlying collateral doesn't bring the health factor below 1
     @external(readonly=True)
     def isTransferAllowed(self, _user: Address, _amount: int) -> bool:
-        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
-        return dataProvider.balanceDecreaseAllowed(self.getReserve(), _user, _amount)
+        dataProvider = self.create_interface_score(self._addresses[LENDING_POOL_DATA_PROVIDER], DataProviderInterface)
+        return dataProvider.balanceDecreaseAllowed(self._addresses[RESERVE], _user, _amount)
 
     @external(readonly=True)
     def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
@@ -302,7 +255,7 @@ class OToken(IconScoreBase, TokenStandard):
 
     @only_lending_pool
     @external
-    def redeem(self, _user:Address,_amount: int) -> dict:
+    def redeem(self, _user: Address, _amount: int) -> dict:
         """
         Redeems certain amount of tokens to get the equivalent amount of underlying asset.
 
@@ -334,7 +287,7 @@ class OToken(IconScoreBase, TokenStandard):
             index = 0
 
         # pool = self.create_interface_score(self.getLendingPool(), LendingPoolInterface)
-        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(
             _user,
@@ -342,12 +295,11 @@ class OToken(IconScoreBase, TokenStandard):
             convertToExa(beforeTotalSupply, decimals))
         self.Redeem(_user, amountToRedeem, balanceIncrease, index)
         return {
-            'reserve':self.getReserve(),
-            'amountToRedeem':amountToRedeem,
-            'oTokenRemaining':currentBalance-amountToRedeem
+            'reserve': self._addresses[RESERVE],
+            'amountToRedeem': amountToRedeem,
+            'oTokenRemaining': currentBalance - amountToRedeem
         }
         # pool.redeemUnderlying(self.getReserve(), _user, amountToRedeem, currentBalance - amountToRedeem,_waitForUnstaking)
-
 
     def _resetDataOnZeroBalanceInternal(self, _user: Address) -> None:
         self._userIndexes[_user] = 0
@@ -362,11 +314,11 @@ class OToken(IconScoreBase, TokenStandard):
         index = cumulated['index']
 
         self._mint(_user, _amount)
-        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(
-            _user, 
-            convertToExa(cumulated['previousPrincipalBalance'], decimals), 
+            _user,
+            convertToExa(cumulated['previousPrincipalBalance'], decimals),
             convertToExa(beforeTotalSupply, decimals))
         self.MintOnDeposit(_user, _amount, balanceIncrease, index)
 
@@ -379,11 +331,11 @@ class OToken(IconScoreBase, TokenStandard):
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
         self._burn(_user, _value)
-        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
         decimals = self.decimals()
         rewards.handleAction(
-            _user, 
-            convertToExa(cumulated['previousPrincipalBalance'], decimals), 
+            _user,
+            convertToExa(cumulated['previousPrincipalBalance'], decimals),
             convertToExa(beforeTotalSupply, decimals))
         if currentBalance - _value == 0:
             self._resetDataOnZeroBalanceInternal(_user)
@@ -411,7 +363,7 @@ class OToken(IconScoreBase, TokenStandard):
         }
 
     def _callRewards(self, _fromPrevious: int, _toPrevious: int, _totalPrevious, _from: Address, _to: Address):
-        rewards = self.create_interface_score(self._distributionManager.get(), DistributionManager)
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
         decimals = self.decimals()
         totalPrevious = convertToExa(_totalPrevious, decimals)
         fromPrevious = convertToExa(_fromPrevious, decimals)
@@ -481,7 +433,7 @@ class OToken(IconScoreBase, TokenStandard):
         """
 
         if amount < 0:
-            revert(f'{TAG}: ',
+            revert(f'{TAG}: '
                    f'Invalid value: {amount} to mint')
 
         self._totalSupply.set(self._totalSupply.get() + amount)
@@ -502,7 +454,7 @@ class OToken(IconScoreBase, TokenStandard):
         """
 
         if amount <= 0:
-            revert(f'{TAG}: ',
+            revert(f'{TAG}: '
                    f'Invalid value: {amount} to burn')
 
         self._totalSupply.set(self._totalSupply.get() - amount)

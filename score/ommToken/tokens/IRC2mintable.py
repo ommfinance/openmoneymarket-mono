@@ -1,5 +1,6 @@
 from iconservice import *
 from .IRC2 import IRC2
+from ..utils.checks import *
 
 
 class IRC2Mintable(IRC2):
@@ -8,6 +9,7 @@ class IRC2Mintable(IRC2):
 	"""
 
 	@external
+	@only_rewards
 	def mint(self, _amount: int, _data: bytes = None) -> None:
 		"""
 		Creates `_amount` number of tokens, and assigns to caller account.
@@ -18,11 +20,12 @@ class IRC2Mintable(IRC2):
 		:param _data:
 		"""
 		if _data is None:
-			_data = b'None'
-		self._mint(_amount, _data)
+			_data = b'minted by reward'
+		self._mint(self.msg.sender, _amount, _data)
 
 	@external
-	def mintTo(self, _account: Address, _amount: int, _data: bytes = None) -> None:
+	@only_owner
+	def mintTo(self, _to: Address, _amount: int, _data: bytes = None) -> None:
 		"""
 		Creates `_amount` number of tokens, and assigns to `_account`.
 		Increases the balance of that account and total supply.
@@ -33,5 +36,5 @@ class IRC2Mintable(IRC2):
 		:param _data:
 		"""
 		if _data is None:
-			_data = b'None'
-		self._mint(_amount, _data)
+			_data = b'minted to by owner'
+		self._mint(_to, _amount, _data)

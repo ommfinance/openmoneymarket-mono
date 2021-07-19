@@ -1,7 +1,9 @@
 from .utils.Math import convertToExa, exaMul
 from .utils.checks import *
 
-
+BAND_ORACLE = 'bandOracle'
+DEX = 'dex'
+ADDRESS_PROVIDER = 'addressProvider'
 STABLE_TOKENS = ["USDS", "USDB"]
 
 OMM_TOKENS = [
@@ -22,6 +24,11 @@ OMM_TOKENS = [
         "convert": lambda _source, _amount, _decimals: convertToExa(_amount, _decimals)
     }
 ]
+
+
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 
 class OracleInterface(InterfaceScore):
@@ -50,18 +57,17 @@ class TokenInterface(InterfaceScore):
 
 class PriceOracle(IconScoreBase):
     _PRICE = 'price'
-    _BAND_ORACLE = 'bandOracle'
     _ORACLE_PRICE_BOOL = 'oraclePriceFeed'
-    _DATA_SOURCE = 'data_source'
-    _ADDRESS_PROVIDER = 'address_provider'
+
+    _ADDRESSES = 'addresses'
+    _CONTRACTS = 'contracts'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._price = DictDB(self._PRICE, db, value_type=int, depth=2)
-        self._bandOracle = VarDB(self._BAND_ORACLE, db, value_type=Address)
         self._oraclePriceBool = VarDB(self._ORACLE_PRICE_BOOL, db, value_type=bool)
-        self._dataSource = VarDB(self._DATA_SOURCE, db, value_type=Address)
-        self._addressProvider = VarDB(self._ADDRESS_PROVIDER, db, value_type=Address)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
@@ -73,6 +79,22 @@ class PriceOracle(IconScoreBase):
     def name(self) -> str:
         return "OmmPriceOracleProxy"
 
+    @origin_owner
+    @external
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
+
+    @external(readonly=True)
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
+
+    @external(readonly=True)
+    def getAddress(self, _name: str) -> Address:
+        return self._addresses[_name]
+
     @external
     @only_owner
     def setOraclePriceBool(self, _value: bool):
@@ -81,33 +103,6 @@ class PriceOracle(IconScoreBase):
     @external(readonly=True)
     def getOraclePriceBool(self) -> bool:
         return self._oraclePriceBool.get()
-
-    @external
-    @only_owner
-    def setBandOracle(self, _address: Address):
-        self._bandOracle.set(_address)
-
-    @external(readonly=True)
-    def getBandOracle(self) -> Address:
-        return self._bandOracle.get()
-
-    @external
-    @only_owner
-    def setDataSource(self, _address: Address):
-        self._dataSource.set(_address)
-
-    @external(readonly=True)
-    def getDataSource(self) -> Address:
-        return self._dataSource.get()
-
-    @external
-    @only_owner
-    def setAddressProvider(self, _address: Address):
-        self._addressProvider.set(_address)
-
-    @external(readonly=True)
-    def getAddressProvider(self) -> Address:
-        return self._addressProvider.get()
 
     @only_owner
     @external
@@ -119,15 +114,15 @@ class PriceOracle(IconScoreBase):
             if _base in STABLE_TOKENS:
                 return 1 * 10 ** 18
             else:
-                oracle = self.create_interface_score(self._bandOracle.get(), OracleInterface)
+                oracle = self.create_interface_score(self.getAddress(BAND_ORACLE), OracleInterface)
                 price = oracle.get_reference_data(_base, _quote)
-                return price['rate']        
+                return price['rate']
         else:
             return self._price[_base][_quote]
 
     def _get_omm_price(self, _base: str, _quote: str) -> int:
-        lp_token = self.create_interface_score(self.getDataSource(), DataSourceInterface)
-        address_provider = self.create_interface_score(self.getAddressProvider(), AddressProviderInterface)
+        lp_token = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
+        address_provider = self.create_interface_score(self.getAddress(ADDRESS_PROVIDER), AddressProviderInterface)
         reserve_addresses = address_provider.getReserveAddresses()
 
         _total_price = 0

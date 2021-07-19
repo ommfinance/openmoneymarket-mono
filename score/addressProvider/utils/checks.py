@@ -16,16 +16,4 @@ def only_owner(func):
 
     return __wrapper
 
-def origin_owner(func):
-    if not isfunction(func):
-        revert(f"{TAG}: NotAFunctionError")
-
-    @wraps(func)
-    def __wrapper(self: object, *args, **kwargs):
-        if self.tx.origin != self.owner:
-            revert(f"{TAG}: SenderNotScoreOwnerError: (sender){self.tx.origin} (owner){self.owner}")
-
-        return func(self, *args, **kwargs)
-
-    return __wrapper
 

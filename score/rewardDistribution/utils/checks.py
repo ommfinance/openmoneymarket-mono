@@ -1,6 +1,11 @@
 from iconservice import *
 
 TAG = "OmmRewards"
+STAKED_LP = 'stakedLp'
+LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
+OMM_TOKEN = 'ommToken'
+WORKER_TOKEN = 'workerToken'
+DAO_FUND = 'daoFund'
 
 
 def only_owner(func):
@@ -23,7 +28,7 @@ def only_governance(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._governanceAddress.get():
+        if self.msg.sender != self._addresses['governance']:
             revert(f"{TAG}: "f"SenderNotGovernanceError: (sender){self.msg.sender} (governance){self._governanceAddress.get()}")
 
         return func(self, *args, **kwargs)
@@ -31,7 +36,7 @@ def only_governance(func):
     return __wrapper
 
 
-def only_lendingPool(func):
+def only_lending_pool(func):
     if not isfunction(func):
         revert(f"{TAG}: ""NotAFunctionError")
 
@@ -45,16 +50,14 @@ def only_lendingPool(func):
 
     return __wrapper
 
-
-def only_admin(func):
+def origin_owner(func):
     if not isfunction(func):
         revert(f"{TAG}: ""NotAFunctionError")
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._admin.get():
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (admin){self._admin.get()}")
-
+        if self.tx.origin != self.owner:
+            revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.tx.origin} (owner){self.owner}")
         return func(self, *args, **kwargs)
 
     return __wrapper

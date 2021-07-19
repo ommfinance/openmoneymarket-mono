@@ -5,6 +5,7 @@ from iconservice import Address, IconScoreException, AddressPrefix
 from tbears.libs.scoretest.patch.score_patcher import get_interface_score
 from tbears.libs.scoretest.score_test_case import ScoreTestCase
 
+from rewardDistribution.utils.checks import *
 from ommToken.omm import OmmToken
 from ommToken.tokens.IRC2 import Status
 
@@ -24,18 +25,19 @@ class TestOmmToken(ScoreTestCase):
         self._admin = self.test_account2
         self.score = self.get_score_instance(OmmToken, self._owner)
 
-        self.mock_rewards = Address.from_string(f"cx{'1231' * 10}")
+        self.mock_reward_distribution = Address.from_string(f"cx{'1231' * 10}")
         self.mock_delegation = Address.from_string(f"cx{'1232' * 10}")
         self.mock_lending_pool = Address.from_string(f"cx{'1233' * 10}")
-        self.mock_reward_distribution = Address.from_string(f"cx{'1234' * 10}")
 
         self.set_msg(self._owner)
         self.score.setAdmin(self._admin)
 
-        self.score.setRewards(self.mock_rewards)
-        self.score.setDelegation(self.mock_delegation)
-        self.score.setLendingPool(self.mock_lending_pool)
-        self.score.setRewardDistribution(self.mock_reward_distribution)
+        self.set_tx(origin=self._owner)
+        self.score.setAddresses([
+            {"name": 'lendingPool', "address": self.mock_lending_pool},
+            {"name": "delegation", "address": self.mock_delegation},
+            {"name": "rewards", "address": self.mock_reward_distribution}
+        ])
 
         self.test_account3 = create_address()
         self.test_account4 = create_address()
@@ -64,7 +66,7 @@ class TestOmmToken(ScoreTestCase):
 
         self.score.setUnstakingPeriod(102)
 
-        self.register_interface_score(self.mock_rewards)
+        self.register_interface_score(self.mock_reward_distribution)
 
         with mock.patch.object(self.score, "now", return_value=101 * TIME):
             self.set_msg(self._admin)
@@ -72,15 +74,15 @@ class TestOmmToken(ScoreTestCase):
 
             self.assertEqual(10 * 10 ** 18, self.score._total_supply.get())
             self.assertEqual(0, self.score._balances[self.score.address])
-            self.assertEqual(10 * 10 ** 18, self.score._balances[self.mock_rewards])
+            self.assertEqual(10 * 10 ** 18, self.score._balances[self.mock_reward_distribution])
 
             self.assertEqual(0, self.score._staked_balances[self.score.address][Status.AVAILABLE])
-            self.assertEqual(10 * 10 ** 18, self.score._staked_balances[self.mock_rewards][Status.AVAILABLE])
+            self.assertEqual(10 * 10 ** 18, self.score._staked_balances[self.mock_reward_distribution][Status.AVAILABLE])
 
-            self.assert_internal_call(self.mock_rewards, "tokenFallback", self.score.address, 10 * EXA,
+            self.assert_internal_call(self.mock_reward_distribution, "tokenFallback", self.score.address, 10 * EXA,
                                       b'Transferred to Rewards SCORE')
             self.score.Mint.assert_called_with(10 * EXA, b'None')
-            self.score.Transfer.assert_called_with(self.score.address, self.mock_rewards, 10 * EXA,
+            self.score.Transfer.assert_called_with(self.score.address, self.mock_reward_distribution, 10 * EXA,
                                                    b'Transferred to Rewards SCORE')
 
     def test_add_to_lockList(self):

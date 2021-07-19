@@ -5,6 +5,12 @@ from ..utils.consts import *
 TAG = 'OMM_Token_IRC_2'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6
 MICROSECONDS = 10 ** 6
+DELEGATION = 'delegation'
+REWARDS = 'rewards'
+
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 
 class PrepDelegationDetails(TypedDict):
@@ -53,10 +59,8 @@ class IRC2(TokenStandard, IconScoreBase):
     _STAKED_BALANCES = 'staked_balances'
     _TOTAL_STAKED_BALANCE = 'total_stake_balance'
     _UNSTAKING_PERIOD = 'unstaking_period'
-    _DELEGATION = 'delegation'
-    _REWARDS = 'rewards'
-    _LENDING_POOL = 'lendingPool'
-    _REWARD_DISTRIBUTION = 'reward-distribution-manager'
+    _ADDRESSES = "addresses"
+    _CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -75,11 +79,8 @@ class IRC2(TokenStandard, IconScoreBase):
         self._staked_balances = DictDB(self._STAKED_BALANCES, db, value_type=int, depth=2)
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
-
-        self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
-        self._rewards = VarDB(self._REWARDS, db, value_type=Address)
-        self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
-        self._rewardDistribution = VarDB(self._REWARD_DISTRIBUTION, db, value_type=Address)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
     def on_install(
             self,
@@ -166,42 +167,6 @@ class IRC2(TokenStandard, IconScoreBase):
         """
         return self._balances[_owner]
 
-    @only_owner
-    @external
-    def setDelegation(self, _address: Address):
-        self._delegation.set(_address)
-
-    @external(readonly=True)
-    def getDelegation(self) -> Address:
-        return self._delegation.get()
-
-    @only_owner
-    @external
-    def setRewards(self, _address: Address):
-        self._rewards.set(_address)
-
-    @external(readonly=True)
-    def getRewards(self) -> Address:
-        return self._rewards.get()
-
-    @only_owner
-    @external
-    def setLendingPool(self, _address: Address):
-        self._lendingPool.set(_address)
-
-    @external(readonly=True)
-    def getLendingPool(self) -> Address:
-        return self._lendingPool.get()
-
-    @only_owner
-    @external
-    def setRewardDistribution(self, _address: Address):
-        self._rewardDistribution.set(_address)
-
-    @external(readonly=True)
-    def getRewardDistribution(self) -> Address:
-        return self._rewardDistribution.get()
-
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
         detail_balance = self.details_balanceOf(_owner)
@@ -216,17 +181,28 @@ class IRC2(TokenStandard, IconScoreBase):
         detail_balance = self.details_balanceOf(_owner)
         return detail_balance["unstakingBalance"]
 
+    @origin_owner
+    @external
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
+
+    @external(readonly=True)
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
+
     @only_owner
     @external
-    def setUnstakingPeriod(self, _time: int) -> None:
+    def setUnstakingPeriod(self, _timeInSeconds: int) -> None:
         """
         Set the minimum staking period
-        :param _time: Staking time period in days.
+        :param _timeInSeconds: Staking time period in seconds.
         """
-        if _time < 0:
+        if _timeInSeconds < 0:
             revert(f"{TAG}: ""Time cannot be negative.")
-        # total_time = _time * DAY_TO_MICROSECOND  # convert days to microseconds
-        total_time = _time * MICROSECONDS
+        total_time = _timeInSeconds * MICROSECONDS
         self._unstaking_period.set(total_time)
 
     @external(readonly=True)
@@ -258,23 +234,6 @@ class IRC2(TokenStandard, IconScoreBase):
     @external(readonly=True)
     def total_staked_balance(self) -> int:
         return self._total_staked_balance.get()
-
-    @only_owner
-    @external
-    def setAdmin(self, _admin: Address) -> None:
-        """
-        Sets the authorized address.
-
-        :param _admin: The authorized admin address.
-        """
-        return self._admin.set(_admin)
-
-    @external(readonly=True)
-    def getAdmin(self) -> Address:
-        """
-        Returns the authorized admin address.
-        """
-        return self._admin.get()
 
     @only_owner
     @external
@@ -436,10 +395,10 @@ class IRC2(TokenStandard, IconScoreBase):
                                                              Status.AVAILABLE] - stake_increment
         self._staked_balances[_user][Status.STAKED] = _value
         self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
-        delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
+        delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
-        rewardDistribution = self.create_interface_score(self.getRewardDistribution(), RewardDistributionInterface)
+        rewardDistribution = self.create_interface_score(self._addresses[REWARDS], RewardDistributionInterface)
         rewardDistribution.handleAction(_user, old_stake, old_total_supply)
 
     @only_lending_pool
@@ -462,10 +421,10 @@ class IRC2(TokenStandard, IconScoreBase):
         self._total_staked_balance.set(self._total_staked_balance.get() - _value)
 
         # update the prep delegations
-        delegation = self.create_interface_score(self._delegation.get(), DelegationInterface)
+        delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
-        rewardDistribution = self.create_interface_score(self.getRewardDistribution(), RewardDistributionInterface)
+        rewardDistribution = self.create_interface_score(self._addresses[REWARDS], RewardDistributionInterface)
         rewardDistribution.handleAction(_user, staked_balance, before_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
@@ -475,8 +434,7 @@ class IRC2(TokenStandard, IconScoreBase):
             self._staked_balances[_from][Status.UNSTAKING] = 0
             self._staked_balances[_from][Status.AVAILABLE] += curr_unstaked
 
-    @only_admin
-    def _mint(self, _amount: int, _data: bytes = None) -> None:
+    def _mint(self, _to: Address, _amount: int, _data: bytes = None) -> None:
         """
         Creates amount number of tokens, and assigns to account
         Increases the balance of that account and total supply.
@@ -494,9 +452,9 @@ class IRC2(TokenStandard, IconScoreBase):
             revert(f"ZeroValueError: _amount: {_amount}")
 
         self._total_supply.set(self._total_supply.get() + _amount)
-        self._balances[self.address] += _amount
+        self._balances[_to] += _amount
 
-        self._transfer(self.address, self._rewards.get(), _amount, b'Transferred to Rewards SCORE')
+        self.Transfer(ZERO_SCORE_ADDRESS, _to, _amount, _data)
 
         # Emits an event log Mint
         self.Mint(_amount, _data)

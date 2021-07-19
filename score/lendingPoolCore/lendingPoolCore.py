@@ -5,6 +5,13 @@ from .utils.checks import *
 
 RESERVE_DB_PREFIX = b'reserve'
 USER_DB_PREFIX = b'userReserve'
+STAKING = "staking"
+FEE_PROVIDER = "feeProvider"
+
+
+class AddressDetails(TypedDict):
+    name: str
+    address: Address
 
 
 class ReserveAttributes(TypedDict):
@@ -115,25 +122,16 @@ class StakingInterface(InterfaceScore):
 class LendingPoolCore(IconScoreBase):
     _ID = 'id'
     _RESERVE_LIST = 'reserveList'
-    _LENDING_POOL = 'lendingPool'
     _CONSTANTS = 'constants'
-    _FEE_PROVIDER = 'feeProvider'
-    _STAKING = 'staking'
-    _DELEGATION = 'delegation'
-    _LIQUIDATION = 'liquidation'
-    _GOVERNANCE = 'governance'
+    _ADDRESSES = 'addresses'
+    _CONTRACTS = 'contracts'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._id = VarDB(self._ID, db, str)
+        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
+        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
-        self._lendingPool = VarDB(self._LENDING_POOL, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
-        self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
-        self._staking = VarDB(self._STAKING, db, value_type=Address)
-        self._delegation = VarDB(self._DELEGATION, db, value_type=Address)
-        self._liquidation = VarDB(self._LIQUIDATION, db, value_type=Address)
-        self._governance = VarDB(self._GOVERNANCE, db, value_type=Address)
         self.reserve = ReserveDataDB(db)
         self.userReserve = UserReserveDataDB(db)
 
@@ -156,74 +154,27 @@ class LendingPoolCore(IconScoreBase):
     def name(self) -> str:
         return 'OmmLendingPoolCore'
 
-    @only_owner
+    @origin_owner
     @external
-    def set_id(self, _value: str):
-        self._id.set(_value)
+    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
+        for contracts in _addressDetails:
+            if contracts['name'] not in self._contracts:
+                self._contracts.put(contracts['name'])
+            self._addresses[contracts['name']] = contracts['address']
 
     @external(readonly=True)
-    def get_id(self) -> str:
-        return self._id.get()
-
-    @only_owner
-    @external
-    def setStaking(self, _address: Address) -> None:
-        self._staking.set(_address)
+    def getAddresses(self) -> dict:
+        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
-    def getStaking(self) -> Address:
-        return self._staking.get()
-
-    @only_owner
-    @external
-    def setLendingPool(self, _address: Address):
-        self._lendingPool.set(_address)
-
-    @external(readonly=True)
-    def getLendingPool(self) -> Address:
-        return self._lendingPool.get()
-
-    @only_owner
-    @external
-    def setLiquidationManager(self, _address: Address):
-        self._liquidation.set(_address)
-
-    @external(readonly=True)
-    def getLiquidationManager(self) -> Address:
-        return self._liquidation.get()
-
-    @only_owner
-    @external
-    def setDelegation(self, _address: Address):
-        self._delegation.set(_address)
-
-    @external(readonly=True)
-    def getDelegation(self) -> Address:
-        return self._delegation.get()
-
-    @only_owner
-    @external
-    def setGovernance(self, _address: Address):
-        self._governance.set(_address)
-
-    @external(readonly=True)
-    def getGovernance(self) -> Address:
-        return self._governance.get()
-
-    @external(readonly=True)
-    def getFeeProvider(self) -> Address:
-        return self._feeProvider.get()
-
-    @only_owner
-    @external
-    def setFeeProvider(self, _address: Address):
-        self._feeProvider.set(_address)
+    def getAddress(self, _name: str) -> Address:
+        return self._addresses[_name]
 
     def reservePrefix(self, _reserve: Address) -> bytes:
-        return b'|'.join([RESERVE_DB_PREFIX, self._id.get().encode(), str(_reserve).encode()])
+        return b'|'.join([RESERVE_DB_PREFIX, str(_reserve).encode()])
 
     def userReservePrefix(self, _reserve: Address, _user: Address) -> bytes:
-        return b'|'.join([USER_DB_PREFIX, self._id.get().encode(), str(_reserve).encode(), str(_user).encode()])
+        return b'|'.join([USER_DB_PREFIX, str(_reserve).encode(), str(_user).encode()])
 
     # Methods to update the states of a reserve
 
@@ -523,7 +474,7 @@ class LendingPoolCore(IconScoreBase):
         dToken = self.create_interface_score(self.getReserveDTokenAddress(_reserve), DTokenInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         if balanceIncrease > 0:
-            reserve.transfer(self._feeProvider.get(), balanceIncrease // 10)
+            reserve.transfer(self.getAddress(FEE_PROVIDER), balanceIncrease // 10)
             self.InterestTransfer(balanceIncrease // 10, _reserve, _user)
         self.updateCumulativeIndexes(_reserve)
         dToken.mintOnBorrow(_user, _amountBorrowed, balanceIncrease)
@@ -545,7 +496,7 @@ class LendingPoolCore(IconScoreBase):
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         dToken = self.create_interface_score(self.getReserveData(_reserve)['dTokenAddress'], DTokenInterface)
         if _balanceIncrease > 0:
-            reserve.transfer(self._feeProvider.get(), _balanceIncrease // 10)
+            reserve.transfer(self.getAddress(FEE_PROVIDER), _balanceIncrease // 10)
             self.InterestTransfer(_balanceIncrease // 10, _reserve, _user)
         self.updateCumulativeIndexes(_reserve)
         dToken.burnOnRepay(_user, _paybackAmountMinusFees, _balanceIncrease)
@@ -588,7 +539,7 @@ class LendingPoolCore(IconScoreBase):
                                  _liquidatedCollateralForFee: int, _balanceIncrease: int):
         reserve = self.create_interface_score(_principalReserve, ReserveInterface)
         if _balanceIncrease > 0:
-            reserve.transfer(self._feeProvider.get(), _balanceIncrease // 10)
+            reserve.transfer(self.getAddress(FEE_PROVIDER), _balanceIncrease // 10)
             self.InterestTransfer(_balanceIncrease // 10, _principalReserve, _user)
 
         self.updatePrincipalReserveStateOnLiquidationInternal(_principalReserve, _user, _amountToLiquidate,
@@ -700,7 +651,7 @@ class LendingPoolCore(IconScoreBase):
     @only_delegation
     @external
     def updatePrepDelegations(self, _delegations: List[PrepDelegations]) -> None:
-        staking = self.create_interface_score(self._staking.get(), StakingInterface)
+        staking = self.create_interface_score(self.getAddress(STAKING), StakingInterface)
         staking.delegate(_delegations)
 
     @external
