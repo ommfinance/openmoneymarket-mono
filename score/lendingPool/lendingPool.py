@@ -10,6 +10,7 @@ oICX = "oICX"
 LENDING_POOL_DATA_PROVIDER = "lendingPoolDataProvider"
 STAKING = "staking"
 OMM_TOKEN = "ommToken"
+BRIDGE_OTOKEN = "bridgeOToken"
 REWARDS = "rewards"
 LENDING_POOL_CORE = "lendingPoolCore"
 FEE_PROVIDER = "feeProvider"
@@ -175,7 +176,6 @@ class LendingPool(IconScoreBase):
     DEPOSIT_INDEX = 'depositIndex'
     FEE_SHARING_USERS = 'feeSharingUsers'
     FEE_SHARING_TXN_LIMIT = 'feeSharingTxnLimit'
-    BRIDGE_O_TOKEN = 'bridgeOToken'
     BRIDGE_FEE_THRESHOLD = "bridgeFeeThreshold"
     ADDRESSES = "addresses"
     CONTRACTS = "contracts"
@@ -190,7 +190,6 @@ class LendingPool(IconScoreBase):
         self._depositIndex = DictDB(self.DEPOSIT_INDEX, db, value_type=int)
         self._feeSharingUsers = DictDB(self.FEE_SHARING_USERS, db, value_type=int, depth=2)
         self._feeSharingTxnLimit = VarDB(self.FEE_SHARING_TXN_LIMIT, db, value_type=int)
-        self._bridgeOtoken = VarDB(self.BRIDGE_O_TOKEN, db, value_type=Address)
         self._bridgeFeeThreshold = VarDB(self.BRIDGE_FEE_THRESHOLD, db, value_type=int)
 
     def on_install(self) -> None:
@@ -265,7 +264,7 @@ class LendingPool(IconScoreBase):
         return self._feeSharingTxnLimit.get()
 
     def _userBridgeDepositStatus(self, _user: Address) -> bool:
-        bridgeOtoken = self.create_interface_score(self._bridgeOtoken.get(), OTokenInterface)
+        bridgeOtoken = self.create_interface_score(self.getAddress(BRIDGE_OTOKEN), OTokenInterface)
         return bridgeOtoken.balanceOf(_user) > self._bridgeFeeThreshold.get()
 
     def _enableFeeSharing(self):
