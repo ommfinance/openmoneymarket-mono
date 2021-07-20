@@ -1,3 +1,4 @@
+from .utils.RewardRecipientToken import RewardRecipientToken
 from .utils.checks import *
 
 MICROSECONDS = 10 ** 6
@@ -31,7 +32,7 @@ class Status:
     STAKED = 1
 
 
-class StakedLp(IconScoreBase):
+class StakedLp(IconScoreBase, RewardRecipientToken):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -39,6 +40,7 @@ class StakedLp(IconScoreBase):
         self._poolStakeDetails = DictDB('poolStakeDetails', db, value_type=int, depth=3)
         self._totalStaked = DictDB('totalStaked', db, value_type=int)
         self._addressMap = DictDB('addressMap', db, value_type=Address)
+        self._poolIDMap = DictDB('poolIDMap', db, value_type=int)
         self._minimumStake = VarDB('minimumStake', db, value_type=int)
         self._unstakingTime = VarDB('unstakingTime', db, value_type=int)
         self._addresses = DictDB('addresses', db, value_type=Address)
@@ -122,11 +124,12 @@ class StakedLp(IconScoreBase):
     @external
     def addPool(self, _pool: Address, _id: int) -> None:
         self._addressMap[_id] = _pool
+        self._poolIDMap[_pool] = _id
         if _id not in self._supportedPools:
             self._supportedPools.put(_id)
 
     @external(readonly=True)
-    def getPoolById(self, _id: int ) -> Address:
+    def getPoolById(self, _id: int) -> Address:
         return self._addressMap[_id]
 
     @only_owner
@@ -218,3 +221,8 @@ class StakedLp(IconScoreBase):
             self._stake(_from, _id, _value)
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
+
+    @external(readonly=True)
+    def getTotalStakedBalance(self, _asset: Address) -> int:
+        pool_id = self._poolIDMap[_asset]
+        return self._totalStaked[pool_id]

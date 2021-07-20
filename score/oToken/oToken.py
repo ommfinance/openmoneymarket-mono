@@ -1,11 +1,13 @@
 from .IIRC2 import TokenStandard
 from .Math import *
+from .utils.RewardRecipientToken import RewardRecipientToken
 from .utils.checks import *
 
 REWARDS = 'rewards'
 RESERVE = 'reserve'
 LENDING_POOL_CORE = 'lendingPoolCore'
 LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
+
 
 class SupplyDetails(TypedDict):
     principalUserBalance: int
@@ -49,7 +51,7 @@ class TokenFallbackInterface(InterfaceScore):
         pass
 
 
-class OToken(IconScoreBase, TokenStandard):
+class OToken(IconScoreBase, TokenStandard, RewardRecipientToken):
     """
     Implementation of IRC2
     """
@@ -463,3 +465,6 @@ class OToken(IconScoreBase, TokenStandard):
         # Emits an event log Burn
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, b'burn')
         self.Burn(account, amount)
+
+    def getTotalStakedBalance(self, _asset: Address) -> int:
+        return self.totalSupply()

@@ -1,10 +1,12 @@
 from .IIRC2 import TokenStandard
 from .Math import *
+from .utils.RewardRecipientToken import RewardRecipientToken
 from .utils.checks import *
 
 REWARDS = 'rewards'
 LENDING_POOL_CORE = 'lendingPoolCore'
 RESERVE = 'reserve'
+
 
 class SupplyDetails(TypedDict):
     principalUserBalance: int
@@ -39,7 +41,7 @@ class TokenFallbackInterface(InterfaceScore):
         pass
 
 
-class DToken(IconScoreBase, TokenStandard):
+class DToken(IconScoreBase, TokenStandard, RewardRecipientToken):
     """
     Implementation of IRC2
     """
@@ -309,7 +311,7 @@ class DToken(IconScoreBase, TokenStandard):
             data = b'mint'
 
         if amount < 0:
-            revert(f'{TAG}: ',
+            revert(f'{TAG}: '
                    f'Invalid value: {amount} to mint')
 
         self._totalSupply.set(self._totalSupply.get() + amount)
@@ -332,7 +334,7 @@ class DToken(IconScoreBase, TokenStandard):
             data = b'burn'
         totalSupply = self._totalSupply.get()
         if amount <= 0:
-            revert(f'{TAG}: ',
+            revert(f'{TAG}: '
                    f'Invalid value: {amount} to burn')
         if amount > totalSupply:
             revert(f'{TAG}:'
@@ -344,3 +346,7 @@ class DToken(IconScoreBase, TokenStandard):
         # Emits an event log Burn
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, data)
         self.Burn(account, amount)
+
+    @external(readonly=True)
+    def getTotalStakedBalance(self, _asset: Address) -> int:
+        return self.totalSupply()
