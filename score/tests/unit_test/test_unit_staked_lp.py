@@ -85,7 +85,7 @@ class TestStakedLP(ScoreTestCase):
         self.score._supportedPools.put(_pool_id2)
 
         # Execute
-        actual_result = self.score.detailsBalanceOf(_user)
+        actual_result = self.score.getPoolBalanceByUser(_user)
 
         expected_result = {
             _pool_id1: {
