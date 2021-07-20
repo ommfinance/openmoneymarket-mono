@@ -242,7 +242,7 @@ class RewardDistributionManager(IconScoreBase):
 
     def _getEmissionPerSecond(self, distributionPercent):
         distributionPerDay = self.tokenDistributionPerDay(self.getDay());
-        return exaDiv(distributionPerDay // 86400, distributionPercent)
+        return exaMul(distributionPerDay // 86400, distributionPercent)
 
     @external(readonly=True)
     def tokenDistributionPerDay(self, _day: int) -> int:
