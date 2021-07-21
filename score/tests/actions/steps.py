@@ -14,3 +14,6 @@ class Steps(enum.Enum):
     REPAY_USDS = 10
     STAKE_LP = 11
     UNSTAKE_LP = 12
+    STAKE_OMM = 13
+    UNSTAKE_OMM = 14
+    TRANSFER_OMM = 15
