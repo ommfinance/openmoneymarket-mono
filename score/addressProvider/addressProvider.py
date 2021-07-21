@@ -95,6 +95,7 @@ class AddressProvider(IconScoreBase):
             },
             "systemContract": {
                 "LendingPool": self.getAddress(self.LENDING_POOL),
+                "LendingPoolCore": self.getAddress(self.LENDING_POOL_CORE),
                 "LendingPoolDataProvider": self.getAddress(self.LENDING_POOL_DATA_PROVIDER),
                 "Staking": self.getAddress(self.STAKING),
                 "Governance": self.getAddress(self.GOVERNANCE),
@@ -136,6 +137,7 @@ class AddressProvider(IconScoreBase):
             {"name": self.oICX, "address": self._addresses[self.oICX]},
             {"name": self.STAKING, "address": self._addresses[self.STAKING]},
             {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
+            {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
             {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
             {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
             {"name": self.BRIDGE_OTOKEN, "address": self._addresses[self.BRIDGE_OTOKEN]},
@@ -214,7 +216,8 @@ class AddressProvider(IconScoreBase):
             {"name": self.ADDRESS_PROVIDER, "address": self.address},
             {"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
             {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
-            {"name": self.REWARDS, "address": self._addresses[self.REWARDS]}
+            {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
+            {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]}
         ]
 
         oICX = self.create_interface_score(self._addresses[self.oICX], AddressInterface)
@@ -229,7 +232,8 @@ class AddressProvider(IconScoreBase):
             {"name": self.ADDRESS_PROVIDER, "address": self.address},
             {"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
             {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
-            {"name": self.REWARDS, "address": self._addresses[self.REWARDS]}
+            {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
+            {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]}
         ]
 
         oUSDs = self.create_interface_score(self._addresses[self.oUSDs], AddressInterface)
@@ -244,7 +248,8 @@ class AddressProvider(IconScoreBase):
             {"name": self.ADDRESS_PROVIDER, "address": self.address},
             {"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
             {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
-            {"name": self.REWARDS, "address": self._addresses[self.REWARDS]}
+            {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
+            {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]}
         ]
 
         oIUSDC = self.create_interface_score(self._addresses[self.oIUSDC], AddressInterface)
