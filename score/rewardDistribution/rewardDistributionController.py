@@ -204,7 +204,7 @@ class RewardDistributionController(RewardDistributionManager):
         response[self._assetName[_asset]] = unclaimedRewards
         totalRewards += unclaimedRewards
 
-        response['totalRewards'] = totalRewards
+        response['total'] = totalRewards
 
         return response
 
@@ -246,7 +246,7 @@ class RewardDistributionController(RewardDistributionManager):
         accruedRewards = self._claimRewards(_user, userAssetList)
         if accruedRewards != 0:
             unclaimedRewards += accruedRewards
-            self.RewardsAccrued(_user, accruedRewards)
+            self.RewardsAccrued(_user, self.address, accruedRewards)
 
         if unclaimedRewards == 0:
             return 0
