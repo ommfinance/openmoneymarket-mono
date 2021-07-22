@@ -242,7 +242,7 @@ class StakedLp(IconScoreBase):
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
 
-    def getStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
+    def getLPStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
         balance = self.balanceOf(_user, _id)
         return {
             "principalUserBalance": balance["userStakedBalance"],
