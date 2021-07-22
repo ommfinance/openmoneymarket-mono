@@ -24,10 +24,11 @@ class TestStakedLP(ScoreTestCase):
         self.mock_dex = Address.from_string(f"cx{'1231' * 10}")
         self.mock_reward = Address.from_string(f"cx{'1232' * 10}")
 
-        self.set_msg(self._owner)
-
-        self.score.setRewards(self.mock_reward)
-        self.score.setDex(self.mock_dex)
+        self.set_tx(origin=self._owner)
+        self.score.setAddresses([
+            {"name": 'dex', "address": self.mock_dex},
+            {"name": "rewards", "address": self.mock_reward}
+        ])
 
         self.test_account3 = create_address()
         self.test_account4 = create_address()
@@ -61,6 +62,7 @@ class TestStakedLP(ScoreTestCase):
         actual_result = self.score.balanceOf(_from, _pool_id)
 
         self.assertDictEqual({
+            "poolID": _pool_id,
             "userTotalBalance": 100 * EXA,
             "userAvailableBalance": 100 * EXA,
             "userStakedBalance": 0,
@@ -87,22 +89,21 @@ class TestStakedLP(ScoreTestCase):
         # Execute
         actual_result = self.score.getPoolBalanceByUser(_user)
 
-        expected_result = {
-            _pool_id1: {
-                "userTotalBalance": 111 * EXA,
-                "userAvailableBalance": 100 * EXA,
-                "userStakedBalance": 11 * EXA,
-                "totalStakedBalance": 26 * EXA
-            },
-            _pool_id2: {
-                "userTotalBalance": 125 * EXA,
-                "userAvailableBalance": 100 * EXA,
-                "userStakedBalance": 25 * EXA,
-                "totalStakedBalance": 21 * EXA
-            }
-        }
+        expected_result = [{
+            "poolID": _pool_id1,
+            "userTotalBalance": 111 * EXA,
+            "userAvailableBalance": 100 * EXA,
+            "userStakedBalance": 11 * EXA,
+            "totalStakedBalance": 26 * EXA
+        }, {
+            "poolID": _pool_id2,
+            "userTotalBalance": 125 * EXA,
+            "userAvailableBalance": 100 * EXA,
+            "userStakedBalance": 25 * EXA,
+            "totalStakedBalance": 21 * EXA
+        }]
 
-        self.assertDictEqual(expected_result, actual_result)
+        self.assertEqual(expected_result, actual_result)
 
     def test_on_IRC31_Received_unauthorized_call(self):
         try:
