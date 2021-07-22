@@ -329,6 +329,7 @@ class AddressProvider(IconScoreBase):
     def setPriceOracleAddress(self) -> None:
         priceOracleAddresses: List[AddressDetails] = [
             {"name": self.BAND_ORACLE, "address": self._addresses[self.BAND_ORACLE]},
+            {"name": self.DEX, "address": self._addresses[self.DEX]},
             {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
             {"name": self.ADDRESS_PROVIDER, "address": self.address},
         ]
