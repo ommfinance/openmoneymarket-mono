@@ -5,6 +5,11 @@ REWARDS = 'rewards'
 DEX = 'dex'
 
 
+class SupplyDetails(TypedDict):
+    principalUserBalance: int
+    principalTotalSupply: int
+
+
 class AddressDetails(TypedDict):
     name: str
     address: Address
@@ -108,6 +113,7 @@ class StakedLp(IconScoreBase):
         userBalance = lp.balanceOf(_owner, _id)
 
         return {
+            "poolID": _id,
             "userTotalBalance": userBalance + self._poolStakeDetails[_owner][_id][Status.STAKED],
             "userAvailableBalance": userBalance,
             "userStakedBalance": self._poolStakeDetails[_owner][_id][Status.STAKED],
@@ -115,8 +121,25 @@ class StakedLp(IconScoreBase):
         }
 
     @external(readonly=True)
-    def detailsBalanceOf(self, _owner: Address) -> dict:
-        return {_id: self.balanceOf(_owner, _id) for _id in self._supportedPools}
+    def getBalanceByPool(self) -> List[dict]:
+        result = []
+        for _id in self._supportedPools:
+            lp = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
+            totalBalance = lp.balanceOf(self.address, _id)
+            pool_details = {
+                "poolID": _id,
+                "totalStakedBalance": totalBalance
+            }
+            result.append(pool_details)
+        return result
+
+    @external(readonly=True)
+    def getPoolBalanceByUser(self, _owner: Address) -> List[dict]:
+        result = []
+        for _id in self._supportedPools:
+            user_balance = self.balanceOf(_owner, _id)
+            result.append(user_balance)
+        return result
 
     @only_owner
     @external
@@ -126,7 +149,7 @@ class StakedLp(IconScoreBase):
             self._supportedPools.put(_id)
 
     @external(readonly=True)
-    def getPoolById(self, _id: int ) -> Address:
+    def getPoolById(self, _id: int) -> Address:
         return self._addressMap[_id]
 
     @only_owner
@@ -218,3 +241,10 @@ class StakedLp(IconScoreBase):
             self._stake(_from, _id, _value)
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
+
+    def getStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
+        balance = self.balanceOf(_user, _id)
+        return {
+            "principalUserBalance": balance["userStakedBalance"],
+            "principalTotalSupply": balance["totalStakedBalance"]
+        }

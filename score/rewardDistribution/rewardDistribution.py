@@ -5,17 +5,27 @@ TAG = 'RewardDistributionManager'
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
+
+class SupplyDetails(TypedDict):
+    principalUserBalance: int
+    principalTotalSupply: int
+
+
 class AddressDetails(TypedDict):
     name: str
     address: Address
 
+
 class AssetConfig(TypedDict):
     asset: Address
     distPercentage: int
+    assetName: str
+
 
 class LPConfig(TypedDict):
     _id: int
     distPercentage: int
+    assetName: str
 
 
 class UserAssetInput(TypedDict):
@@ -33,6 +43,7 @@ class TokenInterface(InterfaceScore):
     def total_staked_balance(self) -> int:
         pass
 
+
 class LPInterface(InterfaceScore):
 
     @interface
@@ -40,22 +51,27 @@ class LPInterface(InterfaceScore):
         pass
 
     @interface
-    def getPoolById(self, _id: int ) -> Address:
+    def getPoolById(self, _id: int) -> Address:
+        pass
+
+    @interface
+    def getLPStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
         pass
 
 
 class RewardDistributionManager(IconScoreBase):
     EMISSION_PER_SECOND = 'emissionPerSecond'
     LAST_UPDATE_TIMESTAMP = 'lastUpdateTimestamp'
+    TIMESTAMP_AT_START = 'timestampAtStart'
     ASSET_INDEX = 'assetIndex'
     USER_INDEX = 'userIndex'
     ASSETS = 'assets'
+    ASSET_NAME = "assetName"
     DIST_PERCENTAGE = 'distPercentage'
     RESERVE_ASSETS = 'reserveAssets'
     LP_IDS = 'lpIds'
     ADDRESSES = "addresses"
     CONTRACTS = "contracts"
-
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -64,10 +80,13 @@ class RewardDistributionManager(IconScoreBase):
         self._assetIndex = DictDB(self.ASSET_INDEX, db, value_type=int)
         self._distPercentage = DictDB(self.DIST_PERCENTAGE, db, value_type=int)
         self._userIndex = DictDB(self.USER_INDEX, db, value_type=int, depth=2)
+
         self._assets = ArrayDB(self.ASSETS, db, value_type=Address)
+        self._assetName = DictDB(self.ASSET_NAME, db, value_type=str)
+
         self._reserveAssets = ArrayDB(self.RESERVE_ASSETS, db, value_type=Address)
         self._lpIds = ArrayDB(self.LP_IDS, db, value_type=int)
-        self._timestampAtStart = VarDB('timestampAtStart', db, value_type=int)
+        self._timestampAtStart = VarDB(self.TIMESTAMP_AT_START, db, value_type=int)
         self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
         self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
 
@@ -112,6 +131,9 @@ class RewardDistributionManager(IconScoreBase):
     def getAssets(self) -> list:
         return [asset for asset in self._assets]
 
+    @external(readonly=True)
+    def getAssetNames(self) -> dict:
+        return {item: self._assetName[item] for item in self._assets}
 
     def _configureEmissionPerSecond(self, asset: Address, distPercentage: int, totalBalance: int):
         self._distPercentage[asset] = distPercentage
@@ -127,10 +149,12 @@ class RewardDistributionManager(IconScoreBase):
     def configureAssetEmission(self, _assetConfig: List[AssetConfig]) -> None:
         for config in _assetConfig:
             asset = config['asset']
+            assetName = config['assetName']
             distPercentage = config['distPercentage']
             token = self.create_interface_score(asset, TokenInterface)
             totalBalance = token.totalSupply()
             self._configureEmissionPerSecond(asset, distPercentage, totalBalance)
+            self._assetName[asset] = assetName
             if asset not in self._reserveAssets:
                 self._reserveAssets.put(asset)
 
@@ -140,10 +164,12 @@ class RewardDistributionManager(IconScoreBase):
         for config in _lpConfig:
             _id = config['_id']
             distPercentage = config['distPercentage']
+            assetName = config['assetName']
             lp = self.create_interface_score(self._addresses[STAKED_LP], LPInterface)
             asset = lp.getPoolById(_id)
             totalStakeBalance = lp.getTotalStaked(_id)
             self._configureEmissionPerSecond(asset, distPercentage, totalStakeBalance)
+            self._assetName[asset] = assetName
             if _id not in self._lpIds:
                 self._lpIds.put(_id)
 
@@ -153,6 +179,7 @@ class RewardDistributionManager(IconScoreBase):
         asset = self._addresses[OMM_TOKEN]
         token = self.create_interface_score(asset, TokenInterface)
         totalStakedBalance = token.total_staked_balance()
+        self._assetName[asset] = "OMM"
         self._configureEmissionPerSecond(asset, _distPercentage, totalStakedBalance)
 
     @only_owner
@@ -170,13 +197,12 @@ class RewardDistributionManager(IconScoreBase):
             totalStakeBalance = lp.getTotalStaked(lpId)
             distPercentage = self._distPercentage[asset]
             self._configureEmissionPerSecond(asset, distPercentage, totalStakeBalance)
-        
+
         asset = self._addresses[OMM_TOKEN]
         token = self.create_interface_score(asset, TokenInterface)
         totalStakedBalance = token.total_staked_balance()
         distPercentage = self._distPercentage[asset]
-        self._configureEmissionPerSecond(asset, _distPercentage, totalStakedBalance)
-
+        self._configureEmissionPerSecond(asset, distPercentage, totalStakedBalance)
 
     def _updateAssetStateInternal(self, _asset: Address, _totalBalance: int) -> int:
         oldIndex = self._assetIndex[_asset]
@@ -242,7 +268,7 @@ class RewardDistributionManager(IconScoreBase):
 
     def _getEmissionPerSecond(self, distributionPercent):
         distributionPerDay = self.tokenDistributionPerDay(self.getDay());
-        return exaDiv(distributionPerDay // 86400, distributionPercent)
+        return exaMul(distributionPerDay // 86400, distributionPercent)
 
     @external(readonly=True)
     def tokenDistributionPerDay(self, _day: int) -> int:
