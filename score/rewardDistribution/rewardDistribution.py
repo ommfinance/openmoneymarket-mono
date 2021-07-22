@@ -133,7 +133,7 @@ class RewardDistributionManager(IconScoreBase):
 
     @external(readonly=True)
     def getAssetNames(self) -> dict:
-        return {item: self._assetName[item] for item in self._assets}
+        return {str(item): self._assetName[item] for item in self._assets}
 
     def _configureEmissionPerSecond(self, asset: Address, distPercentage: int, totalBalance: int):
         self._distPercentage[asset] = distPercentage
