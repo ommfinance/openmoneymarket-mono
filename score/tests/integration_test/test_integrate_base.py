@@ -1,6 +1,6 @@
 import json
 import os
-
+from pprint import pprint
 from checkscore.repeater import retry
 from dotenv import load_dotenv
 from iconsdk.exception import JSONRPCException
@@ -32,14 +32,28 @@ T_BEARS_URL = os.environ.get("T_BEARS_URL")
 SCORE_ADDRESS = "scoreAddress"
 EMISSION_PER_ASSET = (400000 * 10 ** 18 ) // (4 * 86400)
 TIMESTAMP = 1622560500000000
+LOAN_ORIGINATION_PERCENT = 10 ** 15
+EXA = 10 ** 18
+halfEXA = EXA // 2
+SECONDS_PER_YEAR = 31536000
+PREP_LIST = ["hxec79e9c1c882632688f8c8f9a07832bcabe8be8f","hxd3be921dfe193cd49ed7494a53743044e3376cd3",\
+            "hx9e7509f86ea3ba5c139161d6e92a3982659e9f30", "hxaad52424d4aec9dac7d9f6796da527f471269d2c"]
+OMM_SICX_ID = 1
+OMM_USDS_ID = 2
+OUSDS_EMISSION = int(0.5 * 0.5 * EXA)
+DUSDS_EMISSION = int(0.5 * 0.5 * EXA)
+DICX_EMISSION = int(0.5 * 0.5 * EXA)
+OICX_EMISSION = int(0.5 * 0.5 * EXA)
+OMM_SICX_DIST_PERCENTAGE = int(0.1 * EXA)
+OMM_USDS_DIST_PERCENTAGE = int(0.1 * EXA)
+OMM_DIST_PERCENTAGE = int(0.2 * EXA)
+WORKER_DIST_PERCENTAGE = int(0.2 * EXA)
+DAO_DIST_PERCENTAGE = int(0.2 * EXA)
 
 RE_DEPLOY_CONTRACT=[]
 
 ###### EXA MATH LIBRARY
 
-EXA = 10 ** 18
-halfEXA = EXA // 2
-SECONDS_PER_YEAR = 31536000
 
 
 # 365 days = (365 days) × (24 hours/day) × (3600 seconds/hour) = 31536000 seconds
@@ -87,7 +101,7 @@ class OMMTestBase(TestUtils):
 
     CONTRACTS = ['addressProvider', 'daoFund', 'delegation', 'lendingPool', 'feeProvider',
                  'lendingPoolCore', 'lendingPoolDataProvider', 'liquidationManager', 'stakedLp',
-                 'ommToken', 'priceOracle', 'rewardDistribution', 'governance', 'worker_token']
+                 'ommToken', 'priceOracle', 'rewardDistribution', 'governance', 'workerToken']
     OTOKENS = ['oUSDS', 'oICX']
     DTOKENS = ['dUSDS', 'dICX']
 
@@ -115,7 +129,6 @@ class OMMTestBase(TestUtils):
             self._deploy_helper_contracts()
             self._config_omm()
             self._supply_liquidity()
-
 
     def _wallet_setup(self):
         self.icx_factor = 10 ** 18
@@ -149,7 +162,7 @@ class OMMTestBase(TestUtils):
                           '_symbol': 'USDs', '_decimals': 18}
             elif item == "omm_token":
                 params = {'_initialSupply': 0, '_decimals': 18}
-            elif item == "worker_token":
+            elif item == "workerToken":
                 params = {'_initialSupply': 100, '_decimals': 18}
             elif item == "sicx":
                 params = {'_initialSupply': 500000000, '_decimals': 18}
@@ -366,27 +379,88 @@ class OMMTestBase(TestUtils):
             self.contracts = json.load(file)
         self._deposit_for_fee_sharing()
         self._mint_bridge()
-        self._config_lendingPool()
-        self._config_lendingPoolDataProvider()
-        self._config_oToken()
-        self._config_priceOracleRef()
-        self._config_addressProvider()        
-        self._config_oICX()
-        # self._config_oIUSDC()
-        self._config_liquidationManager()
-        self._config_delegation()
-        self._config_lendingPoolCore()
-        # self._config_priceOracle()
-        # self._config_snapshot()
-        self._config_rewards()
-        self._config_governance()
-        self._config_lendingPoolCoreSettings()
-        self._add_reserves_to_lendingPoolCore()
-        self._config_ommToken()
+        self._config_address_provider()
+        self._config_general()
         self._config_staking()
-        self._config_fee_provider()
-        self._config_debt_tokens()
-        self._config_stakedLp()
+        self._config_rewards()
+        self._add_reserves_to_lendingPoolCore()
+        self._add_reserves_constants()
+
+    def _config_address_provider(self):
+        contracts = self.contracts
+        contracts['bandOracle'] = "cx399dea56cf199b1c9e43bead0f6a284bdecfbf62"
+        contract_details = [
+            {'name': 'addressProvider', 'address': contracts['addressProvider']},
+            {'name': 'daoFund', 'address': contracts['daoFund']},
+            {'name': 'delegation', 'address': contracts['delegation']},
+            {'name': 'feeProvider', 'address': contracts['feeProvider']},
+            {'name': 'governance', 'address': contracts['governance']},
+            {'name': 'lendingPool', 'address': contracts['lendingPool']},
+            {'name': 'lendingPoolCore', 'address': contracts['lendingPoolCore']},
+            {'name': 'lendingPoolDataProvider', 'address': contracts['lendingPoolDataProvider']},
+            {'name': 'liquidationManager', 'address': contracts['liquidationManager']},
+            {'name': 'ommToken', 'address': contracts['ommToken']},
+            {'name': 'priceOracle', 'address': contracts['priceOracle']},
+            {'name': 'bandOracle', 'address': contracts['bandOracle']},
+            {'name': 'bridgeOToken', 'address': contracts['oUSDS']},
+            {'name': 'rewards', 'address': contracts['rewardDistribution']},
+            {'name': 'workerToken', 'address': contracts['workerToken']},
+            {'name': 'sICX', 'address': contracts['sicx']},
+            {'name': 'usds', 'address': contracts['usds']},
+            {'name': 'staking', 'address': contracts['staking']},
+            {'name': 'ousds', 'address': contracts['oUSDS']},
+            {'name': 'dusds', 'address': contracts['dUSDS']},
+            {'name': 'oICX', 'address': contracts['oICX']},
+            {'name': 'dICX', 'address': contracts['dICX']},
+            {'name': 'stakedLp', 'address': contracts['stakedLp']},
+            {'name': 'dex', 'address': contracts['lpToken']}
+            # {'name': 'diusdc', 'address': contracts['dIUSDC']},
+            # {'name': 'oiusdc', 'address': contracts['oIUSDC']},
+            # {'name': 'iusdc', 'address': contracts['iusdc']},
+        ]
+
+        setting_address_provider = [
+            {'contract': 'addressProvider', 'method': 'setAddresses', 'params':{'_addressDetails':contract_details}},
+            {'contract': 'addressProvider', 'method': 'setLendingPoolAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setLendingPoolCoreAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setLendingPoolDataProviderAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setLiquidationManagerAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setOmmTokenAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setoICXAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setoUSDsAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setdICXAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setdUSDsAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setDelegationAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setRewardAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setGovernanceAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setGovernanceAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setStakedLpAddresses', 'params':{}},
+            {'contract': 'addressProvider', 'method': 'setPriceOracleAddress', 'params':{}},            
+        ]
+
+        self._get_transaction(setting_address_provider)
+
+    def _config_general(self):
+        contracts = self.contracts
+        settings = [
+            {'contract': 'lendingPool', 'method': 'setFeeSharingTxnLimit','params': {'_limit': 3}},
+            {'contract': 'feeProvider', 'method': 'setLoanOriginationFeePercentage', 'params':{'_percentage': f"{LOAN_ORIGINATION_PERCENT}"}},
+            {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params':{'_reserve': contracts['usds'],'_sym':"USDS"}},
+            {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params':{'_reserve': contracts['sicx'],'_sym':"ICX"}},
+            {'contract': 'priceOracle', 'method': 'setOraclePriceBool', 'params':{'_value': '0x0'}},
+            {'contract': 'priceOracle', 'method': 'set_reference_data', 'params':{'_base':'USDS','_quote':'USD','_rate':1*10**18}},
+            {'contract': 'priceOracle', 'method': 'set_reference_data', 'params':{'_base':'ICX','_quote':'USD','_rate':10*10**17}},
+            {'contract': 'delegation', 'method': 'addAllContributors','params': {'_preps':PREP_LIST}},
+            {'contract': 'governance', 'method': 'setStartTimestamp','params': {'_timestamp': TIMESTAMP}},     
+            {'contract':  'ommToken', 'method': 'setMinimumStake','params': {'_min':10 * 10**18}},
+            {'contract':  'stakedLp', 'method': 'addPool','params': {'_pool': contracts['sicx'], '_id': f"{OMM_SICX_ID}" }},
+            {'contract':  'stakedLp', 'method': 'addPool','params': {'_pool': contracts['usds'],'_id': f"{OMM_USDS_ID}" }},
+            # {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params':{'_reserve': contracts['iusdc'],'_sym':"USDC"}},
+            # {'contract': 'priceOracle', 'method': 'set_reference_data', 'params':{'_base':'IUSDC','_quote':'USD','_rate':10*10**17}},  
+            # {'contract':  'stakedLp', 'method': 'addPool','params': {'_pool': contracts['iusdc'] , '_id': OMM_USDC_ID}}
+        ]
+
+        self._get_transaction(settings)
 
 
     def _deposit_for_fee_sharing(self):
@@ -411,179 +485,7 @@ class OMMTestBase(TestUtils):
             )
         self.assertEqual(True, tx_result['status'])
 
-    def _config_lendingPool(self):
-        print(
-            "-------------------------------Configuring LENDING POOL----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_lendingPool = [
-            {'contract': 'lendingPool', 'method': 'setLendingPoolCore',
-             'params': {'_address': contracts['lendingPoolCore']}},
-            {'contract': 'lendingPool', 'method': 'setLendingPoolDataProvider',
-             'params': {'_address': contracts['lendingPoolDataProvider']}},
-            {'contract': 'lendingPool', 'method': 'setLiquidationManager',
-             'params': {'_address': contracts['liquidationManager']}},
-            {'contract': 'lendingPool', 'method': 'setStaking',
-             'params': {'_address': contracts['staking']}},
-            {'contract': 'lendingPool', 'method': 'setOICX',
-             'params': {'_address': contracts['oICX']}},
-            {'contract': 'lendingPool', 'method': 'setRewardManager',
-             'params': {'_address': contracts['rewardDistribution']}},
-            {'contract': 'lendingPool', 'method': 'setFeeProvider',  #
-             'params': {'_address': contracts['feeProvider']}},
-            {'contract': 'lendingPool', 'method': 'setSICX',
-             'params': {'_address': contracts['sicx']}},
-            {'contract': 'lendingPool', 'method': 'setFeeSharingTxnLimit',
-             'params': {'_limit': 3}},
-            {'contract': 'lendingPool', 'method': 'setBridgeOtoken',
-             'params': {'_address': contracts['oUSDS']}},
-            {'contract': 'lendingPool', 'method': 'setOmmToken',
-             'params': {'_address': contracts['ommToken']}}
-        ]
-        self._get_transaction(settings_lendingPool)
-
-    def _config_stakedLp(self):
-        print(
-            "-------------------------------Configuring STAKED LP----------------------------------------------------")
-        contracts = self.contracts
-        settings_stakedLp = [
-            {'contract': 'stakedLp', 'method': 'setRewards',
-             'params': {'_address': contracts['rewardDistribution']}},
-            {'contract': 'stakedLp', 'method': 'setDex',
-             'params': {'_address': contracts['lpToken']}},
-            {'contract': 'stakedLp', 'method': 'addPool',
-             'params': {
-                '_pool': contracts['sicx'],
-                '_id': 1
-                }
-            },
-            {'contract': 'stakedLp', 'method': 'addPool',
-             'params': {
-                '_pool': contracts['usds'],
-                '_id': 2
-                }
-            }
-        ]
-        self._get_transaction(settings_stakedLp)
-
-    def _config_fee_provider(self):
-        print(
-            "-------------------------------Configuring FEE PROVIDER----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_feeProvider = [
-            {'contract': 'feeProvider', 'method': 'setLoanOriginationFeePercentage',
-             'params': {'_percentage': 10 ** 15}}]
-        self._get_transaction(settings_feeProvider)
-
-
-    def _config_lendingPoolDataProvider(self):
-        print(
-            "-------------------------------Configuring LENDING POOL DATA PROVIDER----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_lendinPoolDataProvider = [
-            {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol',
-            'params': {'_reserve': contracts['usds'], '_sym': "USDs"}},
-            {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol',
-            'params': {'_reserve': contracts['sicx'], '_sym': "ICX"}},
-            # {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 
-            # 'params':{'_reserve': contracts['iusdc'],'_sym':"IUSDC"}},
-            {'contract': 'lendingPoolDataProvider', 'method': 'setLendingPoolCore',
-            'params': {'_address': contracts['lendingPoolCore']}},
-            {'contract': 'lendingPoolDataProvider', 'method': 'setPriceOracle',
-            'params': {'_address': contracts['priceOracle']}},
-            {'contract': 'lendingPoolDataProvider', 'method': 'setLendingPool',
-            'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'lendingPoolDataProvider', 'method': 'setLiquidationManager',
-            'params': {'_address': contracts['liquidationManager']}},
-            {'contract': 'lendingPoolDataProvider', 'method': 'setStaking',
-            'params': {'_address': contracts['staking']}},
-            {'contract': 'lendingPoolDataProvider', 'method': 'setFeeProvider',
-            'params': {'_address': contracts['feeProvider']}}
-        ]
-        self._get_transaction(settings_lendinPoolDataProvider)
-
-    def _config_oToken(self):
-        print("-------------------------------Configuring OTOKEN----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_oToken = [
-            {'contract': 'oUSDS', 'method': 'setLendingPoolCore',
-             'params': {'_address': contracts['lendingPoolCore']}},
-            {'contract': 'oUSDS', 'method': 'setReserve',
-             'params': {'_address': contracts['usds']}},
-            {'contract': 'oUSDS', 'method': 'setLendingPoolDataProvider',
-             'params': {'_address': contracts['lendingPoolDataProvider']}},
-            {'contract': 'oUSDS', 'method': 'setLendingPool',
-             'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'oUSDS', 'method': 'setLiquidation', 
-             'params': {'_address': contracts['liquidationManager']}},
-            {'contract': 'oUSDS', 'method': 'setDistributionManager',
-             'params':{'_address':contracts['rewardDistribution']}},
-            ]
-
-        self._get_transaction(settings_oToken)
-
-    def _config_priceOracleRef(self):
-        print(
-            "-------------------------------Configuring PRICE ORACLE REFERENCE DATA----------------------------------------------------")
-
-        contracts = self.contracts
-        setting_priceOracle = [
-            {'contract': 'priceOracle', 'method': 'set_reference_data',
-            'params': {'_base': 'USDs', '_quote': 'USD', '_rate': 1 * 10 ** 18}},
-            {'contract': 'priceOracle', 'method': 'set_reference_data',
-            'params': {'_base': 'ICX', '_quote': 'USD', '_rate': 15 * 10 ** 17}},
-            # {'contract': 'priceOracle', 'method': 'set_reference_data', 
-            # 'params':{'_base':'IUSDC','_quote':'USDC','_rate':10*10**17}}
-        ]
-
-        self._get_transaction(setting_priceOracle)
-
-    def _config_addressProvider(self):
-        print(
-            "-------------------------------Configuring ADDRESS PROVIDER ----------------------------------------------------")
-
-        contracts = self.contracts
-        setting_addressProvider = [
-            {'contract': 'addressProvider', 'method': 'setLendingPool',
-            'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'addressProvider', 'method': 'setLendingPoolDataProvider',
-            'params': {'_address': contracts['lendingPoolDataProvider']}},
-            {'contract': 'addressProvider', 'method': 'setUSDs',
-            'params': {'_address': contracts['usds']}},
-            {'contract': 'addressProvider', 'method': 'setoUSDs',
-            'params': {'_address': contracts['oUSDS']}},
-            {'contract': 'addressProvider', 'method': 'setsICX',
-            'params': {'_address': contracts['sicx']}},
-            {'contract': 'addressProvider', 'method': 'setoICX',
-            'params': {'_address': contracts['oICX']}},
-            {'contract': 'addressProvider', 'method': 'setStaking',
-            'params': {'_address': contracts['staking']}},
-            # {'contract': 'addressProvider', 'method': 'setIUSDC', 
-            # 'params':{'_address':contracts['iusdc']}},
-            # {'contract': 'addressProvider', 'method': 'setoIUSDC', 
-            # 'params':{'_address':contracts['oIUSDC']}},
-            {'contract': 'addressProvider', 'method': 'setOmmToken',
-            'params': {'_address': contracts['ommToken']}},
-            {'contract': 'addressProvider', 'method': 'setDelegation',
-            'params': {'_address': contracts['delegation']}},
-            {'contract': 'addressProvider', 'method': 'setRewards',
-             'params': {'_address': contracts['rewardDistribution']}},
-            {'contract': 'addressProvider', 'method': 'setdUSDs', 
-            'params':{'_address':contracts['dUSDS']}},
-            # {'contract': 'addressProvider', 'method': 'setdIUSDC', 
-            # 'params':{'_address':contracts['dIUSDC']}},
-            {'contract': 'addressProvider', 'method': 'setdICX', 
-            'params':{'_address':contracts['dICX']}}
-        ]
-        self._get_transaction(setting_addressProvider)
-
-    def _config_lendingPoolCoreSettings(self):
-        '''
-        Done via governance now.
-        '''
+    def _add_reserves_constants(self):
         print(
             "-------------------------------Configuring LENDING POOL CORE RESERVE SETTINGS VIA GOVERNANCE ----------------------------------------------------")
 
@@ -613,257 +515,67 @@ class OMMTestBase(TestUtils):
 
         self._get_transaction(settings_reserves)
 
-    def _config_oICX(self):
-        print("-------------------------------Configuring OICX ----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_oicx = [
-            {'contract': 'oICX', 'method': 'setLendingPoolCore',
-             'params': {'_address': contracts['lendingPoolCore']}},
-            {'contract': 'oICX', 'method': 'setReserve',
-             'params': {'_address': contracts['sicx']}},
-            {'contract': 'oICX', 'method': 'setLendingPoolDataProvider',
-             'params': {'_address': contracts['lendingPoolDataProvider']}},
-            {'contract': 'oICX', 'method': 'setLendingPool',
-             'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'oICX', 'method': 'setLiquidation', 
-            'params': {'_address': contracts['liquidationManager']}},
-            {'contract': 'oICX', 'method': 'setDistributionManager',
-             'params':{'_address':contracts['rewardDistribution']}},
-            ]
-
-        self._get_transaction(settings_oicx)
-
-    # def _config_oIUSDC(self):
-    #   print("-------------------------------Configuring OIUSDC ----------------------------------------------------")
-
-    #   contracts = self.contracts
-    #   settings_oiusdc = [ {'contract': 'oIUSDC', 'method': 'setLendingPoolCore', 'params':{'_address':contracts['lendingPoolCore']}},
-    #               {'contract': 'oIUSDC', 'method': 'setReserve', 'params':{'_address':contracts['iusdc']}},
-    #               {'contract': 'oIUSDC', 'method': 'setLendingPoolDataProvider', 'params':{'_address':contracts['lendingPoolDataProvider']}},
-    #               {'contract': 'oIUSDC', 'method': 'setLendingPool', 'params':{'_address':contracts['lendingPool']}},
-    #               {'contract': 'oIUSDC', 'method': 'setLiquidation', 'params':{'_address':contracts['liquidationManager']}}
-    #               ]
-    #   self._get_transaction(settings_oiusdc)
-
-    def _config_liquidationManager(self):
-        print(
-            "-------------------------------Configuring LIQUIDATION MANAGER ----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_liquidationManager = [
-            {'contract': 'liquidationManager', 'method': 'setLendingPoolDataProvider',
-            'params': {'_address': contracts['lendingPoolDataProvider']}},
-            {'contract': 'liquidationManager', 'method': 'setLendingPoolCore',
-            'params': {'_address': contracts['lendingPoolCore']}},
-            {'contract': 'liquidationManager', 'method': 'setFeeProvider',
-            'params': {'_address': contracts['feeProvider']}},
-            {'contract': 'liquidationManager', 'method': 'setPriceOracle',
-            'params': {'_address': contracts['priceOracle']}},
-            {'contract': 'liquidationManager', 'method': 'setStaking',
-            'params': {'_address': contracts['staking']}}
-        ]
-        self._get_transaction(settings_liquidationManager)
-
-    def _config_delegation(self):
-        print(
-            "-------------------------------Configuring DELEGATION ----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_delegation = [{'contract': 'delegation', 'method': 'setLendingPoolCore',
-                                'params': {'_address': contracts['lendingPoolCore']}},
-                               {'contract': 'delegation', 'method': 'setOmmToken',
-                                'params': {'_address': contracts['ommToken']}}]
-        self._get_transaction(settings_delegation)
-
-    def _config_ommToken(self):
-        print(
-            "-------------------------------Configuring OMM TOKEN ----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_ommToken = [
-            {'contract': 'ommToken', 'method': 'setAdmin', 
-            'params': {'_admin': contracts['rewardDistribution']}},
-            {'contract': 'ommToken', 'method': 'setDelegation',
-            'params': {'_address': contracts['delegation']}},
-            {'contract': 'ommToken', 'method': 'setRewards',
-             'params': {'_address': contracts['rewardDistribution']}},
-            {'contract': 'ommToken', 'method': 'setMinimumStake',
-            'params': {'_min': 10 * 10 ** 18}},
-            {'contract': 'ommToken', 'method': 'setUnstakingPeriod', 
-            'params': {'_time': 120}}
-            ]
-        self._get_transaction(settings_ommToken)
-
-    def _config_lendingPoolCore(self):
-        print(
-            "-------------------------------Configuring LENDING POOL CORE ----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_lendingPoolCore = [
-            {'contract': 'lendingPoolCore', 'method': 'setLendingPool',
-            'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'lendingPoolCore', 'method': 'setFeeProvider',
-            'params': {'_address': contracts['feeProvider']}},
-            # {'contract': 'lendingPoolCore', 'method': 'setPriceOracle',
-            #  'params': {'_address': contracts['priceOracle']}},
-            {'contract': 'lendingPoolCore', 'method': 'setLiquidationManager',
-            'params': {'_address': contracts['liquidationManager']}},
-            {'contract': 'lendingPoolCore', 'method': 'setDelegation',
-            'params': {'_address': contracts['delegation']}},
-            {'contract': 'lendingPoolCore', 'method': 'setGovernance',
-            'params': {'_address': contracts['governance']}},
-            {'contract': 'lendingPoolCore', 'method': 'setStaking',
-            'params': {'_address': contracts['staking']}},
-            {'contract': 'lendingPoolCore', 'method': 'set_id', 'params': {'_value': '1'}}
-        ]
-
-        self._get_transaction(settings_lendingPoolCore)
-
-    # def _config_priceOracle(self):
-    #   print("-------------------------------Configuring PRICE ORACLE -----------------------------------------------------")
-
-    #   contracts = self.contracts
-    #   settings_priceOracle =[{'contract':  'priceOracle', 'method': 'setBandOracle','params': {'_address':"cx61a36e5d10412e03c907a507d1e8c6c3856d9964"}},
-    #                  {'contract':  'priceOracle', 'method': 'toggleOraclePriceBool','params':{}}]
-
-    #   tx = self.getTransaction(settings_priceOracle)
-
-    def _config_snapshot(self):
-        print(
-            "-------------------------------Configuring SNAPSHOT ----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_snapshot = [
-            {'contract': 'snapshot', 'method': 'setAdmin',
-             'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'snapshot', 'method': 'setGovernance', 
-            'params': {'_address': contracts['governance']}}
-        ]
-
-        self._get_transaction(settings_snapshot)
-
     def _config_rewards(self):
         print("-------------------------------Configuring REWARDS ----------------------------------------------------")
 
         contracts = self.contracts
         settings_rewards = [
-            {'contract': 'rewardDistribution', 'method': 'setLendingPoolDataProvider',
-             'params': {'_address': contracts['lendingPoolDataProvider']}},
-            {'contract': 'rewardDistribution', 'method': 'setOmm',
-             'params': {'_address': contracts['ommToken']}},
-            {'contract':'rewardDistribution','method':'setDistPercentage',
-             'params':{ 
-                "_ommICX": 1*10**17, 
-                "_dex": 1*10**17, 
-                "_worker": 2*10**17, 
-                "_daoFund": 2*10**17
-                }
-            },
             {'contract': 'rewardDistribution', 'method': 'configureAssetEmission',
-             'params': {
-                "_assetConfig": 
-                    [
-                        {"asset": contracts["oUSDS"], "emissionPerSecond":f"{EMISSION_PER_ASSET}",'totalBalance': "0" },
-                        {"asset": contracts["dUSDS"], "emissionPerSecond":f"{EMISSION_PER_ASSET}",'totalBalance': "0" },
-                        {"asset": contracts["dICX"], "emissionPerSecond":f"{EMISSION_PER_ASSET}",'totalBalance': "0" },
-                        {"asset": contracts["oICX"], "emissionPerSecond":f"{EMISSION_PER_ASSET}",'totalBalance': "0"}, 
-                        # {"asset": contracts["oIUSDC"], "emissionPerSecond":f"{EMISSION_PER_ASSET}",'totalBalance': "0" },
-                        # {"asset": contracts["dIUSDC"], "emissionPerSecond":f"{EMISSION_PER_ASSET}",'totalBalance': "0"} 
-                    ]             
-                }
+                     'params': {
+                        "_assetConfig":
+                            [
+                                {"asset": contracts["oUSDS"], "distPercentage":f"{OUSDS_EMISSION}"},
+                                {"asset": contracts["dUSDS"], "distPercentage":f"{DUSDS_EMISSION}"},
+                                {"asset": contracts["dICX"], "distPercentage":f"{DICX_EMISSION}"},
+                                {"asset": contracts["oICX"], "distPercentage":f"{OICX_EMISSION}"},
+                                # {"asset": contracts["oIUSDC"], "distPercentage":f"{OIUSDC_EMISSION}"},
+                                # {"asset": contracts["dIUSDC"], "distPercentage":f"{DIUSDC_EMISSION}"}
+                            ]
+                        }
             },
-            {'contract': 'rewardDistribution', 'method': 'setWorkerToken',
-             'params': {'_address': contracts['worker_token']}},
-            {'contract': 'rewardDistribution', 'method': 'setAdmin',
-             'params': {'_address': contracts['governance']}},
-            {'contract': 'rewardDistribution', 'method': 'setDaoFund',
-             'params': {'_address': contracts['daoFund']}},
-            {'contract': 'rewardDistribution', 'method': 'setLpToken',
-             'params': {'_address': contracts['lpToken']}},
-            {'contract': 'rewardDistribution', 'method': 'setLendingPool',
-             'params': {'_address': contracts['lendingPool']}},
-            {'contract': 'rewardDistribution', 'method': 'setGovernance',
-             'params': {'_address': contracts['governance']}}
+            {'contract': 'rewardDistribution', 'method': 'configureLPEmission',
+                     'params': {
+                        "_lpConfig":
+                            [
+                                {"_id": f"{OMM_SICX_ID}", "distPercentage": f"{OMM_SICX_DIST_PERCENTAGE}"},
+                                {"_id": f"{OMM_USDS_ID}", "distPercentage": f"{OMM_USDS_DIST_PERCENTAGE}"},
+                                # {"_id": f"{OMM_USDC_ID}", "distPercentage": f"{OMM_USDC_DIST_PERCENTAGE}"}
+                            ]
+                        }
+            },
+            {'contract': 'rewardDistribution', 'method': 'configureOmmEmission',
+                     'params': { "_distPercentage": f"{OMM_DIST_PERCENTAGE}"}
+            },
+            {'contract':'rewardDistribution','method':'setDailyDistributionPercentage',
+                     'params':{"_recipient": "worker" ,"_percentage": f"{WORKER_DIST_PERCENTAGE}"}
+            },
+            {'contract':'rewardDistribution','method':'setDailyDistributionPercentage',
+                     'params':{"_recipient": "daoFund","_percentage":f"{DAO_DIST_PERCENTAGE}"}
+            },
+            {'contract':'lendingPoolDataProvider','method':'setDistPercentages',
+                     'params':{
+                         "_percentages": [
+                             {'recipient': 'worker' ,'distPercentage': f"{WORKER_DIST_PERCENTAGE}"},
+                             {'recipient': 'daoFund' ,'distPercentage': f"{DAO_DIST_PERCENTAGE}" }
+                         ]
+                     }
+            }
         ]
 
         self._get_transaction(settings_rewards)
-
-    def _config_governance(self):
-        print(
-            "-------------------------------Configuring GOVERNANCE ----------------------------------------------------")
-
-        contracts = self.contracts
-        settings_governance = [
-            # {'contract': 'governance', 'method': 'setSnapshot',
-            #  'params': {'_address': contracts['snapshot']}},
-            {'contract': 'governance', 'method': 'setLendingPoolCore',
-             'params':{'_address':contracts['lendingPoolCore']}},
-            {'contract': 'governance', 'method': 'setRewards',
-             'params': {'_address': contracts['rewardDistribution']}},
-            {'contract': 'governance', 'method': 'setStartTimestamp',
-             'params': {'_timestamp': TIMESTAMP}}
-        ]
-        self._get_transaction(settings_governance)
 
     def _config_staking(self):
         print("-------------------------------Configuring STAKING----------------------------------------------------")
 
         contracts = self.contracts
-        txs = [
-            self.build_tx(self.deployer_wallet, to=self.contracts['staking'],
-                          method='setSicxAddress', params={'_address': self.contracts['sicx']}),
-            self.build_tx(self.deployer_wallet,
-                          to=self.contracts['staking'], method='toggleStakingOn')
+        settings_staking = [
+            {'contract': 'staking', 'method': 'setSicxAddress',
+             'params':{'_address':contracts['sicx']}},
+            {'contract': 'staking', 'method': 'toggleStakingOn',
+             'params': {}}
         ]
 
-        results = self.process_transaction_bulk(
-            requests=txs,
-            network=self.icon_service,
-            block_confirm_interval=self.tx_result_wait
-        )
-
-        for tx_result in results:
-            self.assertTrue('status' in tx_result, tx_result)
-            self.assertEqual(1, tx_result['status'],
-                             f"Failure: {tx_result['failure']}" if tx_result['status'] == 0 else "")
-
-    def _config_debt_tokens(self):
-        print("-------------------------------Configuring DEBT Tokens----------------------------------------------------")
-        contracts = self.contracts
-        print("-------------------------------Configuring ICX DEBT Token----------------------------------------------------")
-
-        settings_dicx = [
-            {'contract': 'dICX', 'method': 'setLendingPoolCore', 'params':{'_address':contracts['lendingPoolCore']}},
-            {'contract': 'dICX', 'method': 'setReserve', 'params':{'_address':contracts['sicx']}},
-            {'contract': 'dICX', 'method': 'setLendingPoolDataProvider', 'params':{'_address':contracts['lendingPoolDataProvider']}},
-            {'contract': 'dICX', 'method': 'setLendingPool', 'params':{'_address':contracts['lendingPool']}},
-            {'contract': 'dICX', 'method': 'setLiquidation', 'params':{'_address':contracts['liquidationManager']}},
-            {'contract': 'dICX', 'method': 'setDistributionManager', 'params':{'_address':contracts['rewardDistribution']}},
-            {'contract': 'dICX', 'method': 'setDistributionManager', 'params':{'_address':contracts['rewardDistribution']}}
-        ]
-        self._get_transaction(settings_dicx)
-
-        print("-------------------------------Configuring USDS DEBT Token----------------------------------------------------")
-
-        settings_dUSDS = [
-            {'contract': 'dUSDS', 'method': 'setLendingPoolCore', 'params':{'_address':contracts['lendingPoolCore']}},
-            {'contract': 'dUSDS', 'method': 'setReserve', 'params':{'_address':contracts['usds']}},
-            {'contract': 'dUSDS', 'method': 'setLendingPoolDataProvider', 'params':{'_address':contracts['lendingPoolDataProvider']}},
-            {'contract': 'dUSDS', 'method': 'setLendingPool', 'params':{'_address':contracts['lendingPool']}},
-            {'contract': 'dUSDS', 'method': 'setLiquidation', 'params':{'_address':contracts['liquidationManager']}},
-            {'contract': 'dUSDS', 'method': 'setDistributionManager', 'params':{'_address':contracts['rewardDistribution']}}
-        ]
-        self._get_transaction(settings_dUSDS)
-
-        # settings_diusdc =[
-        #     {'contract': 'dIUSDC', 'method': 'setLendingPoolCore', 'params':{'_address':contracts['lendingPoolCore']}},
-        #     {'contract': 'dIUSDC', 'method': 'setReserve', 'params':{'_address':contracts['iusdc']}},
-        #     {'contract': 'dIUSDC', 'method': 'setLendingPoolDataProvider', 'params':{'_address':contracts['lendingPoolDataProvider']}},
-        #     {'contract': 'dIUSDC', 'method': 'setLendingPool', 'params':{'_address':contracts['lendingPool']}},
-        #     {'contract': 'dIUSDC', 'method': 'setLiquidation', 'params':{'_address':contracts['liquidationManager']}}]
-
-        # self._get_transaction(settings_diusdc)
+        self._get_transaction(settings_staking)
 
     def _add_reserves_to_lendingPoolCore(self):
         print(

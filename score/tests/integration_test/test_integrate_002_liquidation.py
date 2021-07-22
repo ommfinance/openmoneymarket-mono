@@ -218,7 +218,6 @@ class LiquidationTest(OmmUtils):
                 tx = self._transfer(liquidator, params, reserve_token_address)
 
                 if tx.get("status") == 0:
-                    print(tx)
                     print(tx["failure"])
                 else:
                     self.return_amount["value"] = _int(tx['eventLogs'][7]['data'][0])
@@ -254,14 +253,14 @@ class LiquidationTest(OmmUtils):
         if collaterals is not None:
             if collaterals.get("ICX") is not None:
                 icx_collateral = _int(collaterals.get("ICX").get("underlyingBalanceUSD"))
-            if collaterals.get("USDs") is not None:
-                usds_collateral = _int(collaterals.get("USDs").get("underlyingBalanceUSD"))
+            if collaterals.get("USDS") is not None:
+                usds_collateral = _int(collaterals.get("USDS").get("underlyingBalanceUSD"))
         if icx_collateral > usds_collateral:
             self._collateral = "sicx"
             self._collateral_coin = "ICX"
         else:
             self._collateral = "usds"
-            self._collateral_coin = "USDs"
+            self._collateral_coin = "USDS"
 
     def _set_reserve_value(self, key, collateral_params, reserve_params):
         self.values[key]["reserve"][self._reserve] = self.call_tx(

@@ -655,4 +655,4 @@ class LendingPoolDataProvider(IconScoreBase):
         decimals = supply['decimals']
         supply['principalUserBalance'] = convertToExa(supply['principalUserBalance'], decimals)
         supply['principalTotalSupply'] = convertToExa(supply['principalTotalSupply'], decimals)
-        return sup
+        return supply

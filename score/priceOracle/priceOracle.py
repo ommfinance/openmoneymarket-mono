@@ -71,6 +71,7 @@ class PriceOracle(IconScoreBase):
 
     def on_install(self) -> None:
         super().on_install()
+        self._oraclePriceBool.set(True)
 
     def on_update(self) -> None:
         super().on_update()
