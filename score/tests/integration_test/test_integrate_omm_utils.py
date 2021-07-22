@@ -168,8 +168,7 @@ class OmmUtils(OMMTestBase):
 
     def _stakeLp(self, _from, _amount, _id):
         data = {
-            'method': 'stake',
-            'params': ''
+            'method': "stake"
         }
 
         data = json.dumps(data).encode('utf-8')
@@ -204,8 +203,45 @@ class OmmUtils(OMMTestBase):
             )
 
         return tx_result
+        
+    def _stakeOMM(self, _from, _value):
+        params = {
+            '_value': _value
+        }
 
+        tx_result = self.send_tx(
+                from_=_from,
+                to=self.contracts["lendingPool"],
+                method="stake",
+                params=params
+            )
 
+        return tx_result
 
+    def _unstakeOMM(self, _from, _value):
+        params = {
+            '_value': _value
+        }
 
+        tx_result = self.send_tx(
+                from_=_from,
+                to=self.contracts["lendingPool"],
+                method="unstake",
+                params=params
+            )
+        return tx_result
 
+    def _transferOMM(self, _from, _to, _value):
+        params = {
+            '_to': _to,
+            '_value': _value
+        }
+
+        tx_result = self.send_tx(
+                from_=_from,
+                to=self.contracts["ommToken"],
+                method="transfer",
+                params=params
+            )
+
+        return tx_result
