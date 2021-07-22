@@ -10,7 +10,6 @@ LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
 class SupplyDetails(TypedDict):
     principalUserBalance: int
     principalTotalSupply: int
-    decimals: int
 
 
 class AddressDetails(TypedDict):
@@ -247,10 +246,13 @@ class OToken(IconScoreBase, TokenStandard):
 
     @external(readonly=True)
     def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
+        decimals = self.decimals()
+        principalBalanceOf = convertToExa(self.principalBalanceOf(_user), decimals)
+        principalTotalSupply = convertToExa(self.principalTotalSupply(), decimals)
+
         return {
-            'principalUserBalance': self.principalBalanceOf(_user),
-            'principalTotalSupply': self.principalTotalSupply(),
-            'decimals': self.decimals()
+            'principalUserBalance': principalBalanceOf,
+            'principalTotalSupply': principalTotalSupply
         }
 
     @only_lending_pool
