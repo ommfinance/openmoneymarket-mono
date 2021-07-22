@@ -14,16 +14,16 @@ class TestPriceOracle(ScoreTestCase):
         self._owner = self.test_account1
         self.score = self.get_score_instance(PriceOracle, self._owner)
 
-        self.mock_lp_address = Address.from_string(f"cx{'1231' * 10}")
         self.mock_band_oracle = Address.from_string(f"cx{'1232' * 10}")
         self.mock_address_provider = Address.from_string(f"cx{'1234' * 10}")
+        self.mock_dex = Address.from_string(f"cx{'1235' * 10}")
 
         self.set_tx(origin=self._owner)
 
         self.score.setAddresses([
-            {"name": 'lendingPoolDataProvider', "address": self.mock_lp_address},
             {"name": "bandOracle", "address": self.mock_band_oracle},
-            {"name": "addressProvider", "address": self.mock_address_provider}
+            {"name": "addressProvider", "address": self.mock_address_provider},
+            {"name": "dex", "address": self.mock_dex}
         ])
 
     def test_get_reference_data_for_omm(self):
@@ -59,11 +59,11 @@ class TestPriceOracle(ScoreTestCase):
             else:
                 raise InvalidParamsException(f"Invalid parameter {_name}")
 
-        self.patch_internal_method(self.mock_lp_address, "getPriceByName", _price_side_effect)
+        self.patch_internal_method(self.mock_dex, "getPriceByName", _price_side_effect)
 
         actual_result = self.score.get_reference_data("OMM", "USD")
 
-        _mock_dex_score = get_interface_score(self.mock_lp_address)
+        _mock_dex_score = get_interface_score(self.mock_dex)
 
         self.assertEqual(4, _mock_dex_score.getPriceByName.call_count)
 

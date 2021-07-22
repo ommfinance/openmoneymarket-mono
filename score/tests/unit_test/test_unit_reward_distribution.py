@@ -1,15 +1,14 @@
 import os
 from unittest import mock
-from unittest.mock import Mock, call
+from unittest.mock import call, ANY
 
 from iconservice import Address, IconScoreException, AddressPrefix
 from tbears.libs.scoretest.patch.score_patcher import ScorePatcher, get_interface_score
+from tbears.libs.scoretest.score_test_case import ScoreTestCase
 from typing_extensions import TypedDict
 
 from rewardDistribution.Math import exaDiv, exaMul
-from rewardDistribution.rewardDistribution import AssetConfig
 from rewardDistribution.rewardDistributionController import RewardDistributionController
-from tbears.libs.scoretest.score_test_case import ScoreTestCase
 
 EXA = 10 ** 18
 TIME = 10 ** 6
@@ -103,7 +102,7 @@ class TestRewardDistributionController(ScoreTestCase):
         worker = config["worker"]
         dao_fund = config["daoFund"]
 
-        self.score.setDailyDistributionPercentage("worker_token", worker)
+        self.score.setDailyDistributionPercentage("worker", worker)
         self.score.setDailyDistributionPercentage("daoFund", dao_fund)
         self.set_msg(self.test_account2, 1)
 
@@ -167,7 +166,7 @@ class TestRewardDistributionController(ScoreTestCase):
 
         self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
 
-        actual_result = self.score.getDailyDistributionPercentage("worker_token")
+        actual_result = self.score.getDailyDistributionPercentage("worker")
         self.assertEqual(DISTRIBUTION_CONFIG["worker"], actual_result)
 
         actual_result = self.score.getDailyDistributionPercentage("daoFund")
@@ -179,6 +178,7 @@ class TestRewardDistributionController(ScoreTestCase):
         """
         _asset_config = {
             "asset": ASSET_ADDRESS_1,
+            "assetName": "assetName_1",
             "distPercentage": 15 * EXA // 10,
             "totalSupply": 0
         }
@@ -365,11 +365,14 @@ class TestRewardDistributionController(ScoreTestCase):
         Should return 0 as reward balance if asset emission is not configureAssetEmission
         """
         self.register_interface_score(self.mock_lending_pool_core)
-
+        self.patch_internal_method(self.mock_omm_token, "getPrincipalSupply",
+                                   lambda _address: {
+                                       'principalUserBalance': 0,
+                                       'principalTotalSupply': 0
+                                   })
         actual_result = self.score.getRewards(self.test_account2)
-        expected_result = {'totalRewards': 0}
 
-        self.assertDictEqual(expected_result, actual_result)
+        self.assertEqual(0, actual_result["total"])
 
     def test_get_rewards_balance_1(self):
         """
@@ -436,7 +439,7 @@ class TestRewardDistributionController(ScoreTestCase):
         actual_result = self._call_get_rewards_balance(self.test_account2, _mock_time_elapsed, _supply)
 
         self.assertAlmostEqual(2546.2962962963, actual_result["assetName_1"] / EXA, 10)
-        self.assertAlmostEqual(2546.2962962963, actual_result["totalRewards"] / EXA, 10)
+        self.assertAlmostEqual(2546.2962962963, actual_result["total"] / EXA, 10)
 
         _mock_time_elapsed = 850 * TIME
         _user = {
@@ -467,7 +470,7 @@ class TestRewardDistributionController(ScoreTestCase):
 
         actual_result = self._call_get_rewards_balance(_user_1, _mock_time_elapsed, _supply)
         self.assertAlmostEqual(7638.8888888889, actual_result["assetName_1"] / EXA, 10)
-        self.assertAlmostEqual(7638.8888888889, actual_result["totalRewards"] / EXA, 10)
+        self.assertAlmostEqual(7638.8888888889, actual_result["total"] / EXA, 10)
 
         _supply = {
             'principalUserBalance': _user2_balance * EXA,
@@ -479,7 +482,7 @@ class TestRewardDistributionController(ScoreTestCase):
 
         actual_result = self._call_get_rewards_balance(_user_2, _mock_time_elapsed, _supply)
         self.assertAlmostEqual(3819.4444444445, actual_result["assetName_1"] / EXA, 9)
-        self.assertAlmostEqual(3819.4444444445, actual_result["totalRewards"] / EXA, 9)
+        self.assertAlmostEqual(3819.4444444445, actual_result["total"] / EXA, 9)
 
     def test_get_rewards_balance_2(self):
         """
@@ -532,7 +535,7 @@ class TestRewardDistributionController(ScoreTestCase):
         _mock_time_elapsed = 500 * TIME
         actual_result = self._call_get_rewards_balance(_user_1, _mock_time_elapsed, _supply)
         self.assertAlmostEqual(5092.5925925926, actual_result["assetName_1"] / EXA, 9)
-        self.assertAlmostEqual(5092.5925925926, actual_result["totalRewards"] / EXA, 9)
+        self.assertAlmostEqual(5092.5925925926, actual_result["total"] / EXA, 9)
 
         _mock_time_elapsed = 500 * TIME
         _user = {
@@ -569,7 +572,8 @@ class TestRewardDistributionController(ScoreTestCase):
         }
         _current_index = self._call_handle_action(_user, _asset, _time, _current_index)
 
-        self.assertAlmostEqual(7002.3148148148, self.score._usersUnclaimedRewards[self.test_account2][ASSET_ADDRESS_1]/EXA,9)
+        self.assertAlmostEqual(7002.3148148148,
+                               self.score._usersUnclaimedRewards[self.test_account2][ASSET_ADDRESS_1] / EXA, 9)
 
         _user1_balance -= 50
         _total_supply -= 50
@@ -586,7 +590,7 @@ class TestRewardDistributionController(ScoreTestCase):
         actual_result = self._call_get_rewards_balance(_user_1, _mock_time_elapsed, _supply)
 
         self.assertAlmostEqual(11840.2777777778, actual_result["assetName_1"] / EXA, 9)
-        self.assertAlmostEqual(11840.2777777778, actual_result["totalRewards"] / EXA, 9)
+        self.assertAlmostEqual(11840.2777777778, actual_result["total"] / EXA, 9)
 
         _supply = {
             'principalUserBalance': _user2_balance * EXA,
@@ -596,7 +600,7 @@ class TestRewardDistributionController(ScoreTestCase):
                                    lambda _address: _supply)
         actual_result = self._call_get_rewards_balance(_user_2, _mock_time_elapsed, _supply)
         self.assertAlmostEqual(11585.6481481482, actual_result["assetName_1"] / EXA, 9)
-        self.assertAlmostEqual(11585.6481481482, actual_result["totalRewards"] / EXA, 9)
+        self.assertAlmostEqual(11585.6481481482, actual_result["total"] / EXA, 9)
 
     def _call_get_rewards_balance(self, _user, _mock_time_elapsed, _supply):
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
@@ -659,39 +663,43 @@ class TestRewardDistributionController(ScoreTestCase):
         actual_result = self._call_get_rewards_balance(_user1, _mock_time_elapsed, _supply)
 
         self.assertAlmostEqual(5092.5925925926, actual_result["assetName_1"] / EXA, 9)
-        self.assertAlmostEqual(5092.5925925926, actual_result["totalRewards"] / EXA, 9)
+        self.assertAlmostEqual(5092.5925925926, actual_result["total"] / EXA, 9)
 
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
             self.set_msg(self.mock_lending_pool, 1)
             self.score.claimRewards(_user1)
 
-            # _calls = [
-            #     call(_user1,5092.5925925926, "Asset rewards")
-            # ]
-            #
-            # self.score.RewardsClaimed.assert_has_calls(_calls)
+            _calls = [
+                call(_user1, ANY, "Asset rewards")
+            ]
+
+            self.score.RewardsClaimed.assert_has_calls(_calls)
+            self.score.RewardsAccrued.assert_called_with(_user1, self.score.address, ANY)
             self.assert_internal_call(ASSET_ADDRESS_1, "getPrincipalSupply", _user1)
+            self.assert_internal_call(self.mock_omm_token, "transfer", _user1, ANY)
 
         self.assertEqual(0, self.score._usersUnclaimedRewards[_user1][ASSET_ADDRESS_1])
         self.assertEqual(self.score._userIndex[_user1][ASSET_ADDRESS_1], self.score._assetIndex[ASSET_ADDRESS_1])
 
-        _mock_time_elapsed = 900 * TIME
+        _mock_time_elapsed = 999 * TIME
 
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
             self.set_msg(self.mock_lending_pool, 1)
             self.score.claimRewards(_user1)
-            # TODO
-            # self.score.RewardsClaimed.assert_called_with(_user1, 4000 * EXA, "borrowDepositRewards")
+            self.score.RewardsClaimed.assert_called_with(_user1, ANY, "Asset rewards")
+            self.score.RewardsAccrued.assert_called_with(_user1, self.score.address, ANY)
             self.assert_internal_call(ASSET_ADDRESS_1, "getPrincipalSupply", _user1)
+            self.assert_internal_call(self.mock_omm_token, "transfer", _user1, ANY)
 
         self.assertEqual(0, self.score._usersUnclaimedRewards[_user1][ASSET_ADDRESS_1])
         self.assertEqual(self.score._userIndex[_user1][ASSET_ADDRESS_1], self.score._assetIndex[ASSET_ADDRESS_1])
+        self.assertAlmostEqual(114.4560185185, self.score._assetIndex[ASSET_ADDRESS_1] / EXA, 9)
 
-        _mock_time_elapsed = 1300 * TIME
+        _mock_time_elapsed = 1354 * TIME
 
         actual_result = self._call_get_rewards_balance(_user1, _mock_time_elapsed, _supply)
-        self.assertAlmostEqual(5092.5925925926, actual_result["assetName_1"] / EXA, 9)
-        self.assertAlmostEqual(5092.5925925926, actual_result["totalRewards"] / EXA, 9)
+        self.assertAlmostEqual(4519.6759259259, actual_result["assetName_1"] / EXA, 9)
+        self.assertAlmostEqual(4519.6759259259, actual_result["total"] / EXA, 9)
 
     def test_initial_distribute(self):
 
@@ -703,59 +711,27 @@ class TestRewardDistributionController(ScoreTestCase):
         ## initialized
         self.score._day.set(0)
         with mock.patch.object(self.score, "getDay", return_value=1):
-            ## initialized and precompute ommICX
-            self.patch_internal_method(self.mock_lp_token, "getTotalValue", lambda _name, _snapshot_id: 0 * EXA)
-
-            self.score.distribute()
-
-            self.assertEqual(0 * EXA, self.score._totalAmount["ommICX"])
-            self.assertEqual(30 * 10 ** 6, self.score._tokenDistTracker["ommICX"])
-            self.assertTrue(self.score._precompute["ommICX"])
-
-            self.assert_internal_call(self.mock_lp_token, "getTotalValue", "OMM/sICX", 0)
-
-            ##distribute ommICX skipped and precompute dex
-            self.score.Distribution.reset_mock()
-            self.patch_internal_method(self.mock_lp_token, "getTotalValue", lambda _name,
-                                                                                   _snapshot_id: 0)
-
-            self.score.distribute()
-
-            self.assert_internal_call(self.mock_omm_token, "transfer", self.mock_dao_fund, 30 * 10 ** 6)
-            self.score.Distribution.assert_called_with("daoFund", self.mock_dao_fund, 30 * 10 ** 6)
-
-            self.assertTrue(self.score._distComplete["ommICX"])
-            self.assertEqual(0, self.score._tokenDistTracker["ommICX"])
-
-            self.assertEqual(0 * EXA, self.score._totalAmount["dex"])
-
-            self.assertEqual(30 * 10 ** 6, self.score._tokenDistTracker["dex"])
-            self.assertTrue(self.score._precompute["dex"])
-
             ##distribute dex skipped and distribute worker
-            self.score.Distribution.reset_mock()
             _wallets = self._mock_worker_token_score()
 
             self.score.distribute()
-
-            self.assert_internal_call(self.mock_omm_token, "transfer", self.mock_dao_fund, 30 * 10 ** 6)
-            self.assertTrue(self.score._distComplete["dex"])
-            self.assertEqual(0, self.score._tokenDistTracker["dex"])
-
-            self.assertEqual(10 * 10 ** 5, self.score._tokenValue[_wallets[0]]["worker"])
-            self.assertEqual(20 * 10 ** 5, self.score._tokenValue[_wallets[1]]["worker"])
-            self.assertEqual(30 * 10 ** 5, self.score._tokenValue[_wallets[2]]["worker"])
-            self.assertEqual(40 * 10 ** 5, self.score._tokenValue[_wallets[3]]["worker"])
+            mock_omm_token_score = get_interface_score(self.mock_omm_token)
+            _calls = [
+                call(_wallets[0], 1 * 10 ** 6),
+                call(_wallets[1], 2 * 10 ** 6),
+                call(_wallets[2], 3 * 10 ** 6),
+                call(_wallets[3], 4 * 10 ** 6),
+            ]
+            mock_omm_token_score.transfer.assert_has_calls(_calls)
 
             _calls = [
-                call("daoFund", self.mock_dao_fund, 30 * 10 ** 6),
                 call("worker", _wallets[0], 10 * 10 ** 5),
                 call("worker", _wallets[1], 20 * 10 ** 5),
                 call("worker", _wallets[2], 30 * 10 ** 5),
                 call("worker", _wallets[3], 40 * 10 ** 5),
             ]
             self.score.Distribution.assert_has_calls(_calls)
-            self.assertTrue(self.score._distComplete["dex"])
+            self.assertTrue(self.score._distComplete["worker"])
 
             ##distribute daoFund
             self.score.Distribution.reset_mock()
@@ -766,50 +742,6 @@ class TestRewardDistributionController(ScoreTestCase):
             self.score.Distribution.assert_called_with("daoFund", self.mock_dao_fund, 30 * 10 ** 6)
             self.assertEqual(1, self.score._day.get())
 
-    def test_distribute_worker(self):
-        self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
-
-        self.register_interface_score(self.mock_worker_token)
-        self.register_interface_score(self.mock_omm_token)
-
-        ## initialized
-        self.score._day.set(31)
-        self.score._initialize()
-        self.score._precompute["dex"] = True
-        self.score._precompute["ommICX"] = True
-        self.score._distComplete["dex"] = True
-        self.score._distComplete["ommICX"] = True
-
-        with mock.patch.object(self.score, "getDay", return_value=32):
-            _wallets = self._mock_worker_token_score()
-            total_token = self.score._tokenDistTracker["worker"]
-            self.score.distribute()
-
-            mock_omm_token_score = get_interface_score(self.mock_omm_token)
-            self.assertFalse(mock_omm_token_score.transfer.called);
-
-            self.assertEqual(TestRewardDistributionController._calculate_amount(total_token, 10 * EXA, 100 * EXA),
-                             self.score._tokenValue[_wallets[0]]["worker"])
-            self.assertEqual(TestRewardDistributionController._calculate_amount(total_token, 20 * EXA, 100 * EXA),
-                             self.score._tokenValue[_wallets[1]]["worker"])
-            self.assertEqual(TestRewardDistributionController._calculate_amount(total_token, 30 * EXA, 100 * EXA),
-                             self.score._tokenValue[_wallets[2]]["worker"])
-            self.assertEqual(TestRewardDistributionController._calculate_amount(total_token, 40 * EXA, 100 * EXA),
-                             self.score._tokenValue[_wallets[3]]["worker"])
-
-            _calls = [
-                call("worker", _wallets[0],
-                     TestRewardDistributionController._calculate_amount(total_token, 10 * EXA, 100 * EXA)),
-                call("worker", _wallets[1],
-                     TestRewardDistributionController._calculate_amount(total_token, 20 * EXA, 100 * EXA)),
-                call("worker", _wallets[2],
-                     TestRewardDistributionController._calculate_amount(total_token, 30 * EXA, 100 * EXA)),
-                call("worker", _wallets[3],
-                     TestRewardDistributionController._calculate_amount(total_token, 40 * EXA, 100 * EXA)),
-            ]
-            self.score.Distribution.assert_has_calls(_calls)
-            self.assertTrue(self.score._distComplete["worker"])
-
     def test_distribute_dao_fund(self):
         self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
 
@@ -819,10 +751,6 @@ class TestRewardDistributionController(ScoreTestCase):
         ## initialized
         self.score._day.set(31)
         self.score._initialize()
-        self.score._precompute["dex"] = True
-        self.score._precompute["ommICX"] = True
-        self.score._distComplete["dex"] = True
-        self.score._distComplete["ommICX"] = True
         self.score._distComplete["worker"] = True
 
         with mock.patch.object(self.score, "getDay", return_value=32):
@@ -860,4 +788,4 @@ class TestRewardDistributionController(ScoreTestCase):
         ScorePatcher.patch_internal_method(self.mock_worker_token, "totalSupply", lambda: 100 * EXA)
         ScorePatcher.patch_internal_method(self.mock_worker_token, "balanceOf", side_effect)
         ScorePatcher.patch_internal_method(self.mock_worker_token, "getWallets", lambda: _wallets)
-        return _wallets;
+        return _wallets

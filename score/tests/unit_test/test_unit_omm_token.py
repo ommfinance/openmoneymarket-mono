@@ -22,15 +22,11 @@ class TestOmmToken(ScoreTestCase):
     def setUp(self):
         super().setUp()
         self._owner = self.test_account1
-        self._admin = self.test_account2
         self.score = self.get_score_instance(OmmToken, self._owner)
 
         self.mock_reward_distribution = Address.from_string(f"cx{'1231' * 10}")
         self.mock_delegation = Address.from_string(f"cx{'1232' * 10}")
         self.mock_lending_pool = Address.from_string(f"cx{'1233' * 10}")
-
-        self.set_msg(self._owner)
-        self.score.setAdmin(self._admin)
 
         self.set_tx(origin=self._owner)
         self.score.setAddresses([
@@ -63,32 +59,28 @@ class TestOmmToken(ScoreTestCase):
             raise IconScoreException("Unauthorized call")
 
     def test_mint(self):
-
+        self.set_msg(self._owner)
         self.score.setUnstakingPeriod(102)
 
         self.register_interface_score(self.mock_reward_distribution)
 
         with mock.patch.object(self.score, "now", return_value=101 * TIME):
-            self.set_msg(self._admin)
+            self.set_msg(self.mock_reward_distribution)
             self.score.mint(10 * EXA)
 
             self.assertEqual(10 * 10 ** 18, self.score._total_supply.get())
             self.assertEqual(0, self.score._balances[self.score.address])
             self.assertEqual(10 * 10 ** 18, self.score._balances[self.mock_reward_distribution])
 
-            self.assertEqual(0, self.score._staked_balances[self.score.address][Status.AVAILABLE])
-            self.assertEqual(10 * 10 ** 18, self.score._staked_balances[self.mock_reward_distribution][Status.AVAILABLE])
-
-            self.assert_internal_call(self.mock_reward_distribution, "tokenFallback", self.score.address, 10 * EXA,
-                                      b'Transferred to Rewards SCORE')
-            self.score.Mint.assert_called_with(10 * EXA, b'None')
-            self.score.Transfer.assert_called_with(self.score.address, self.mock_reward_distribution, 10 * EXA,
-                                                   b'Transferred to Rewards SCORE')
+            self.score.Mint.assert_called_with(10 * EXA, b'minted by reward')
+            self.score.Transfer.assert_called_with(ZERO_SCORE_ADDRESS, self.mock_reward_distribution, 10 * EXA,
+                                                   b'minted by reward')
 
     def test_add_to_lockList(self):
 
         _user = self.test_account3
         # GIVEN
+        self.set_msg(self._owner)
         self.score.setUnstakingPeriod(100)
 
         self.score._staked_balances[_user][Status.AVAILABLE] = 0
@@ -96,7 +88,7 @@ class TestOmmToken(ScoreTestCase):
         self.score._staked_balances[_user][Status.UNSTAKING] = 20 * EXA
         self.score._staked_balances[_user][Status.UNSTAKING_PERIOD] = 100 * TIME
         self.score._total_staked_balance.set(30 * EXA)
-        self.set_msg(self._admin)
+        self.set_msg(self.test_account3)
         try:
             self.score.add_to_lockList(self.test_account3)
         except IconScoreException as err:
@@ -122,7 +114,7 @@ class TestOmmToken(ScoreTestCase):
         # GIVEN
         self.score._lock_list.put(_user)
         self.score._lock_list.put(self.test_account4)
-        self.set_msg(self._admin)
+        self.set_msg(self.test_account4)
         try:
             self.score.remove_from_lockList(self.test_account3)
         except IconScoreException as err:
@@ -149,6 +141,7 @@ class TestOmmToken(ScoreTestCase):
     def test_transfer_should_able_to_transfer(self):
         _user = self.test_account3
         # GIVEN
+        self.set_msg(self._owner)
         self.score.setUnstakingPeriod(100)
 
         self.score._staked_balances[_user][Status.AVAILABLE] = 0
@@ -186,6 +179,7 @@ class TestOmmToken(ScoreTestCase):
     def test_staking_validation(self):
         # GIVEN
         _user = self.test_account3
+        self.set_msg(self._owner)
         self.score.setMinimumStake(5 * EXA)
         self.score._balances[_user] = 18 * EXA
 
@@ -240,6 +234,7 @@ class TestOmmToken(ScoreTestCase):
         # GIVEN
         _user = self.test_account3
         seconds_in_day = 60 * 60 * 24
+        self.set_msg(self._owner)
         self.score.setUnstakingPeriod(3 * seconds_in_day)
         self.score.setMinimumStake(5 * EXA)
         self.register_interface_score(self.mock_delegation)
@@ -281,6 +276,7 @@ class TestOmmToken(ScoreTestCase):
     def test_unstake_validation(self):
         # GIVEN
         _user = self.test_account3
+        self.set_msg(self._owner)
         self.score.setMinimumStake(5 * EXA)
         self.score._balances[_user] = 18 * EXA
 
@@ -328,6 +324,7 @@ class TestOmmToken(ScoreTestCase):
         # GIVEN
         _user = self.test_account3
         seconds_in_day = 60 * 60 * 24
+        self.set_msg(self._owner)
         self.score.setUnstakingPeriod(3 * seconds_in_day)
         self.score.setMinimumStake(5 * EXA)
 
