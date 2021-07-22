@@ -42,9 +42,10 @@ def only_lending_pool(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._lendingPool.get():
+        _lendingPool=self._addresses["lendingPool"]
+        if self.msg.sender != _lendingPool:
             revert(
-                f"{TAG}: "f"SenderNotLendingPoolError: (sender){self.msg.sender} (lendingPool){self._lendingPool.get()}")
+                f"{TAG}: "f"SenderNotLendingPoolError: (sender){self.msg.sender} (lendingPool){_lendingPool}")
 
         return func(self, *args, **kwargs)
 

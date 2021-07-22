@@ -5,6 +5,11 @@ REWARDS = 'rewards'
 DEX = 'dex'
 
 
+class SupplyDetails(TypedDict):
+    principalUserBalance: int
+    principalTotalSupply: int
+
+
 class AddressDetails(TypedDict):
     name: str
     address: Address
@@ -144,7 +149,7 @@ class StakedLp(IconScoreBase):
             self._supportedPools.put(_id)
 
     @external(readonly=True)
-    def getPoolById(self, _id: int ) -> Address:
+    def getPoolById(self, _id: int) -> Address:
         return self._addressMap[_id]
 
     @only_owner
@@ -236,3 +241,10 @@ class StakedLp(IconScoreBase):
             self._stake(_from, _id, _value)
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
+
+    def getStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
+        balance = self.balanceOf(_user, _id)
+        return {
+            "principalUserBalance": balance["userStakedBalance"],
+            "principalTotalSupply": balance["totalStakedBalance"]
+        }
