@@ -24,8 +24,9 @@ def only_dex(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._addresses['dex']:
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (dex){self._dex.get()}")
+        _dex=self._addresses['dex']
+        if self.msg.sender != _dex:
+            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (dex){_dex}")
         return func(self, *args, **kwargs)
 
     return __wrapper
