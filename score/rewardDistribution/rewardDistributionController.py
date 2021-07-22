@@ -5,10 +5,6 @@ DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
 TAG = 'RewardDistributionController'
 
-class SupplyDetails(TypedDict):
-    principalUserBalance: int
-    principalTotalSupply: int
-
 
 class DataProviderInterface(InterfaceScore):
     @interface
@@ -23,6 +19,10 @@ class TokenInterface(InterfaceScore):
 
     @interface
     def mint(self, _amount: int):
+        pass
+
+    @interface
+    def getPrincipalSupply(self, _asset: Address, _user: Address) -> SupplyDetails:
         pass
 
 
@@ -61,13 +61,11 @@ class RewardDistributionController(RewardDistributionManager):
     REWARDS_BATCH_SIZE = "rewardsBatchSize"
     CLAIMED_BIT_MAP = "claimedBitMap"
     REWARDS_ACTIVATE = "rewardsActivate"
-    ASSET_NAME = "assetName"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._day = VarDB(self.DAY, db, value_type=int)
         self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth=2)
-        self._assetName = DictDB(self.ASSET_NAME, db, value_type=str)
         self._recipients = ArrayDB('recipients', db, value_type=str)
         self._dailyDistributionPercentage = DictDB('dailyDistributionPercentage', db, value_type=int)
 
@@ -117,10 +115,6 @@ class RewardDistributionController(RewardDistributionManager):
     @external
     def setAssetName(self, _asset: Address, _name: str):
         self._assetName[_asset] = _name
-
-    @external(readonly=True)
-    def getAssetName(self, _asset: Address) -> str:
-        return self._assetName[_asset]
 
     @only_owner
     @external
@@ -174,11 +168,12 @@ class RewardDistributionController(RewardDistributionManager):
 
     @external(readonly=True)
     def getRewards(self, _user: Address) -> dict:
-        dataProvider = self.create_interface_score(self._addresses[LENDING_POOL_DATA_PROVIDER], DataProviderInterface)
         totalRewards = 0
         response = {}
-        for asset in self._assets:
-            supply = dataProvider.getAssetPrincipalSupply(asset, _user)
+
+        for asset in self._reserveAssets:
+            token = self.create_interface_score(asset, TokenInterface)
+            supply = token.getPrincipalSupply(_user)
             userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
                                                 'totalBalance': supply['principalTotalSupply']}
             unclaimedRewards = self._usersUnclaimedRewards[_user][asset]
@@ -186,38 +181,80 @@ class RewardDistributionController(RewardDistributionManager):
             response[self._assetName[asset]] = unclaimedRewards
             totalRewards += unclaimedRewards
 
+        for lpId in self._lpIds:
+            lp = self.create_interface_score(self._addresses[STAKED_LP], LPInterface)
+            asset = lp.getPoolById(lpId)
+            supply = lp.getLPStakedSupply(lpId, _user)
+
+            userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
+                                                'totalBalance': supply['principalTotalSupply']}
+            unclaimedRewards = self._usersUnclaimedRewards[_user][asset]
+            unclaimedRewards += self._getUnclaimedRewards(_user, userAssetDetails)
+            response[self._assetName[asset]] = unclaimedRewards
+            totalRewards += unclaimedRewards
+
+        _asset = self._addresses[OMM_TOKEN]
+        ommToken = self.create_interface_score(_asset, TokenInterface)
+        supply = ommToken.getPrincipalSupply(_user)
+        userAssetDetails: UserAssetInput = {'asset': _asset,
+                                            'userBalance': supply['principalUserBalance'],
+                                            'totalBalance': supply['principalTotalSupply']}
+        unclaimedRewards = self._usersUnclaimedRewards[_user][_asset]
+        unclaimedRewards += self._getUnclaimedRewards(_user, userAssetDetails)
+        response[self._assetName[_asset]] = unclaimedRewards
+        totalRewards += unclaimedRewards
+
         response['totalRewards'] = totalRewards
 
         return response
 
     @only_lending_pool
     @external
-    def claimRewards(self) -> int:
-        user = self.msg.sender
-        dataProvider = self.create_interface_score(self._addresses[LENDING_POOL_DATA_PROVIDER], DataProviderInterface)
+    def claimRewards(self, _user: Address) -> int:
 
         userAssetList = []
         unclaimedRewards = 0
-        for asset in self._assets:
-            unclaimedRewards += self._usersUnclaimedRewards[user][asset]
-            supply = dataProvider.getAssetPrincipalSupply(asset, user)
+
+        for asset in self._reserveAssets:
+            token = self.create_interface_score(asset, TokenInterface)
+            unclaimedRewards += self._usersUnclaimedRewards[_user][asset]
+            supply = token.getPrincipalSupply(_user)
             userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
                                                 'totalBalance': supply['principalTotalSupply']}
             userAssetList.append(userAssetDetails)
-            self._usersUnclaimedRewards[user][asset] = 0
+            self._usersUnclaimedRewards[_user][asset] = 0
 
-        accruedRewards = self._claimRewards(user, userAssetList)
+        for lpId in self._lpIds:
+            lp = self.create_interface_score(self._addresses[STAKED_LP], LPInterface)
+            asset = lp.getPoolById(lpId)
+            unclaimedRewards += self._usersUnclaimedRewards[_user][asset]
+            supply = lp.getLPStakedSupply(lpId, _user)
+            userAssetDetails: UserAssetInput = {'asset': asset, 'userBalance': supply['principalUserBalance'],
+                                                'totalBalance': supply['principalTotalSupply']}
+            userAssetList.append(userAssetDetails)
+            self._usersUnclaimedRewards[_user][asset] = 0
+
+        _asset = self._addresses[OMM_TOKEN]
+        ommToken = self.create_interface_score(_asset, TokenInterface)
+        supply = ommToken.getPrincipalSupply(_user)
+        unclaimedRewards += self._usersUnclaimedRewards[_user][_asset]
+        userAssetDetails: UserAssetInput = {'asset': _asset, 'userBalance': supply['principalUserBalance'],
+                                            'totalBalance': supply['principalTotalSupply']}
+        userAssetList.append(userAssetDetails)
+        self._usersUnclaimedRewards[_user][_asset] = 0
+
+        accruedRewards = self._claimRewards(_user, userAssetList)
         if accruedRewards != 0:
             unclaimedRewards += accruedRewards
-            self.RewardsAccrued(user, accruedRewards)
+            self.RewardsAccrued(_user, accruedRewards)
 
         if unclaimedRewards == 0:
             return 0
 
         ommToken = self.create_interface_score(self._addresses[OMM_TOKEN], TokenInterface)
-        ommToken.transfer(user, unclaimedRewards)
+        ommToken.transfer(_user, unclaimedRewards)
 
-        self.RewardsClaimed(user, unclaimedRewards, 'Asset rewards')
+        self.RewardsClaimed(_user, unclaimedRewards, 'Asset rewards')
 
     @external
     def distribute(self) -> None:
@@ -267,7 +304,8 @@ class RewardDistributionController(RewardDistributionManager):
 
         for recipient in ('worker', 'daoFund'):
             self._distComplete[recipient] = False
-            self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay, self._dailyDistributionPercentage[recipient])
+            self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay,
+                                                       self._dailyDistributionPercentage[recipient])
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
