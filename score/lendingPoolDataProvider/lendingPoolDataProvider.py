@@ -7,7 +7,7 @@ LENDING_POOL = 'lendingPool'
 LIQUIDATION_MANAGER = 'liquidationManager'
 PRICE_ORACLE = 'priceOracle'
 STAKING = 'staking'
-FEE_PROVIDER = 'FeeProvider'
+FEE_PROVIDER = 'feeProvider'
 
 
 class SupplyDetails(TypedDict):
@@ -208,9 +208,9 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def getRewardPercentages(self, _reserve: Address) -> dict:
         response = {}
-        response['rewardPercentage'] = self._rewardPercentage[reserve]['total']
-        response['lendingPercentage'] = self._rewardPercentage[reserve]['lending']
-        response['borrowingPercentage'] = self._rewardPercentage[reverse]['borrowing']
+        response['rewardPercentage'] = self._rewardPercentage[_reserve]['total']
+        response['lendingPercentage'] = self._rewardPercentage[_reserve]['lending']
+        response['borrowingPercentage'] = self._rewardPercentage[_reserve]['borrowing']
 
         return response
 
