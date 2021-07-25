@@ -1,16 +1,20 @@
 from .Math import *
 from .utils.checks import *
 
+
 class AddressDetails(TypedDict):
     name: str
     address: Address
+
 
 class PrepDelegations(TypedDict):
     _address: Address
     _votes_in_per: int
 
+
 LENDING_POOL_CORE = 'lendingPoolCore'
 OMM_TOKEN = 'ommToken'
+
 
 class SystemInterface(InterfaceScore):
     @interface
@@ -279,6 +283,13 @@ class Delegation(IconScoreBase):
         max_votes_prep_index = 0
         max_votes = 0
         below_threshold_prep_indexes = []
+        total_votes = self._totalVotes.get()
+        if total_votes == 0:
+            default_preference = self._distributeVoteToContributors()
+            for index in range(len(default_preference)):
+                default_preference[index]['_votes_in_per'] = default_preference[index]['_votes_in_per'] * 100
+            return default_preference
+
         if prep_list:
             for index, prep in enumerate(prep_list):
                 votes: int = 0
@@ -290,7 +301,7 @@ class Delegation(IconScoreBase):
                         max_votes = votes
                         max_votes_prep_index = index
                 else:
-                    votes = exaDiv(self._prepVotes[prep], self._totalVotes.get()) * 100
+                    votes = exaDiv(self._prepVotes[prep], total_votes) * 100
                     votes_percentage['_votes_in_per'] = votes
                     total_percentage += votes_percentage['_votes_in_per']
                     if votes > max_votes:
