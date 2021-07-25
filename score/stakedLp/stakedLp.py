@@ -1,4 +1,5 @@
 from .utils.checks import *
+from .Math import *
 
 MICROSECONDS = 10 ** 6
 REWARDS = 'rewards'
@@ -18,6 +19,11 @@ class AddressDetails(TypedDict):
 class RewardInterface(InterfaceScore):
     @interface
     def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
+        pass
+
+class TokenInterface(InterfaceScore):
+    @interface
+    def decimals(self) -> int:
         pass
 
 
@@ -244,7 +250,11 @@ class StakedLp(IconScoreBase):
     @external(readonly=True)
     def getLPStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
         balance = self.balanceOf(_user, _id)
+        token_interface =  self.create_interface_score(self._addressMap[_id], TokenInterface)
+        decimals = token_interface.decimals()
+        principalUserBalance = convertToExa(balance["userStakedBalance"], decimals)
+        principalTotalSupply = convertToExa(balance["totalStakedBalance"], decimals)
         return {
-            "principalUserBalance": balance["userStakedBalance"],
-            "principalTotalSupply": balance["totalStakedBalance"]
+            "principalUserBalance": principalUserBalance,
+            "principalTotalSupply": principalTotalSupply 
         }
