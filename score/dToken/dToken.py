@@ -6,6 +6,7 @@ REWARDS = 'rewards'
 LENDING_POOL_CORE = 'lendingPoolCore'
 RESERVE = 'reserve'
 
+
 class SupplyDetails(TypedDict):
     principalUserBalance: int
     principalTotalSupply: int
@@ -311,8 +312,7 @@ class DToken(IconScoreBase, TokenStandard):
             data = b'mint'
 
         if amount < 0:
-            revert(f'{TAG}: ',
-                   f'Invalid value: {amount} to mint')
+            revert(f'{TAG}: 'f'Invalid value: {amount} to mint')
 
         self._totalSupply.set(self._totalSupply.get() + amount)
         self._balances[account] += amount
@@ -334,8 +334,7 @@ class DToken(IconScoreBase, TokenStandard):
             data = b'burn'
         totalSupply = self._totalSupply.get()
         if amount <= 0:
-            revert(f'{TAG}: ',
-                   f'Invalid value: {amount} to burn')
+            revert(f'{TAG}: 'f'Invalid value: {amount} to burn')
         if amount > totalSupply:
             revert(f'{TAG}:'
                    f'{amount} is greater than total supply :{totalSupply}')
@@ -346,3 +345,11 @@ class DToken(IconScoreBase, TokenStandard):
         # Emits an event log Burn
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, data)
         self.Burn(account, amount)
+
+    @external(readonly=True)
+    def getTotalStaked(self) -> int:
+        """
+        return total supply for reward distribution
+        :return: total supply
+        """
+        return self.totalSupply()

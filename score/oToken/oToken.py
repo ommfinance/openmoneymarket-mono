@@ -465,3 +465,11 @@ class OToken(IconScoreBase, TokenStandard):
         # Emits an event log Burn
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, b'burn')
         self.Burn(account, amount)
+
+    @external(readonly=True)
+    def getTotalStaked(self) -> int:
+        """
+        return total supply for reward distribution
+        :return: total supply
+        """
+        return self.totalSupply()

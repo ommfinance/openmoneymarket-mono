@@ -21,3 +21,11 @@ class OmmToken(IRC2Mintable):
             "principalUserBalance": self.staked_balanceOf(_user),
             "principalTotalSupply": self.total_staked_balance()
         }
+
+    @external(readonly=True)
+    def getTotalStaked(self) -> int:
+        """
+        return total staked balance for reward distribution
+        :return: total staked balance
+        """
+        return self.total_staked_balance()
