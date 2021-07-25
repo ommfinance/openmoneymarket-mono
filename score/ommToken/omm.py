@@ -48,13 +48,13 @@ class OmmToken(IRC2Mintable):
 
     @only_owner
     @external
-    def addPool(self, _distPercentage: int, assetName: str = "OMM") -> None:
+    def addPool(self, _distPercentage: int, _poolName: str = "OMM") -> None:
         reward = self.create_interface_score(self._addresses["rewards"], RewardDistributionInterface)
         _config = {
             "_id": -1,
             "asset": self.address,
             "distPercentage": _distPercentage,
-            "assetName": assetName,
+            "assetName": _poolName,
             "mapping": "liquidityProvider",
         }
         reward.configureLPEmission([_config])

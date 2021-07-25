@@ -155,13 +155,13 @@ class StakedLp(IconScoreBase):
 
     @only_owner
     @external
-    def addPool(self, _pool: Address, _id: int, _distPercentage: int, poolName: str) -> None:
+    def addPool(self, _pool: Address, _id: int, _distPercentage: int, _poolName: str) -> None:
         reward = self.create_interface_score(self._addresses["rewards"], RewardInterface)
         _config = {
             "_id": _id,
             "asset": _pool,
             "distPercentage": _distPercentage,
-            "assetName": poolName,
+            "assetName": _poolName,
             "mapping": "liquidityProvider",
         }
         reward.configureLPEmission([_config])
