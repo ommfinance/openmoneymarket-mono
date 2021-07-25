@@ -29,7 +29,8 @@ def only_governance(func):
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
         if self.msg.sender != self._addresses['governance']:
-            revert(f"{TAG}: "f"SenderNotGovernanceError: (sender){self.msg.sender} (governance){self._governanceAddress.get()}")
+            revert(
+                f"{TAG}: "f"SenderNotGovernanceError: (sender){self.msg.sender} (governance){self._governanceAddress.get()}")
 
         return func(self, *args, **kwargs)
 
@@ -42,7 +43,7 @@ def only_lending_pool(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        _lendingPool=self._addresses["lendingPool"]
+        _lendingPool = self._addresses["lendingPool"]
         if self.msg.sender != _lendingPool:
             revert(
                 f"{TAG}: "f"SenderNotLendingPoolError: (sender){self.msg.sender} (lendingPool){_lendingPool}")
@@ -50,6 +51,7 @@ def only_lending_pool(func):
         return func(self, *args, **kwargs)
 
     return __wrapper
+
 
 def origin_owner(func):
     if not isfunction(func):
@@ -59,6 +61,23 @@ def origin_owner(func):
     def __wrapper(self: object, *args, **kwargs):
         if self.tx.origin != self.owner:
             revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.tx.origin} (owner){self.owner}")
+        return func(self, *args, **kwargs)
+
+    return __wrapper
+
+
+def only_stake_lp_or_omm(func):
+    if not isfunction(func):
+        revert(f"{TAG}: ""NotAFunctionError")
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        _stakedLp = self._addresses["stakedLp"]
+        _omm = self._addresses["ommToken"]
+        if self.msg.sender not in [_stakedLp, _omm]:
+            revert(
+                f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} is not (stakedLp or ommToken){_stakedLp} or {_omm}")
+
         return func(self, *args, **kwargs)
 
     return __wrapper
