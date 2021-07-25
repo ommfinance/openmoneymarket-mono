@@ -190,13 +190,12 @@ class StakedLp(IconScoreBase):
                           f'Amount to stake:{_value} is smaller the minimum stake:{self._minimumStake.get()}')
 
         lp = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
-        userBalance = lp.balanceOf(_user, _id)
+        _userBalance = lp.balanceOf(_user, _id)
+        userBalance = _userBalance + _value
         previousUserStaked = self._poolStakeDetails[_user][_id][Status.STAKED]
         previousTotalStaked = self._totalStaked[_id]
 
         self._check_first_time(_user, _id, userBalance)
-        StakedLp._require(userBalance >= _value,
-                          f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {userBalance}')
         new_stake = _value
         stake_increment = new_stake - previousUserStaked
         StakedLp._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
