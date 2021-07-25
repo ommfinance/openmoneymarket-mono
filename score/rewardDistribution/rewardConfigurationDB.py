@@ -115,6 +115,13 @@ class RewardConfigurationDB(object):
         _actualPercentage = exaMul(_distPercentage, _assetPercentage)
         return _actualPercentage
 
+    def getAllAssetConfig(self) -> list:
+        configs = []
+        for asset in self._assets:
+            config = {"name": self._assetName[asset], "distributionPercentage": self.getAssetPercentage(asset)}
+            configs.append(config)
+        return configs
+
     def getAssets(self):
         return self._assets
 
