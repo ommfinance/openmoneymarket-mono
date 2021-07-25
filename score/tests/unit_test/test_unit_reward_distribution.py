@@ -62,7 +62,14 @@ class TestRewardDistributionController(ScoreTestCase):
     def setUp(self):
         super().setUp()
         self._owner = self.test_account1
-        self.score = self.get_score_instance(RewardDistributionController, self._owner)
+        _params = [
+            {"recipient": "worker", "percentage": DISTRIBUTION_CONFIG["worker"]},
+            {"recipient": "daoFund", "percentage": DISTRIBUTION_CONFIG["daoFund"]},
+            {"recipient": "liquidityProvider", "percentage": DISTRIBUTION_CONFIG["liquidityProvider"]},
+            {"recipient": "lendingBorrow", "percentage": DISTRIBUTION_CONFIG["lendingBorrow"]},
+        ]
+        self.score = self.get_score_instance(RewardDistributionController, self._owner,
+                                             on_install_params={"_distPercentage": _params})
         self.mock_lending_pool_core = Address.from_string(f"cx{'1231' * 10}")
         self.mock_lending_pool = Address.from_string(f"cx{'1212' * 10}")
         self.mock_omm_token = Address.from_string(f"cx{'1232' * 10}")
@@ -106,15 +113,13 @@ class TestRewardDistributionController(ScoreTestCase):
     def _setup_distribution_percentage(self, account: Address, config: DistributionPercentage):
         self.set_msg(account, 1)
 
-        worker = config["worker"]
-        dao_fund = config["daoFund"]
-        lending_borrow = config["lendingBorrow"]
-        liquidity_provider = config["liquidityProvider"]
-
-        self.score.setDistributionPercentage("worker", worker)
-        self.score.setDistributionPercentage("daoFund", dao_fund)
-        self.score.setDistributionPercentage("liquidityProvider", liquidity_provider)
-        self.score.setDistributionPercentage("lendingBorrow", lending_borrow)
+        _params = [
+            {"recipient": "worker", "percentage": config["worker"]},
+            {"recipient": "daoFund", "percentage": config["daoFund"]},
+            {"recipient": "liquidityProvider", "percentage": config["liquidityProvider"]},
+            {"recipient": "lendingBorrow", "percentage": config["lendingBorrow"]},
+        ]
+        self.score.setDistributionPercentage(_params)
         self.set_msg(self.test_account2, 1)
 
     def test_set_distribution_percentage_not_owner(self):

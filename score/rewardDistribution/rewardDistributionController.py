@@ -1,5 +1,7 @@
+from .rewardConfigurationDB import SUPPORTED_RECIPIENTS
 from .rewardDistribution import *
 from .utils.checks import *
+from .utils.types import DistPercentage
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
@@ -56,7 +58,6 @@ class RewardDistributionController(RewardDistributionManager):
         super().__init__(db)
         self._day = VarDB(self.DAY, db, value_type=int)
         self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth=2)
-        self._recipients = ArrayDB('recipients', db, value_type=str)
 
         self._precompute = DictDB('preCompute', db, value_type=bool)
         self._compIndex = DictDB('compIndex', db, value_type=int)
@@ -66,16 +67,12 @@ class RewardDistributionController(RewardDistributionManager):
         self._distIndex = DictDB('distIndex', db, value_type=int)
         self._tokenDistTracker = DictDB('tokenDistTracker', db, value_type=int)
         self._offset = DictDB('offset', db, value_type=int)
-        self._pool_id = DictDB(self.POOL_ID, db, value_type=int)
-        self._rewardsBatchSize = VarDB(self.REWARDS_BATCH_SIZE, db, value_type=int)
         self._rewardsActivate = VarDB(self.REWARDS_ACTIVATE, db, value_type=int)
 
-    def on_install(self) -> None:
+    def on_install(self, _distPercentage: List[DistPercentage]) -> None:
         super().on_install()
-        self._recipients.put('worker')
-        self._recipients.put('daoFund')
+        self._updateDistPercentage(_distPercentage)
         self._distComplete['daoFund'] = True
-        self._rewardsBatchSize.set(50)
 
     def on_update(self) -> None:
         super().on_update()
@@ -100,37 +97,9 @@ class RewardDistributionController(RewardDistributionManager):
     def name(self) -> str:
         return f"{TAG}"
 
-    @only_owner
-    @external
-    def setRecipients(self, _recipient: str):
-        if _recipient not in self._recipients:
-            self._recipients.put(_recipient)
-
     @external(readonly=True)
     def getRecipients(self) -> list:
-        return [item for item in self._recipients]
-
-    @only_owner
-    @external
-    def setPoolId(self, _pool: str, _id: int):
-        self._pool_id[_pool] = _id
-
-    @external(readonly=True)
-    def getPoolId(self, _pool: str) -> int:
-        return self._pool_id[_pool]
-
-    @only_owner
-    @external
-    def setBatchSize(self, _size: int):
-        self._rewardsBatchSize.set(_size)
-
-    @external(readonly=True)
-    def getBatchSize(self) -> int:
-        return self._rewardsBatchSize.get()
-
-    @external(readonly=True)
-    def getRecipients(self) -> list:
-        return [item for item in self._recipients]
+        return [item for item in SUPPORTED_RECIPIENTS]
 
     @external
     def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:

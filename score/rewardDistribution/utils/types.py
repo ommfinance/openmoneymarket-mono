@@ -23,3 +23,8 @@ class UserAssetInput(TypedDict):
     asset: Address
     userBalance: int
     totalBalance: int
+
+
+class DistPercentage(TypedDict):
+    recipient: str
+    percentage: int

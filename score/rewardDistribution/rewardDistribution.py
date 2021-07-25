@@ -2,7 +2,7 @@ from dToken.dToken import SupplyDetails, AddressDetails
 from .Math import *
 from .rewardConfigurationDB import RewardConfigurationDB
 from .utils.checks import *
-from .utils.types import UserAssetInput, AssetConfig
+from .utils.types import UserAssetInput, AssetConfig, DistPercentage
 
 TAG = 'RewardDistributionManager'
 
@@ -104,10 +104,21 @@ class RewardDistributionManager(IconScoreBase):
     def setAssetName(self, _asset: Address, _name: str):
         self._rewardConfig.setAssetName(_asset, _name)
 
+    def _updateDistPercentage(self, _distPercentage: List[DistPercentage]):
+        totalPercentage = 0
+        for config in _distPercentage:
+            _recipient = config["recipient"]
+            _percentage = config["percentage"]
+            totalPercentage += _percentage
+            self._rewardConfig.setDistributionPercentage(config["recipient"], config["percentage"])
+
+        assert totalPercentage == 1 * 10 ** 18
+
     @only_owner
     @external
-    def setDistributionPercentage(self, _recipient: str, _percentage: int):
-        self._rewardConfig.setDistributionPercentage(_recipient, _percentage)
+    def setDistributionPercentage(self, _distPercentage: List[DistPercentage]):
+        self._updateDistPercentage(_distPercentage)
+        self.updateEmissionPerSecond()
 
     @external(readonly=True)
     def getDistributionPercentage(self, _recipient: str) -> int:
