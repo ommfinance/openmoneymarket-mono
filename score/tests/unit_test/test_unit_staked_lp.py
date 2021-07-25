@@ -164,16 +164,8 @@ class TestStakedLP(ScoreTestCase):
         else:
             raise IconScoreException("Not supported stake value::2")
 
-        # not enough balance minimum stake
-        self.patch_internal_method(self.mock_dex, "balanceOf", lambda _a, _b: 111 * EXA)
-        try:
-            self.score.onIRC31Received(_operator=self._owner, _from=_user, _id=1, _value=112 * EXA, _data=_data)
-        except IconScoreException as err:
-            self.assertIn("Cannot stake,user dont have enough balance", str(err))
-        else:
-            raise IconScoreException("Not supported stake value::3")
-
         # new stake value is less that previous staked
+        self.patch_internal_method(self.mock_dex, "balanceOf", lambda _a, _b: 111 * EXA)
         try:
             self.score.onIRC31Received(_operator=self._owner, _from=_user, _id=1, _value=101 * EXA, _data=_data)
         except IconScoreException as err:
