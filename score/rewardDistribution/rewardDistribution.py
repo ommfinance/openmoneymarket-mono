@@ -124,6 +124,11 @@ class RewardDistributionManager(IconScoreBase):
     def getDistributionPercentage(self, _recipient: str) -> int:
         return self._rewardConfig.getDistributionPercentage(_recipient)
 
+    @external(readonly=True)
+    def getAllDistributionPercentage(self)->dict:
+        return self._rewardConfig.getAllDistributionPercentage()
+
+
     def _configureAsset(self, distributionPerDay: int, _assetConfig: AssetConfig):
         asset = _assetConfig['asset']
         self._rewardConfig.setAssetConfig(_assetConfig)

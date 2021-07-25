@@ -130,7 +130,6 @@ class AddressProvider(IconScoreBase):
     @only_owner
     @external
     def setLendingPoolAddresses(self) -> None:
-
         lendingPoolAddressDetails: List[AddressDetails] = [
             {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
             {"name": self.sICX, "address": self._addresses[self.sICX]},
@@ -143,7 +142,7 @@ class AddressProvider(IconScoreBase):
             {"name": self.BRIDGE_OTOKEN, "address": self._addresses[self.BRIDGE_OTOKEN]},
             {"name": self.ADDRESS_PROVIDER, "address": self.address},
             {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]}
-            ]
+        ]
 
         lendingPool = self.create_interface_score(self._addresses[self.LENDING_POOL], AddressInterface)
         lendingPool.setAddresses(lendingPoolAddressDetails)
@@ -174,10 +173,12 @@ class AddressProvider(IconScoreBase):
             {"name": self.STAKING, "address": self._addresses[self.STAKING]},
             {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
             {"name": self.PRICE_ORACLE, "address": self._addresses[self.PRICE_ORACLE]},
+            {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
             {"name": self.ADDRESS_PROVIDER, "address": self.address},
         ]
 
-        lendingPoolDataProvider = self.create_interface_score(self._addresses[self.LENDING_POOL_DATA_PROVIDER], AddressInterface)
+        lendingPoolDataProvider = self.create_interface_score(self._addresses[self.LENDING_POOL_DATA_PROVIDER],
+                                                              AddressInterface)
         lendingPoolDataProvider.setAddresses(lendingPoolCoreAddressDetails)
 
     @only_owner

@@ -62,6 +62,15 @@ class RewardConfigurationDB(object):
     def getDistributionPercentage(self, recipient: str) -> int:
         return self._distributionPercentage[recipient]
 
+    def getAllDistributionPercentage(self) -> dict:
+        return {
+            recipient: self._distributionPercentage[recipient]
+            for recipient in SUPPORTED_RECIPIENTS
+        }
+
+    def getRecipients(self) -> list:
+        return [item for item in SUPPORTED_RECIPIENTS]
+
     def removeAssetConfig(self, asset: Address) -> None:
         index = self.__get_index(asset)
         if index == 0:

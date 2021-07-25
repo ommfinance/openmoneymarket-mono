@@ -27,6 +27,7 @@ class DistPercentage(TypedDict):
     recipient: str
     distPercentage: int
 
+
 class AddressDetails(TypedDict):
     name: str
     address: Address
@@ -144,11 +145,20 @@ class StakingInterface(InterfaceScore):
         pass
 
 
+class RewardInterface(InterfaceScore):
+
+    @interface
+    def getRecipients(self) -> list:
+        pass
+
+    @interface
+    def getAllDistributionPercentage(self) -> dict:
+        pass
+
+
 class LendingPoolDataProvider(IconScoreBase):
     _SYMBOL = 'symbol'
     _REWARD_PERCENTAGE = 'rewardPercentage'
-    _DIST_PERCENTAGE = 'distPercentage'
-    _RECIPIENTS = 'recipients'
     _CONTRACTS = 'contracts'
     _ADDRESSES = 'addresses'
 
@@ -156,17 +166,11 @@ class LendingPoolDataProvider(IconScoreBase):
         super().__init__(db)
         self._symbol = DictDB(self._SYMBOL, db, value_type=str)
         self._rewardPercentage = DictDB(self._REWARD_PERCENTAGE, db, value_type=int, depth=2)
-        self._distPercentage = DictDB(self._DIST_PERCENTAGE, db, value_type=int)
-        self._recipients = ArrayDB(self._RECIPIENTS, db, value_type=str)
         self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
         self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
-        self._recipients.put("supplyBorrow")
-        self._recipients.put("workerToken")
-        self._recipients.put("daoFund")
-        self._recipients.put("lp")
 
     def on_update(self) -> None:
         super().on_update()
@@ -216,21 +220,13 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @external(readonly=True)
     def getRecipients(self) -> list:
-        return [recipient for recipient in self._recipients]
-
-    @only_owner
-    @external
-    def setDistPercentages(self, _percentages: List[DistPercentage]) -> None:
-        for percentage in _percentages:
-            recipient = percentage['recipient']
-            self._distPercentage[recipient] = percentage['distPercentage']
+        reward = self.create_interface_score(self._addresses["rewards"], RewardInterface)
+        return reward.getRecipients()
 
     @external(readonly=True)
     def getDistPercentages(self) -> dict:
-        return {
-            recipient: self._distPercentage[recipient]
-            for recipient in self._recipients
-        }
+        reward = self.create_interface_score(self._addresses["rewards"], RewardInterface)
+        return reward.getAllDistributionPercentage()
 
     @external(readonly=True)
     def getReserveAccountData(self) -> dict:
