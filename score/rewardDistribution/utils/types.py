@@ -1,4 +1,4 @@
-from iconservice import TypedDict, Address
+from iconservice import *
 
 
 class SupplyDetails(TypedDict):

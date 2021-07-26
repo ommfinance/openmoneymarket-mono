@@ -1,8 +1,7 @@
-from dToken.dToken import SupplyDetails, AddressDetails
 from .Math import *
 from .rewardConfigurationDB import RewardConfigurationDB
 from .utils.checks import *
-from .utils.types import UserAssetInput, AssetConfig, DistPercentage
+from .utils.types import *
 
 TAG = 'RewardDistributionManager'
 
