@@ -16,7 +16,7 @@ class AssetConfig(TypedDict):
     asset: Address
     distPercentage: int
     assetName: str
-    mapping: str
+    rewardEntity: str
 
 
 class UserAssetInput(TypedDict):

@@ -56,9 +56,6 @@ class RewardDistributionManager(IconScoreBase):
         self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
         self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
 
-    def on_install(self) -> None:
-        super().on_install()
-
     def on_update(self) -> None:
         super().on_update()
 

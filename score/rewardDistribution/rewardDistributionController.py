@@ -1,7 +1,6 @@
-from .rewardConfigurationDB import SUPPORTED_RECIPIENTS
 from .rewardDistribution import *
 from .utils.checks import *
-from .utils.types import DistPercentage
+from .utils.types import *
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 

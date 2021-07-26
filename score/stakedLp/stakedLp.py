@@ -20,7 +20,7 @@ class AssetConfig(TypedDict):
     asset: Address
     distPercentage: int
     assetName: str
-    mapping: str
+    rewardEntity: str
 
 
 class RewardInterface(InterfaceScore):
@@ -162,7 +162,7 @@ class StakedLp(IconScoreBase):
             "asset": _pool,
             "distPercentage": _distPercentage,
             "assetName": _poolName,
-            "mapping": "liquidityProvider",
+            "rewardEntity": "liquidityProvider",
         }
         reward.configureLPEmission([_config])
         self._addressMap[_id] = _pool

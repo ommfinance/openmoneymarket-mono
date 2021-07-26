@@ -1,7 +1,7 @@
 from iconservice import *
 
 TAG = "OmmRewards"
-STAKED_LP = 'stakedLp'
+STAKED_LP = 'stakedLP'
 LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
 OMM_TOKEN = 'ommToken'
 WORKER_TOKEN = 'workerToken'
@@ -72,7 +72,7 @@ def only_stake_lp_or_omm(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        _stakedLp = self._addresses["stakedLp"]
+        _stakedLp = self._addresses[STAKED_LP]
         _omm = self._addresses["ommToken"]
         if self.msg.sender not in [_stakedLp, _omm]:
             revert(

@@ -17,7 +17,7 @@ class AssetConfig(TypedDict):
     asset: Address
     distPercentage: int
     assetName: str
-    mapping: str
+    rewardEntity: str
 
 
 class RewardDistributionInterface(InterfaceScore):
@@ -55,6 +55,6 @@ class OmmToken(IRC2Mintable):
             "asset": self.address,
             "distPercentage": _distPercentage,
             "assetName": _poolName,
-            "mapping": "liquidityProvider",
+            "rewardEntity": "liquidityProvider",
         }
         reward.configureLPEmission([_config])

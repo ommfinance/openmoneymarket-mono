@@ -25,7 +25,7 @@ REWARD_CONFIG_1 = {
     "asset": ASSET_ADDRESS_1,
     "assetName": "assetName_1",
     "_id": -1,
-    "mapping": 'lendingBorrow',
+    "rewardEntity": 'lendingBorrow',
     "distPercentage": 11 * EXA // 10,
     "totalSupply": 83 * EXA
 }
@@ -104,7 +104,7 @@ class TestRewardDistributionController(ScoreTestCase):
         self.score.configureAssets([{
             "asset": config['asset'],
             "_id": config['_id'],
-            "mapping": config['mapping'],
+            "rewardEntity": config['rewardEntity'],
             "assetName": config['assetName'],
             "distPercentage": config['distPercentage'],
         }])
@@ -197,7 +197,7 @@ class TestRewardDistributionController(ScoreTestCase):
             "asset": ASSET_ADDRESS_1,
             "assetName": "assetName_1",
             "_id": -1,
-            "mapping": 'lendingBorrow',
+            "rewardEntity": 'lendingBorrow',
             "distPercentage": 15 * EXA // 10,
             "totalSupply": 0
         }
@@ -350,8 +350,8 @@ class TestRewardDistributionController(ScoreTestCase):
 
     def _call_handle_action(self, _user, _asset, _time, _old_index):
         _asset_address = _asset["config"]["asset"]
-        _mapping = _asset["config"]["mapping"]
-        _percentage = exaMul(_asset["config"]["distPercentage"], DISTRIBUTION_CONFIG[_mapping])
+        _rewardEntity = _asset["config"]["rewardEntity"]
+        _percentage = exaMul(_asset["config"]["distPercentage"], DISTRIBUTION_CONFIG[_rewardEntity])
         _total_supply = _asset["balance"]
 
         _mock_time_elapsed = _time["mock_time_elapsed"]

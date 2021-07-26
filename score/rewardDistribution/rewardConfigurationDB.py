@@ -18,20 +18,20 @@ class ItemNotSupported(Exception):
 
 class RewardConfigurationDB(object):
     EMISSION_PER_SECOND = 'EmissionPerSecond'
-    DISTRIBUTION_PERCENTAGE = 'DistributionPercentage'
+    ENTITY_DISTRIBUTION_PERCENTAGE = 'EntityDistributionPercentage'
     ASSET_LEVEL_PERCENTAGE = 'AssetLevelPercentage'
-    ASSET_MAPPING = 'AssetMapping'
+    Reward_Entity_MAPPING = 'RewardEntityMapping'
     POOL_ID_MAPPING = 'PoolIDMapping'
     ASSET_NAME = 'AssetName'
     ASSETS = 'Assets'
-    ASSET_INDEXES = 'AssetINDEXES'
+    ASSET_INDEXES = 'AssetIndexes'
 
     def __init__(self, key: str, db: IconScoreDatabase) -> None:
-        self._distributionPercentage = DictDB(f'{key}{self.DISTRIBUTION_PERCENTAGE}', db, value_type=int)
+        self._distributionPercentage = DictDB(f'{key}{self.ENTITY_DISTRIBUTION_PERCENTAGE}', db, value_type=int)
         self._emissionPerSecond = DictDB(f'{key}{self.EMISSION_PER_SECOND}', db, value_type=int)
         self._assetLevelPercentage = DictDB(f'{key}{self.ASSET_LEVEL_PERCENTAGE}', db, value_type=int)
 
-        self._assetMapping = DictDB(f'{key}{self.ASSET_MAPPING}', db, value_type=str)
+        self._rewardEntityMapping = DictDB(f'{key}{self.Reward_Entity_MAPPING}', db, value_type=str)
         self._poolIDMapping = DictDB(f'{key}{self.POOL_ID_MAPPING}', db, value_type=int)
 
         self._assetName = DictDB(f'{key}{self.ASSET_NAME}', db, value_type=str)
@@ -77,7 +77,7 @@ class RewardConfigurationDB(object):
             raise ItemNotFound(f"{TAG}: Asset not found {asset}")
 
         self._assetLevelPercentage[asset].remove(asset)
-        self._assetMapping[asset].remove(asset)
+        self._rewardEntityMapping[asset].remove(asset)
         self._assetName[asset].remove(asset)
         self._poolIDMapping[asset].remove(asset)
 
@@ -93,7 +93,7 @@ class RewardConfigurationDB(object):
         assetName = config['assetName']
         distPercentage = config['distPercentage']
         self._assetLevelPercentage[asset] = distPercentage
-        self._assetMapping[asset] = config['mapping']
+        self._rewardEntityMapping[asset] = config['rewardEntity']
         self._poolIDMapping[asset] = config['_id']
         self._assetName[asset] = assetName
 
@@ -109,11 +109,11 @@ class RewardConfigurationDB(object):
         return _emissionPerSecond
 
     def getAssetPercentage(self, asset: Address) -> int:
-        _parentKey = self._assetMapping[asset]
-        _distPercentage = self._distributionPercentage[_parentKey]
+        _entityKey = self._rewardEntityMapping[asset]
+        _entityDistPercentage = self._distributionPercentage[_entityKey]
         _assetPercentage = self._assetLevelPercentage[asset]
-        _actualPercentage = exaMul(_distPercentage, _assetPercentage)
-        return _actualPercentage
+        _overallPercentage = exaMul(_entityDistPercentage, _assetPercentage)
+        return _overallPercentage
 
     def getAllAssetConfig(self) -> list:
         configs = []
