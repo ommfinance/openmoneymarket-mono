@@ -14,15 +14,15 @@ class AddressInterface(InterfaceScore):
 
 
 class AddressProvider(IconScoreBase):
-    USDs = "usds"
+    USDs = "USDS"
     sICX = "sICX"
-    IUSDC = "iusdc"
+    IUSDC = "IUSDC"
     oICX = "oICX"
-    oUSDs = "ousds"
-    oIUSDC = "oiusdc"
+    oUSDs = "oUSDS"
+    oIUSDC = "oIUSDC"
     dICX = "dICX"
-    dUSDs = "dusds"
-    dIUSDC = "diusdc"
+    dUSDs = "dUSDS"
+    dIUSDC = "dIUSDC"
     LENDING_POOL = "lendingPool"
     LENDING_POOL_DATA_PROVIDER = "lendingPoolDataProvider"
     STAKING = "staking"
@@ -40,7 +40,7 @@ class AddressProvider(IconScoreBase):
     WORKER_TOKEN = "workerToken"
     DAO_FUND = "daoFund"
     BAND_ORACLE = "bandOracle"
-    STAKED_LP = "stakedLp"
+    STAKED_LP = "stakedLP"
     DEX = "dex"
 
     def __init__(self, db: IconScoreDatabase) -> None:

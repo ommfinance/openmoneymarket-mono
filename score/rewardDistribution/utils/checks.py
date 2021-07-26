@@ -6,6 +6,7 @@ LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
 OMM_TOKEN = 'ommToken'
 WORKER_TOKEN = 'workerToken'
 DAO_FUND = 'daoFund'
+GOVERNANCE = 'governance'
 
 
 def only_owner(func):
@@ -28,9 +29,10 @@ def only_governance(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self._addresses['governance']:
+        _governance=self._addresses[GOVERNANCE]
+        if self.msg.sender != _governance:
             revert(
-                f"{TAG}: "f"SenderNotGovernanceError: (sender){self.msg.sender} (governance){self._governanceAddress.get()}")
+                f"{TAG}: "f"SenderNotGovernanceError: (sender){self.msg.sender} (governance){_governance}")
 
         return func(self, *args, **kwargs)
 
