@@ -15,9 +15,21 @@ class AddressDetails(TypedDict):
     address: Address
 
 
+class AssetConfig(TypedDict):
+    _id: int
+    asset: Address
+    distPercentage: int
+    assetName: str
+    rewardEntity: str
+
+
 class RewardInterface(InterfaceScore):
     @interface
     def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
+        pass
+
+    @interface
+    def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
         pass
 
 
@@ -143,10 +155,20 @@ class StakedLp(IconScoreBase):
 
     @only_owner
     @external
-    def addPool(self, _pool: Address, _id: int) -> None:
+    def addPool(self, _pool: Address, _id: int, _distPercentage: int, _poolName: str) -> None:
+        reward = self.create_interface_score(self._addresses["rewards"], RewardInterface)
+        _config = {
+            "_id": _id,
+            "asset": _pool,
+            "distPercentage": _distPercentage,
+            "assetName": _poolName,
+            "rewardEntity": "liquidityProvider",
+        }
+        reward.configureLPEmission([_config])
         self._addressMap[_id] = _pool
         if _id not in self._supportedPools:
             self._supportedPools.put(_id)
+
 
     @external(readonly=True)
     def getPoolById(self, _id: int) -> Address:

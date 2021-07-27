@@ -1,46 +1,20 @@
 from .Math import *
+from .rewardConfigurationDB import RewardConfigurationDB
 from .utils.checks import *
+from .utils.types import *
 
 TAG = 'RewardDistributionManager'
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
 
-class SupplyDetails(TypedDict):
-    principalUserBalance: int
-    principalTotalSupply: int
-
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-class AssetConfig(TypedDict):
-    asset: Address
-    distPercentage: int
-    assetName: str
-
-
-class LPConfig(TypedDict):
-    _id: int
-    distPercentage: int
-    assetName: str
-
-
-class UserAssetInput(TypedDict):
-    asset: Address
-    userBalance: int
-    totalBalance: int
-
-
 class TokenInterface(InterfaceScore):
     @interface
-    def totalSupply(self) -> int:
+    def getTotalStaked(self) -> int:
         pass
 
     @interface
-    def total_staked_balance(self) -> int:
+    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
         pass
 
 
@@ -60,38 +34,27 @@ class LPInterface(InterfaceScore):
 
 
 class RewardDistributionManager(IconScoreBase):
-    EMISSION_PER_SECOND = 'emissionPerSecond'
+    REWARD_CONFIG = 'rewardConfig'
     LAST_UPDATE_TIMESTAMP = 'lastUpdateTimestamp'
     TIMESTAMP_AT_START = 'timestampAtStart'
     ASSET_INDEX = 'assetIndex'
     USER_INDEX = 'userIndex'
-    ASSETS = 'assets'
-    ASSET_NAME = "assetName"
-    DIST_PERCENTAGE = 'distPercentage'
     RESERVE_ASSETS = 'reserveAssets'
-    LP_IDS = 'lpIds'
     ADDRESSES = "addresses"
     CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._emissionPerSecond = DictDB(self.EMISSION_PER_SECOND, db, value_type=int)
+        self._rewardConfig = RewardConfigurationDB(self.REWARD_CONFIG, db)
+
         self._lastUpdateTimestamp = DictDB(self.LAST_UPDATE_TIMESTAMP, db, value_type=int)
         self._assetIndex = DictDB(self.ASSET_INDEX, db, value_type=int)
-        self._distPercentage = DictDB(self.DIST_PERCENTAGE, db, value_type=int)
         self._userIndex = DictDB(self.USER_INDEX, db, value_type=int, depth=2)
 
-        self._assets = ArrayDB(self.ASSETS, db, value_type=Address)
-        self._assetName = DictDB(self.ASSET_NAME, db, value_type=str)
-
         self._reserveAssets = ArrayDB(self.RESERVE_ASSETS, db, value_type=Address)
-        self._lpIds = ArrayDB(self.LP_IDS, db, value_type=int)
         self._timestampAtStart = VarDB(self.TIMESTAMP_AT_START, db, value_type=int)
         self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
         self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
-
-    def on_install(self) -> None:
-        super().on_install()
 
     def on_update(self) -> None:
         super().on_update()
@@ -110,10 +73,7 @@ class RewardDistributionManager(IconScoreBase):
 
     @external(readonly=True)
     def getAssetEmission(self) -> dict:
-        return {
-            str(asset): self._emissionPerSecond[asset]
-            for asset in self._assets
-        }
+        return self._rewardConfig.getAllEmissionPerSecond()
 
     @origin_owner
     @external
@@ -129,80 +89,80 @@ class RewardDistributionManager(IconScoreBase):
 
     @external(readonly=True)
     def getAssets(self) -> list:
-        return [asset for asset in self._assets]
+        return [asset for asset in self._rewardConfig.getAssets()]
 
     @external(readonly=True)
     def getAssetNames(self) -> dict:
-        return {str(item): self._assetName[item] for item in self._assets}
-
-    def _configureEmissionPerSecond(self, asset: Address, distPercentage: int, totalBalance: int):
-        self._distPercentage[asset] = distPercentage
-        emissionPerSecond = self._getEmissionPerSecond(distPercentage)
-        self._updateAssetStateInternal(asset, totalBalance)
-        self._emissionPerSecond[asset] = emissionPerSecond
-        self.AssetConfigUpdated(asset, emissionPerSecond)
-        if asset not in self._assets:
-            self._assets.put(asset)
+        return self._rewardConfig.getAssetNames()
 
     @only_owner
     @external
-    def configureAssetEmission(self, _assetConfig: List[AssetConfig]) -> None:
+    def setAssetName(self, _asset: Address, _name: str):
+        self._rewardConfig.setAssetName(_asset, _name)
+
+    def _updateDistPercentage(self, _distPercentage: List[DistPercentage]):
+        totalPercentage = 0
+        for config in _distPercentage:
+            _recipient = config["recipient"]
+            _percentage = config["percentage"]
+            totalPercentage += _percentage
+            self._rewardConfig.setDistributionPercentage(config["recipient"], config["percentage"])
+
+        assert totalPercentage == 1 * 10 ** 18
+
+    @only_owner
+    @external
+    def setDistributionPercentage(self, _distPercentage: List[DistPercentage]):
+        self._updateDistPercentage(_distPercentage)
+        self.updateEmissionPerSecond()
+
+    @external(readonly=True)
+    def getDistributionPercentage(self, _recipient: str) -> int:
+        return self._rewardConfig.getDistributionPercentage(_recipient)
+
+    @external(readonly=True)
+    def getAllDistributionPercentage(self) -> dict:
+        return self._rewardConfig.getAllDistributionPercentage()
+
+    @external(readonly=True)
+    def assetDistPercentage(self, asset: Address) -> int:
+        return self._rewardConfig.getAssetPercentage(asset)
+
+    @external(readonly=True)
+    def allAssetDistPercentage(self) -> list:
+        return self._rewardConfig.getAllAssetConfig()
+
+    def _configureAsset(self, distributionPerDay: int, _assetConfig: AssetConfig):
+        asset = _assetConfig['asset']
+        self._rewardConfig.setAssetConfig(_assetConfig)
+        _totalBalance = self._getTotalBalance(asset)
+        self._updateAssetStateInternal(asset, _totalBalance)
+        _emissionPerSecond = self._rewardConfig.updateEmissionPerSecond(asset, distributionPerDay)
+        self.AssetConfigUpdated(asset, _emissionPerSecond)
+
+    @only_owner
+    @external
+    def configureAssets(self, _assetConfig: List[AssetConfig]) -> None:
+        distributionPerDay = self.tokenDistributionPerDay(self.getDay());
         for config in _assetConfig:
-            asset = config['asset']
-            assetName = config['assetName']
-            distPercentage = config['distPercentage']
-            token = self.create_interface_score(asset, TokenInterface)
-            totalBalance = token.totalSupply()
-            self._configureEmissionPerSecond(asset, distPercentage, totalBalance)
-            self._assetName[asset] = assetName
-            if asset not in self._reserveAssets:
-                self._reserveAssets.put(asset)
+            self._configureAsset(distributionPerDay, config)
 
-    @only_owner
+    @only_stake_lp_or_omm
     @external
-    def configureLPEmission(self, _lpConfig: List[LPConfig]) -> None:
-        for config in _lpConfig:
-            _id = config['_id']
-            distPercentage = config['distPercentage']
-            assetName = config['assetName']
-            lp = self.create_interface_score(self._addresses[STAKED_LP], LPInterface)
-            asset = lp.getPoolById(_id)
-            totalStakeBalance = lp.getTotalStaked(_id)
-            self._configureEmissionPerSecond(asset, distPercentage, totalStakeBalance)
-            self._assetName[asset] = assetName
-            if _id not in self._lpIds:
-                self._lpIds.put(_id)
-
-    @only_owner
-    @external
-    def configureOmmEmission(self, _distPercentage: int) -> None:
-        asset = self._addresses[OMM_TOKEN]
-        token = self.create_interface_score(asset, TokenInterface)
-        totalStakedBalance = token.total_staked_balance()
-        self._assetName[asset] = "OMM"
-        self._configureEmissionPerSecond(asset, _distPercentage, totalStakedBalance)
+    def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
+        distributionPerDay = self.tokenDistributionPerDay(self.getDay());
+        for config in _assetConfig:
+            self._configureAsset(distributionPerDay, config)
 
     @only_owner
     @external
     def updateEmissionPerSecond(self) -> None:
-        for asset in self._reserveAssets:
-            distPercentage = self._distPercentage[asset]
-            token = self.create_interface_score(asset, TokenInterface)
-            totalBalance = token.totalSupply()
-            self._configureEmissionPerSecond(asset, distPercentage, totalBalance)
-
-        for lpId in self._lpIds:
-            lp = self.create_interface_score(self._addresses[STAKED_LP], LPInterface)
-            asset = lp.getPoolById(lpId)
-            totalStakeBalance = lp.getTotalStaked(lpId)
-            distPercentage = self._distPercentage[asset]
-            self._configureEmissionPerSecond(asset, distPercentage, totalStakeBalance)
-
-        asset = self._addresses[OMM_TOKEN]
-        token = self.create_interface_score(asset, TokenInterface)
-        totalStakedBalance = token.total_staked_balance()
-        distPercentage = self._distPercentage[asset]
-        self._configureEmissionPerSecond(asset, distPercentage, totalStakedBalance)
+        distributionPerDay = self.tokenDistributionPerDay(self.getDay());
+        _assets = self._rewardConfig.getAssets()
+        for asset in _assets:
+            _totalBalance = self._getTotalBalance(asset)
+            self._updateAssetStateInternal(asset, _totalBalance)
+            self._rewardConfig.updateEmissionPerSecond(asset, distributionPerDay)
 
     def _updateAssetStateInternal(self, _asset: Address, _totalBalance: int) -> int:
         oldIndex = self._assetIndex[_asset]
@@ -212,8 +172,9 @@ class RewardDistributionManager(IconScoreBase):
 
         if currentTime == lastUpdateTimestamp:
             return oldIndex
+        _emissionPerSecond = self._rewardConfig.getEmissionPerSecond(_asset)
 
-        newIndex = self._getAssetIndex(oldIndex, self._emissionPerSecond[_asset], lastUpdateTimestamp, _totalBalance)
+        newIndex = self._getAssetIndex(oldIndex, _emissionPerSecond, lastUpdateTimestamp, _totalBalance)
         if newIndex != oldIndex:
             self._assetIndex[_asset] = newIndex
             self.AssetIndexUpdated(_asset, newIndex)
@@ -257,7 +218,8 @@ class RewardDistributionManager(IconScoreBase):
         asset = _assetInput['asset']
         userBalance = _assetInput['userBalance']
         totalBalance = _assetInput['totalBalance']
-        assetIndex = self._getAssetIndex(self._assetIndex[asset], self._emissionPerSecond[asset],
+        _emissionPerSecond = self._rewardConfig.getEmissionPerSecond(asset)
+        assetIndex = self._getAssetIndex(self._assetIndex[asset], _emissionPerSecond,
                                          self._lastUpdateTimestamp[asset], totalBalance)
         accruedRewards = RewardDistributionManager._getRewards(userBalance, assetIndex, self._userIndex[_user][asset])
         return accruedRewards
@@ -300,3 +262,26 @@ class RewardDistributionManager(IconScoreBase):
     @external(readonly=True)
     def getStartTimestamp(self) -> int:
         return self._timestampAtStart.get()
+
+    def _getTotalBalance(self, asset) -> int:
+        poolId = self._rewardConfig.getPoolID(asset)
+        if poolId > 0:
+            lp = self.create_interface_score(self._addresses[STAKED_LP], LPInterface)
+            return lp.getTotalStaked(poolId)
+        else:
+            token = self.create_interface_score(asset, TokenInterface)
+            return token.getTotalStaked()
+
+    def _getUserAssetDetails(self, asset: Address, user: Address) -> UserAssetInput:
+        poolId = self._rewardConfig.getPoolID(asset)
+        if poolId > 0:
+            lp = self.create_interface_score(self._addresses[STAKED_LP], LPInterface)
+            supply = lp.getLPStakedSupply(poolId, user)
+        else:
+            token = self.create_interface_score(asset, TokenInterface)
+            supply = token.getPrincipalSupply(user)
+        return {
+            'asset': asset,
+            'userBalance': supply['principalUserBalance'],
+            'totalBalance': supply['principalTotalSupply']
+        }
