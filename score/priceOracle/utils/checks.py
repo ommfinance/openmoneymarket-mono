@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'PriceOracle'
+TAG = 'OMM Price Oracle Proxy'
 
 #Address
 BAND_ORACLE = "bandOracle"

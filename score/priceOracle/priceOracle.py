@@ -62,23 +62,27 @@ class PriceOracle(IconScoreBase):
     _ADDRESSES = 'addresses'
     _CONTRACTS = 'contracts'
 
+    _OMM_POOL = "ommPool"
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._price = DictDB(self._PRICE, db, value_type=int, depth=2)
         self._oraclePriceBool = VarDB(self._ORACLE_PRICE_BOOL, db, value_type=bool)
+        self._ommPool = VarDB(self._OMM_POOL, db, value_type=str)
         self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
         self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
         self._oraclePriceBool.set(True)
+        self._ommPool.set("OMM")
 
     def on_update(self) -> None:
         super().on_update()
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmPriceOracleProxy"
+        return f"{TAG}"
 
     @origin_owner
     @external
@@ -107,6 +111,15 @@ class PriceOracle(IconScoreBase):
 
     @only_owner
     @external
+    def setOMMPool(self, _value: str):
+        self._ommPool.set(_value)
+
+    @external(readonly=True)
+    def getOMMPool(self) -> str:
+        return self._ommPool.get()
+
+    @only_owner
+    @external
     def set_reference_data(self, _base: str, _quote: str, _rate: int) -> None:
         self._price[_base][_quote] = _rate
 
@@ -121,7 +134,7 @@ class PriceOracle(IconScoreBase):
         else:
             return self._price[_base][_quote]
 
-    def _get_omm_price(self, _base: str, _quote: str) -> int:
+    def _get_omm_price(self, _quote: str) -> int:
         lp_token = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
         address_provider = self.create_interface_score(self.getAddress(ADDRESS_PROVIDER), AddressProviderInterface)
         reserve_addresses = address_provider.getReserveAddresses()
@@ -131,7 +144,7 @@ class PriceOracle(IconScoreBase):
             name = token["name"]
             price_oracle_key = token["priceOracleKey"]
 
-            _price = lp_token.getPriceByName(f"{_base}/{name}")
+            _price = lp_token.getPriceByName(f"{self.getOMMPool()}/{name}")
 
             _interface = self.create_interface_score(reserve_addresses[name], TokenInterface)
             _decimals = _interface.decimals()
@@ -143,7 +156,7 @@ class PriceOracle(IconScoreBase):
 
     @external(readonly=True)
     def get_reference_data(self, _base: str, _quote) -> int:
-        if 'OMM' in _base:
-            return self._get_omm_price(_base, _quote)
+        if _base == 'OMM':
+            return self._get_omm_price(_quote)
         else:
             return self._get_price(_base, _quote)
