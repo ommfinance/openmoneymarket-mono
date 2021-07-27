@@ -8,6 +8,7 @@ LIQUIDATION_MANAGER = 'liquidationManager'
 PRICE_ORACLE = 'priceOracle'
 STAKING = 'staking'
 FEE_PROVIDER = 'feeProvider'
+REWARDS = 'rewards'
 
 
 class SupplyDetails(TypedDict):
@@ -155,6 +156,12 @@ class RewardInterface(InterfaceScore):
     def getAllDistributionPercentage(self) -> dict:
         pass
 
+    @interface
+    def assetDistPercentage(self, asset: Address) -> int:
+        pass
+
+
+
 
 class LendingPoolDataProvider(IconScoreBase):
     _SYMBOL = 'symbol'
@@ -165,7 +172,6 @@ class LendingPoolDataProvider(IconScoreBase):
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._symbol = DictDB(self._SYMBOL, db, value_type=str)
-        self._rewardPercentage = DictDB(self._REWARD_PERCENTAGE, db, value_type=int, depth=2)
         self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
         self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
@@ -199,24 +205,6 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def getAddresses(self) -> dict:
         return {item: self._addresses[item] for item in self._contracts}
-
-    @only_owner
-    @external
-    def setRewardPercentages(self, _rewards: List[RewardPercentage]) -> None:
-        for reward in _rewards:
-            reserve = reward['reserve']
-            self._rewardPercentage[reserve]['total'] = reward['rewardPercentage']
-            self._rewardPercentage[reserve]['lending'] = reward['lendingPercentage']
-            self._rewardPercentage[reserve]['borrowing'] = reward['borrowingPercentage']
-
-    @external(readonly=True)
-    def getRewardPercentages(self, _reserve: Address) -> dict:
-        response = {}
-        response['rewardPercentage'] = self._rewardPercentage[_reserve]['total']
-        response['lendingPercentage'] = self._rewardPercentage[_reserve]['lending']
-        response['borrowingPercentage'] = self._rewardPercentage[_reserve]['borrowing']
-
-        return response
 
     @external(readonly=True)
     def getRecipients(self) -> list:
@@ -580,6 +568,7 @@ class LendingPoolDataProvider(IconScoreBase):
     def getReserveData(self, _reserve: Address) -> dict:
         core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         oracle = self.create_interface_score(self._addresses[PRICE_ORACLE], OracleInterface)
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         reserveData = core.getReserveData(_reserve)
         symbol = self._symbol[_reserve]
         price = oracle.get_reference_data(symbol, "USD")
@@ -594,9 +583,9 @@ class LendingPoolDataProvider(IconScoreBase):
         reserveData["availableLiquidityUSD"] = exaMul(convertToExa(reserveData['availableLiquidity'], reserveDecimals),
                                                       price)
         reserveData["totalBorrowsUSD"] = exaMul(convertToExa(reserveData['totalBorrows'], reserveDecimals), price)
-        reserveData["rewardPercentage"] = self._rewardPercentage[_reserve]['total']
-        reserveData["lendingPercentage"] = self._rewardPercentage[_reserve]['lending']
-        reserveData["borrowingPercentage"] = self._rewardPercentage[_reserve]['borrowing']
+        reserveData["lendingPercentage"] = rewards.assetDistPercentage(reserveData["oTokenAddress"])
+        reserveData["borrowingPercentage"] = rewards.assetDistPercentage(reserveData["dTokenAddress"])
+        reserveData["rewardPercentage"] = reserveData["lendingPercentage"] + reserveData["borrowingPercentage"]
 
         return reserveData
 
