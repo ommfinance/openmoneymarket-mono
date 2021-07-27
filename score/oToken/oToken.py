@@ -7,6 +7,7 @@ RESERVE = 'reserve'
 LENDING_POOL_CORE = 'lendingPoolCore'
 LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
 
+
 class SupplyDetails(TypedDict):
     principalUserBalance: int
     principalTotalSupply: int
@@ -411,7 +412,8 @@ class OToken(IconScoreBase, TokenStandard):
         self._balances[_from] -= _value
         self._balances[_to] += _value
         self._callRewards(previousBalances['fromPreviousPrincipalBalance'],
-                          previousBalances['toPreviousPrincipalBalance'], previousBalances['beforeTotalSupply'])
+                          previousBalances['toPreviousPrincipalBalance'], previousBalances['beforeTotalSupply'], _from,
+                          _to)
 
         if _to.is_contract:
             '''
