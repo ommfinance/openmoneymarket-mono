@@ -218,13 +218,10 @@ class StakedLp(IconScoreBase):
         previousTotalStaked = self._totalStaked[_id]
 
         self._check_first_time(_user, _id, userBalance)
-        new_stake = _value
-        stake_increment = new_stake - previousUserStaked
-        StakedLp._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
         self._poolStakeDetails[_user][_id][Status.AVAILABLE] = self._poolStakeDetails[_user][_id][
-                                                                   Status.AVAILABLE] - stake_increment
-        self._poolStakeDetails[_user][_id][Status.STAKED] = _value
-        self._totalStaked[_id] = self._totalStaked[_id] + stake_increment
+                                                                   Status.AVAILABLE] - _value
+        self._poolStakeDetails[_user][_id][Status.STAKED] = previousUserStaked+_value
+        self._totalStaked[_id] = self._totalStaked[_id] + _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         reward.handleAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])
 
