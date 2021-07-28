@@ -98,16 +98,12 @@ class DToken(IconScoreBase, TokenStandard):
     def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         pass
 
-    @eventlog(indexed=1)
-    def Mint(self, account: Address, amount: int):
-        pass
-
-    @eventlog(indexed=1)
-    def Burn(self, account: Address, amount: int):
+    @eventlog(indexed=3)
+    def MintOnBorrow(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
         pass
 
     @eventlog(indexed=3)
-    def MintOnBorrow(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
+    def BurnOnRepay(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
         pass
 
     @eventlog(indexed=3)
@@ -167,32 +163,6 @@ class DToken(IconScoreBase, TokenStandard):
                 exaMul(convertToExa(_balance, decimals), core.getNormalizedDebt(self._addresses[RESERVE])),
                 userIndex)
             return convertExaToOther(balance, decimals)
-
-    def _cumulateBalanceInternal(self, _user: Address) -> dict:
-        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
-        previousUserIndex = self._userIndexes[_user]
-        decimals = self._decimals.get()
-        previousPrincipalBalance = self.principalBalanceOf(_user)
-        if previousUserIndex != 0:
-            balanceInExa = exaDiv(
-                exaMul(convertToExa(previousPrincipalBalance, decimals),
-                       core.getReserveBorrowCumulativeIndex(self._addresses[RESERVE])), previousUserIndex)
-            balance = convertExaToOther(balanceInExa, decimals)
-        else:
-            balance = previousPrincipalBalance
-        balanceIncrease = balance - previousPrincipalBalance
-        if balanceIncrease > 0:
-            self._mint(_user, balanceIncrease)
-
-        userIndex = core.getReserveBorrowCumulativeIndex(self._addresses[RESERVE])
-        self._userIndexes[_user] = userIndex
-
-        return {
-            'previousPrincipalBalance': previousPrincipalBalance,
-            'principalBalance': previousPrincipalBalance + balanceIncrease,
-            'balanceIncrease': balanceIncrease,
-            'index': userIndex
-        }
 
     # This will always include accrued interest as a computed value
     @external(readonly=True)
@@ -274,6 +244,7 @@ class DToken(IconScoreBase, TokenStandard):
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user) == 0:
             self._resetDataOnZeroBalanceInternal(_user)
+        self.BurnOnRepay(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
     @only_lending_pool_core
     @external
@@ -286,7 +257,8 @@ class DToken(IconScoreBase, TokenStandard):
         decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user) == 0:
-            self._resetDataOnZeroBalanceInternal(_user)
+            self._resetDataOnZeroBalanceInternal(_user)        
+        self.BurnOnLiquidation(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
@@ -319,7 +291,6 @@ class DToken(IconScoreBase, TokenStandard):
 
         # Emits an event log Mint
         self.Transfer(ZERO_SCORE_ADDRESS, account, amount, data)
-        self.Mint(account, amount)
 
     def _burn(self, account: Address, amount: int, data: bytes = None) -> None:
         """
@@ -333,18 +304,20 @@ class DToken(IconScoreBase, TokenStandard):
         if data is None:
             data = b'burn'
         totalSupply = self._totalSupply.get()
+        userBalance = self._balances[account]
         if amount <= 0:
             revert(f'{TAG}: 'f'Invalid value: {amount} to burn')
         if amount > totalSupply:
             revert(f'{TAG}:'
                    f'{amount} is greater than total supply :{totalSupply}')
+        if amount > userBalance:
+            revert(f'{TAG}: Cannot burn more than user balance. Amount to burn: {amount} User Balance: {userBalance}')
 
-        self._totalSupply.set(self._totalSupply.get() - amount)
+        self._totalSupply.set(totalSupply - amount)
         self._balances[account] -= amount
 
         # Emits an event log Burn
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, data)
-        self.Burn(account, amount)
 
     @external(readonly=True)
     def getTotalStaked(self) -> int:
