@@ -123,6 +123,7 @@ class RewardDistributionController(RewardDistributionManager):
             totalRewards += unclaimedRewards
 
         response['total'] = totalRewards
+        response['now'] = self.now()//10**6
 
         return response
 
@@ -207,8 +208,4 @@ class RewardDistributionController(RewardDistributionManager):
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
-        pass
-
-    @eventlog(indexed=1)
-    def Claimed(self, _address: Address, _start: int, _end: int, _rewards: int):
         pass
