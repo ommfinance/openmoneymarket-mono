@@ -293,7 +293,6 @@ class DToken(IconScoreBase, TokenStandard):
 
         # Emits an event log Mint
         self.Transfer(ZERO_SCORE_ADDRESS, account, amount, data)
-        self.Mint(account, amount)
 
     def _burn(self, account: Address, amount: int, data: bytes = None) -> None:
         """
@@ -321,7 +320,6 @@ class DToken(IconScoreBase, TokenStandard):
 
         # Emits an event log Burn
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, data)
-        self.Burn(account, amount)
 
     @external(readonly=True)
     def getTotalStaked(self) -> int:
