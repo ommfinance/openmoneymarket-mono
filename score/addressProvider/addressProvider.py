@@ -126,6 +126,7 @@ class AddressProvider(IconScoreBase):
         self.setRewardAddresses()
         self.setGovernanceAddresses()
         self.setStakedLpAddresses()
+        self.setPriceOracleAddress()
 
     @only_owner
     @external
