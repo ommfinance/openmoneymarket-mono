@@ -116,10 +116,18 @@ class RewardDistributionController(RewardDistributionManager):
         _assets = self._rewardConfig.getAssets()
         for _asset in _assets:
             _assetName = self._rewardConfig.getAssetName(_asset)
+            _entity = self._rewardConfig.getEntity(_asset)
+
+            entityDict = {} if response.get(_entity) is None else response.get(_entity)
+            total = 0 if response.get("total") is None else entityDict.get(_entity)
+
             userAssetDetails = self._getUserAssetDetails(_asset, _user)
             unclaimedRewards = self._usersUnclaimedRewards[_user][_asset]
             unclaimedRewards += self._getUnclaimedRewards(_user, userAssetDetails)
-            response[_assetName] = unclaimedRewards
+            entityDict[_assetName] = unclaimedRewards
+            total += unclaimedRewards
+            entityDict["total"] = total
+            response[_entity] = entityDict
             totalRewards += unclaimedRewards
 
         response['total'] = totalRewards
