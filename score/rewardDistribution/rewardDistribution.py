@@ -95,6 +95,13 @@ class RewardDistributionManager(IconScoreBase):
     def getAssetNames(self) -> dict:
         return self._rewardConfig.getAssetNames()
 
+    @external(readonly=True)
+    def getIndexes(self, _user: Address, _asset: Address) -> dict:
+        return {
+            'userIndex': self._userIndex[_user][_asset],
+            'assetIndex': self._assetIndex[_asset]
+        }
+
     @only_owner
     @external
     def setAssetName(self, _asset: Address, _name: str):
