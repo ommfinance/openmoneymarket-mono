@@ -97,6 +97,18 @@ class TestRewardDistributionController(ScoreTestCase):
                         self.test_account4: 10 ** 21}
         ScoreTestCase.initialize_accounts(account_info)
 
+    def test_token_dist_per_day(self):
+        """
+        Inflation should rise by 3% every year
+        """
+        tokens_yr_5 = self.score.tokenDistributionPerDay(5*365)
+        tokens_yr_6 = self.score.tokenDistributionPerDay(6*365)
+        inflation_56 = (tokens_yr_6-tokens_yr_5)/tokens_yr_5
+        self.assertEqual(0.03, inflation_56)
+        tokens_yr_7 = self.score.tokenDistributionPerDay(7*365)
+        inflation_67 = (tokens_yr_7-tokens_yr_6)/tokens_yr_6
+        self.assertEqual(0.03, inflation_67)
+
     def _setup_asset_emission(self, account: Address, config):
         self.set_msg(account)
         self.patch_internal_method(config["asset"], "getTotalStaked", lambda: config["totalSupply"])
