@@ -168,32 +168,6 @@ class DToken(IconScoreBase, TokenStandard):
                 userIndex)
             return convertExaToOther(balance, decimals)
 
-    def _cumulateBalanceInternal(self, _user: Address) -> dict:
-        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
-        previousUserIndex = self._userIndexes[_user]
-        decimals = self._decimals.get()
-        previousPrincipalBalance = self.principalBalanceOf(_user)
-        if previousUserIndex != 0:
-            balanceInExa = exaDiv(
-                exaMul(convertToExa(previousPrincipalBalance, decimals),
-                       core.getReserveBorrowCumulativeIndex(self._addresses[RESERVE])), previousUserIndex)
-            balance = convertExaToOther(balanceInExa, decimals)
-        else:
-            balance = previousPrincipalBalance
-        balanceIncrease = balance - previousPrincipalBalance
-        if balanceIncrease > 0:
-            self._mint(_user, balanceIncrease)
-
-        userIndex = core.getReserveBorrowCumulativeIndex(self._addresses[RESERVE])
-        self._userIndexes[_user] = userIndex
-
-        return {
-            'previousPrincipalBalance': previousPrincipalBalance,
-            'principalBalance': previousPrincipalBalance + balanceIncrease,
-            'balanceIncrease': balanceIncrease,
-            'index': userIndex
-        }
-
     # This will always include accrued interest as a computed value
     @external(readonly=True)
     def balanceOf(self, _owner: Address) -> int:
