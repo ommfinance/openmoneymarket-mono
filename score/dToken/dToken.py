@@ -98,16 +98,12 @@ class DToken(IconScoreBase, TokenStandard):
     def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         pass
 
-    @eventlog(indexed=1)
-    def Mint(self, account: Address, amount: int):
-        pass
-
-    @eventlog(indexed=1)
-    def Burn(self, account: Address, amount: int):
+    @eventlog(indexed=3)
+    def MintOnBorrow(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
         pass
 
     @eventlog(indexed=3)
-    def MintOnBorrow(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
+    def BurnOnRepay(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
         pass
 
     @eventlog(indexed=3)
@@ -248,6 +244,7 @@ class DToken(IconScoreBase, TokenStandard):
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user) == 0:
             self._resetDataOnZeroBalanceInternal(_user)
+        self.BurnOnRepay(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
     @only_lending_pool_core
     @external
@@ -260,7 +257,8 @@ class DToken(IconScoreBase, TokenStandard):
         decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user) == 0:
-            self._resetDataOnZeroBalanceInternal(_user)
+            self._resetDataOnZeroBalanceInternal(_user)        
+        self.BurnOnLiquidation(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
