@@ -3,7 +3,7 @@ from .rewardConfigurationDB import RewardConfigurationDB
 from .utils.checks import *
 from .utils.types import *
 
-TAG = 'RewardDistributionManager'
+TAG = 'Reward Distribution Manager'
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
@@ -129,8 +129,12 @@ class RewardDistributionManager(IconScoreBase):
         return self._rewardConfig.getAssetPercentage(asset)
 
     @external(readonly=True)
-    def allAssetDistPercentage(self) -> list:
-        return self._rewardConfig.getAllAssetConfig()
+    def allAssetDistPercentage(self) -> dict:
+        return self._rewardConfig.getAssetConfigs()
+
+    @external(readonly=True)
+    def distPercentageOfAllLP(self):
+        return self._rewardConfig.assetConfigOfLiquidityProvider();
 
     def _configureAsset(self, distributionPerDay: int, _assetConfig: AssetConfig):
         asset = _assetConfig['asset']
@@ -145,6 +149,8 @@ class RewardDistributionManager(IconScoreBase):
     def configureAssets(self, _assetConfig: List[AssetConfig]) -> None:
         distributionPerDay = self.tokenDistributionPerDay(self.getDay());
         for config in _assetConfig:
+            # set _id to -1 for all asset except pools (pool use configureLPEmission method)
+            config['_id'] = -1
             self._configureAsset(distributionPerDay, config)
 
     @only_stake_lp_or_omm
