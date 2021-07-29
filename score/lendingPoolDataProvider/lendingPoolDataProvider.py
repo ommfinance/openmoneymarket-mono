@@ -68,7 +68,7 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
-    def getCompoundedBorrowBalance(self, _reserve: Address, _user: Address) -> int:
+    def getUserBorrowBalances(self, _reserve: Address, _user: Address) -> dict:
         pass
 
 
@@ -80,7 +80,7 @@ class OracleInterface(InterfaceScore):
 
 
 # An interface to oToken
-class oTokenInterface(InterfaceScore):
+class TokenInterface(InterfaceScore):
     @interface
     def balanceOf(self, _owner: Address) -> int:
         pass
@@ -94,26 +94,15 @@ class oTokenInterface(InterfaceScore):
         pass
 
     @interface
-    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
-        pass
-
-
-# An interface to oToken
-class dTokenInterface(InterfaceScore):
-    @interface
-    def balanceOf(self, _owner: Address) -> int:
-        pass
-
-    @interface
     def getUserBorrowCumulativeIndex(self, _user: Address) -> int:
         pass
 
     @interface
-    def principalBalanceOf(self, _user: Address) -> int:
+    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
         pass
 
     @interface
-    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
+    def totalSupply(self) -> int:
         pass
 
 
@@ -126,6 +115,7 @@ class LendingPoolInterface(InterfaceScore):
     @interface
     def getLoanOriginationFeePercentage(self) -> int:
         pass
+
 
 
 # An interface to liquidation manager
@@ -161,19 +151,19 @@ class RewardInterface(InterfaceScore):
         pass
 
 
-
-
 class LendingPoolDataProvider(IconScoreBase):
     _SYMBOL = 'symbol'
     _REWARD_PERCENTAGE = 'rewardPercentage'
     _CONTRACTS = 'contracts'
     _ADDRESSES = 'addresses'
+    _BORROW_PERCENTAGE_THRESHOLD = "borrowPercentageThreshold"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._symbol = DictDB(self._SYMBOL, db, value_type=str)
         self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
         self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
+        self._borrowPercentageThreshold = VarDB(self._BORROW_PERCENTAGE_THRESHOLD, db, value_type=int)
 
     def on_install(self) -> None:
         super().on_install()
@@ -205,6 +195,17 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def getAddresses(self) -> dict:
         return {item: self._addresses[item] for item in self._contracts}
+
+    @only_owner
+    @external
+    def setBorrowPercentage(self, _borrowPercentage: int) -> None:
+        if not (0 < _borrowPercentage <= EXA):
+            revert(f'{TAG}: BorrowPercentage cannot exceed 100% and be less or equal to zero')
+        self._borrowPercentageThreshold.set(_borrowPercentage)
+
+    @external(readonly=True)
+    def getBorrowPercentage(self) -> int:
+        return self._borrowPercentageThreshold.get()
 
     @external(readonly=True)
     def getRecipients(self) -> list:
@@ -346,8 +347,8 @@ class LendingPoolDataProvider(IconScoreBase):
     def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
         core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         reserveData = core.getReserveData(_reserve)
-        dToken = self.create_interface_score(reserveData['dTokenAddress'], dTokenInterface)
-        oToken = self.create_interface_score(reserveData['oTokenAddress'], oTokenInterface)
+        dToken = self.create_interface_score(reserveData['dTokenAddress'], TokenInterface)
+        oToken = self.create_interface_score(reserveData['oTokenAddress'], TokenInterface)
         userReserveData = core.getUserReserveData(_reserve, _user)
         currentOTokenBalance = oToken.balanceOf(_user)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
@@ -571,6 +572,16 @@ class LendingPoolDataProvider(IconScoreBase):
         rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         reserveData = core.getReserveData(_reserve)
         symbol = self._symbol[_reserve]
+
+        dToken = self.create_interface_score(reserveData['dTokenAddress'], TokenInterface)
+        oToken = self.create_interface_score(reserveData['oTokenAddress'], TokenInterface)
+
+        totalDeposited = oToken.totalSupply()
+        totalBorrowed = dToken.totalSupply()
+        borrowThreshold = self.getBorrowPercentage()
+        totalAvailableBorrow = exaMul(borrowThreshold, totalDeposited)
+        availableBorrow = totalAvailableBorrow - totalBorrowed
+        reserveData["availableBorrows"] = availableBorrow if availableBorrow > 0 else 0
         price = oracle.get_reference_data(symbol, "USD")
         reserveData["exchangePrice"] = price
         if symbol == "ICX":
@@ -635,7 +646,7 @@ class LendingPoolDataProvider(IconScoreBase):
 
     @external(readonly=True)
     def getAssetPrincipalSupply(self, _asset: Address, _user: Address) -> SupplyDetails:
-        token = create_interface_score(_asset, oTokenInterface)
+        token = create_interface_score(_asset, TokenInterface)
         supply = token.getPrincipalSupply(_user)
         decimals = supply['decimals']
         supply['principalUserBalance'] = convertToExa(supply['principalUserBalance'], decimals)
