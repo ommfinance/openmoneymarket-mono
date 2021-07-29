@@ -54,10 +54,6 @@ class ReserveInterface(InterfaceScore):
 # An interface to reserves
 class RewardInterface(InterfaceScore):
     @interface
-    def distribute(self):
-        pass
-
-    @interface
     def claimRewards(self, _user: Address) -> int:
         pass
 
@@ -318,8 +314,6 @@ class LendingPool(IconScoreBase):
 
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         staking = self.create_interface_score(self.getAddress(STAKING), StakingInterface)
-        reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
-        reward.distribute()
         oTokenAddress = reserveData['oTokenAddress']
 
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
@@ -390,9 +384,6 @@ class LendingPool(IconScoreBase):
         if reserveAvailableLiquidity < _amount:
             revert(f'{TAG}: Amount {_amount} is more than available liquidity {reserveAvailableLiquidity}')
 
-        reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
-        reward.distribute()
-
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
         if _waitForUnstaking:
             self._require(_oToken == self.getAddress(oICX),
@@ -436,8 +427,6 @@ class LendingPool(IconScoreBase):
             self._borrowIndex[self.msg.sender] = len(self._borrowWallets)
         dataProviderAddress = self.getAddress(LENDING_POOL_DATA_PROVIDER)
         dataProvider = self.create_interface_score(dataProviderAddress, DataProviderInterface)
-        reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
-        reward.distribute()
         availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
 
         self._require(availableLiquidity >= _amount, "Borrow error:Not enough available liquidity in the reserve")
@@ -482,14 +471,11 @@ class LendingPool(IconScoreBase):
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserveData = core.getReserveData(_reserve)
         self._require(reserveData['isActive'], "Reserve is not active,repay unsuccessful")
-
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         borrowData: dict = core.getUserBorrowBalances(_reserve, _sender)
         userBasicReserveData: dict = core.getUserBasicReserveData(_reserve, _sender)
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
 
-        reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
-        reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
         returnAmount = 0
