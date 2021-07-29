@@ -66,6 +66,10 @@ class OTokenInterface(InterfaceScore):
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
         pass
 
+    @interface
+    def totalSupply(self) -> int:
+        pass
+
 
 # An interface to debt token
 class DTokenInterface(InterfaceScore):
@@ -97,6 +101,10 @@ class DTokenInterface(InterfaceScore):
     def burnOnLiquidation(self, _user: Address, _amount: int, _balanceIncrease: int) -> None:
         pass
 
+    @interface
+    def totalSupply(self) -> int:
+        pass
+
 
 # An interface to Reserve
 class ReserveInterface(InterfaceScore):
@@ -125,6 +133,7 @@ class LendingPoolCore(IconScoreBase):
     _CONSTANTS = 'constants'
     _ADDRESSES = 'addresses'
     _CONTRACTS = 'contracts'
+    _ALLOWED_BORROW_PERCENTAGE = 'allowedBorrowPercentage'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -132,6 +141,7 @@ class LendingPoolCore(IconScoreBase):
         self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
+        self._allowedBorrowPercentage = VarDB(self._ALLOWED_BORROW_PERCENTAGE, db, value_type=int)
         self.reserve = ReserveDataDB(db)
         self.userReserve = UserReserveDataDB(db)
 
@@ -169,6 +179,17 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def getAddress(self, _name: str) -> Address:
         return self._addresses[_name]
+
+    @only_owner
+    @external
+    def setBorrowPercentage(self, _borrowPercentage: int) -> None:
+        if not (0 < _borrowPercentage <= EXA):
+            revert(f'BorrowPercentage cannot exceed 100% and be less or equal to zero')
+        self._allowedBorrowPercentage.set(_borrowPercentage)
+
+    @external(readonly=True)
+    def getBorrowPercentage(self, _borrowPercentage: int) -> int:
+        return self._allowedBorrowPercentage.get()
 
     def reservePrefix(self, _reserve: Address) -> bytes:
         return b'|'.join([RESERVE_DB_PREFIX, str(_reserve).encode()])
@@ -472,12 +493,21 @@ class LendingPoolCore(IconScoreBase):
     def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int) -> dict:
         balanceIncrease = self.getUserBorrowBalances(_reserve, _user)['borrowBalanceIncrease']
         dToken = self.create_interface_score(self.getReserveDTokenAddress(_reserve), DTokenInterface)
+        oToken = self.create_interface_score(self.getReserveOTokenAddress(_reserve), OTokenInterface)
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         if balanceIncrease > 0:
             reserve.transfer(self.getAddress(FEE_PROVIDER), balanceIncrease // 10)
             self.InterestTransfer(balanceIncrease // 10, _reserve, _user)
         self.updateCumulativeIndexes(_reserve)
         dToken.mintOnBorrow(_user, _amountBorrowed, balanceIncrease)
+        totalDeposited = oToken.totalSupply()
+        totalBorrowed = dToken.totalSupply()
+        borrowThreshold = self._allowedBorrowPercentage.get()
+        totalAvailableBorrow = exaMul(borrowThreshold, totalDeposited)
+        
+        if (totalBorrowed > totalAvailableBorrow):
+            revert(f"Amount {_amountBorrowed } exceeds the borrow threshold of {borrowThreshold}. Available Borrow Amount is {totalAvailableBorrow - totalBorrowed + _amountBorrowed } ")
+
         self.updateUserStateOnBorrowInternal(_reserve, _user, _amountBorrowed, balanceIncrease, _borrowFee)
 
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountBorrowed)
@@ -489,6 +519,19 @@ class LendingPoolCore(IconScoreBase):
             "balanceIncrease": balanceIncrease
         }
 
+    @external(readonly=True):
+    def availableBorrowAmount(self, _reserve: Address) -> int:
+        balanceIncrease = self.getUserBorrowBalances(_reserve, self.msg.sender)['borrowBalanceIncrease']
+        dToken = self.create_interface_score(self.getReserveDTokenAddress(_reserve), DTokenInterface)
+        oToken = self.create_interface_score(self.getReserveOTokenAddress(_reserve), OTokenInterface)
+        totalDeposited = oToken.totalSupply()
+        totalBorrowed = dToken.totalSupply() + balanceIncrease
+        borrowThreshold = self._allowedBorrowPercentage.get()
+        totalAvailableBorrow = exaMul(borrowThreshold, totalDeposited)
+        availableBorrow = totalAvailableBorrow - totalBorrowed
+        return availableBorrow if availableBorrow > 0 else 0
+
+        
     @only_lending_pool
     @external
     def updateStateOnRepay(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
