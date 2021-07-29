@@ -1,6 +1,7 @@
 from .utils.Math import convertToExa, exaMul
 from .utils.checks import *
 
+EXA = 10 ** 18
 BAND_ORACLE = 'bandOracle'
 DEX = 'dex'
 ADDRESS_PROVIDER = 'addressProvider'
@@ -37,15 +38,13 @@ class OracleInterface(InterfaceScore):
         pass
 
 
-class AddressProviderInterface(InterfaceScore):
-    @interface
-    def getReserveAddresses(self) -> dict:
-        pass
-
-
 class DataSourceInterface(InterfaceScore):
     @interface
-    def getPriceByName(self, _name: str) -> int:
+    def lookupPid(self, _name: str) -> int:
+        pass
+
+    @interface
+    def getPoolStats(self, _id: int) -> dict:
         pass
 
 
@@ -135,24 +134,34 @@ class PriceOracle(IconScoreBase):
             return self._price[_base][_quote]
 
     def _get_omm_price(self, _quote: str) -> int:
-        lp_token = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
-        address_provider = self.create_interface_score(self.getAddress(ADDRESS_PROVIDER), AddressProviderInterface)
-        reserve_addresses = address_provider.getReserveAddresses()
+        dex = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
 
         _total_price = 0
+        _total_omm_supply = 0
         for token in OMM_TOKENS:
             name = token["name"]
+            # key in band oracle
             price_oracle_key = token["priceOracleKey"]
+            _pool_id = dex.lookupPid(f"{self.getOMMPool()}/{name}")
+            _pool_stats = dex.getPoolStats(_pool_id)
 
-            _price = lp_token.getPriceByName(f"{self.getOMMPool()}/{name}")
+            # convert price to 10**18 precision and calculate price in _quote
+            _price = _pool_stats['price']
+            _quote_decimals = _pool_stats['quote_decimals']
+            _base_decimals = _pool_stats['base_decimals']
+            _average_decimals = _quote_decimals * 18 // _base_decimals
+            _adjusted_price = token["convert"](dex, _price, _average_decimals)
+            _converted_price = exaMul(_adjusted_price, self._get_price(price_oracle_key, _quote))
 
-            _interface = self.create_interface_score(reserve_addresses[name], TokenInterface)
-            _decimals = _interface.decimals()
+            # convert total_supply to 10**18 precision
+            _total_supply = _pool_stats['total_supply']
+            _total_supply_decimals = (_quote_decimals + _base_decimals) // 2
+            _adjusted_total_supply = convertToExa(_total_supply, _total_supply_decimals)
 
-            _adjusted_price = token["convert"](lp_token, _price, _decimals)
-            _total_price += exaMul(_adjusted_price, self._get_price(price_oracle_key, _quote))
+            _total_omm_supply += _adjusted_total_supply
+            _total_price += (_adjusted_total_supply * _converted_price)
 
-        return _total_price // len(OMM_TOKENS)
+        return _total_price // _total_omm_supply
 
     @external(readonly=True)
     def get_reference_data(self, _base: str, _quote) -> int:
