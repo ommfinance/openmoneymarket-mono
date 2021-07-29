@@ -26,6 +26,11 @@ class RewardConfigurationDB(object):
     ASSETS = 'Assets'
     ASSET_INDEXES = 'AssetIndexes'
 
+    # entity
+    RESERVE = 'reserve'
+    STAKING = 'staking'
+    LIQUIDITY = 'liquidity'
+
     def __init__(self, key: str, db: IconScoreDatabase) -> None:
         self._distributionPercentage = DictDB(f'{key}{self.ENTITY_DISTRIBUTION_PERCENTAGE}', db, value_type=int)
         self._emissionPerSecond = DictDB(f'{key}{self.EMISSION_PER_SECOND}', db, value_type=int)
@@ -89,6 +94,11 @@ class RewardConfigurationDB(object):
             self._indexes[last_asset] = index
 
     def setAssetConfig(self, config: AssetConfig) -> None:
+        """
+        set asset reward percentage for reward distribution
+        :param config: AssetConfig
+        :return: None
+        """
         asset = config['asset']
         assetName = config['assetName']
         distPercentage = config['distPercentage']
@@ -115,15 +125,37 @@ class RewardConfigurationDB(object):
         _overallPercentage = exaMul(_entityDistPercentage, _assetPercentage)
         return _overallPercentage
 
-    def getAllAssetConfig(self) -> list:
-        configs = []
+    def getAssetConfigs(self) -> dict:
+        configs = {"liquidity": {}, "staking": {}, "reserve": {}}
         for asset in self._assets:
-            config = {"name": self._assetName[asset], "distributionPercentage": self.getAssetPercentage(asset)}
-            configs.append(config)
+            _name = self._assetName[asset]
+            _percentage = self.getAssetPercentage(asset)
+            _entity = self.getEntity(asset)
+            configs[_entity][_name] = _percentage
         return configs
+
+    def assetConfigOfLiquidityProvider(self) -> dict:
+        configs = {}
+        for asset in self._assets:
+            _poolID = self._poolIDMapping[asset]
+            if _poolID > 0:
+                configs[_poolID] = self.getAssetPercentage(asset)
+
+        return {'liquidity': configs}
 
     def getAssets(self):
         return self._assets
+
+    def getEntity(self, asset: Address):
+        _poolID = self._poolIDMapping[asset]
+        _rewardEntity = self._rewardEntityMapping[asset]
+        if _poolID > 0 and _rewardEntity == 'liquidityProvider':
+            return self.LIQUIDITY
+        elif _rewardEntity == 'liquidityProvider':
+            return self.STAKING
+        elif _rewardEntity == 'lendingBorrow':
+            return self.RESERVE
+        revert(f"Unsupported entity {_rewardEntity} :: {asset}")
 
     def getEmissionPerSecond(self, asset: Address) -> int:
         return self._emissionPerSecond[asset]
