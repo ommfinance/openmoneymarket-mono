@@ -40,7 +40,7 @@ class OTokenInterface(InterfaceScore):
         pass
 
     @interface
-    def redeem(self, _user: Address, _amount: int) -> None:
+    def redeem(self, _user: Address, _amount: int) -> dict:
         pass
 
 
@@ -259,6 +259,7 @@ class LendingPool(IconScoreBase):
     def getFeeSharingTxnLimit(self) -> int:
         return self._feeSharingTxnLimit.get()
 
+
     def _userBridgeDepositStatus(self, _user: Address) -> bool:
         bridgeOtoken = self.create_interface_score(self.getAddress(BRIDGE_OTOKEN), OTokenInterface)
         return bridgeOtoken.balanceOf(_user) > self._bridgeFeeThreshold.get()
@@ -366,6 +367,7 @@ class LendingPool(IconScoreBase):
         redeems the underlying amount of assets requested by the _user.This method is called from the oToken contract
         :param _reserve:the address of the reserve
         :param _user:the address of the user requesting the redeem
+        :param _oToken :the address of underlying interest token of the reserve
         :param _amount:the amount to be deposited, should be -1 if the user wants to redeem everything
         :param _oTokenbalanceAfterRedeem:the remaining balance of _user after the redeem is successful
         :param _waitForUnstaking:
@@ -406,27 +408,31 @@ class LendingPool(IconScoreBase):
     @external
     def borrow(self, _reserve: Address, _amount: int):
         """
-        allows users to borrow _amount of _reserve asset as a loan ,provided that the borrower has already deposited enough amount of collateral
-        :param _reserve:the address of the reserve
-        :param _amount:the amount to be borrowed
-        :return:
+        allows users to borrow _amount of _reserve asset as a loan ,provided that the borrower has already deposited
+        enough amount of collateral :param _reserve:the address of the reserve :param _amount:the amount to be
+        borrowed :return:
         """
         # checking for active and unfreezed reserve,borrow is allowed only for active and unfreezed reserve
-        lendingPoolCoreAddress = self.getAddress(LENDING_POOL_CORE)
-        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
-        reserveData = core.getReserveData(_reserve)
+
+
         if self._userBridgeDepositStatus(self.msg.sender):
             self._enableFeeSharing()
+
+        dataProviderAddress = self.getAddress(LENDING_POOL_DATA_PROVIDER)
+        dataProvider = self.create_interface_score(dataProviderAddress, DataProviderInterface)
+
+        reserveData = dataProvider.getReserveData(_reserve)
         self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
         self._require(not reserveData['isFreezed'], "Reserve is frozen,borrow unsuccessful")
+        self._require(reserveData['availableBorrows'] > _amount, f"Borrowed amount {_amount} exceeds available borrow amount {reserveData['availableBorrows']}")
 
+        lendingPoolCoreAddress = self.getAddress(LENDING_POOL_CORE)
+        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         self._require(core.isReserveBorrowingEnabled(_reserve), "Borrow error:borrowing not enabled in the reserve")
         if not self._borrowIndex[self.msg.sender]:
             # add new entry
             self._borrowWallets.put(self.msg.sender)
             self._borrowIndex[self.msg.sender] = len(self._borrowWallets)
-        dataProviderAddress = self.getAddress(LENDING_POOL_DATA_PROVIDER)
-        dataProvider = self.create_interface_score(dataProviderAddress, DataProviderInterface)
         availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
 
         self._require(availableLiquidity >= _amount, "Borrow error:Not enough available liquidity in the reserve")
@@ -460,10 +466,9 @@ class LendingPool(IconScoreBase):
 
     def _repay(self, _reserve: Address, _amount: int, _sender: Address):
         """
-        repays a borrow on the specific reserve, for the specified amount (or for the whole amount, if -1 is send as params for _amount).
-        :param _reserve:the address of the reserve
-        :param _amount:the amount to repay,should be -1 if the user wants to repay everything
-        :return:
+        repays a borrow on the specific reserve, for the specified amount (or for the whole amount, if -1 is send as
+        params for _amount). :param _reserve:the address of the reserve :param _amount:the amount to repay,
+        should be -1 if the user wants to repay everything :return:
         """
 
         # checking for an inactive reserve,repay is allowed for only active reserve
@@ -475,7 +480,6 @@ class LendingPool(IconScoreBase):
         borrowData: dict = core.getUserBorrowBalances(_reserve, _sender)
         userBasicReserveData: dict = core.getUserBasicReserveData(_reserve, _sender)
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
-
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
         returnAmount = 0
