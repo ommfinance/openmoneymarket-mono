@@ -157,13 +157,10 @@ class PriceOracle(IconScoreBase):
             _adjusted_price = token["convert"](dex, _price, _average_decimals)
             _converted_price = exaMul(_adjusted_price, self._get_price(price_oracle_key, _quote))
 
-            # convert total_supply to 10**18 precision
-            _total_supply = _pool_stats['total_supply']
-            _total_supply_decimals = (_quote_decimals + _base_decimals) // 2
-            _adjusted_total_supply = convertToExa(_total_supply, _total_supply_decimals)
+            _total_supply = _pool_stats['base']
 
-            _total_omm_supply += _adjusted_total_supply
-            _total_price += (_adjusted_total_supply * _converted_price)
+            _total_omm_supply += _total_supply
+            _total_price += (_total_supply * _converted_price)
 
         return _total_price // _total_omm_supply
 

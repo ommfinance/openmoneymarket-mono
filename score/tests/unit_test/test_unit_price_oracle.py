@@ -90,21 +90,21 @@ class TestPriceOracle(ScoreTestCase):
         def _poolStats_side_effect(_id):
             if _id == 1:
                 return {
-                    "total_supply": 13 * EXA,
+                    "base": 13 * EXA,
                     "price": 15 * EXA // 10,
                     "base_decimals": 0x12,
                     "quote_decimals": 0x12
                 }
             elif _id == 2:
                 return {
-                    "total_supply": 11 * 10 ** 12,
+                    "base": 11 * EXA,
                     "price": 17 * 10 ** 6 // 10,
                     "base_decimals": 0x12,
                     "quote_decimals": 0x6,
                 }
             elif _id == 3:
                 return {
-                    "total_supply": 23 * EXA,
+                    "base": 23 * EXA,
                     "price": 19 * EXA // 10,
                     "base_decimals": 0x12,
                     "quote_decimals": 0x12,
