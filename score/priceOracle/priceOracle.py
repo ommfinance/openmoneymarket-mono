@@ -47,6 +47,10 @@ class DataSourceInterface(InterfaceScore):
     def getPoolStats(self, _id: int) -> dict:
         pass
 
+    @interface
+    def getPriceByName(self, _name: str) -> int:
+        pass
+
 
 class TokenInterface(InterfaceScore):
     @interface
