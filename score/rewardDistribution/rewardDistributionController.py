@@ -119,7 +119,7 @@ class RewardDistributionController(RewardDistributionManager):
             _entity = self._rewardConfig.getEntity(_asset)
 
             entityDict = {} if response.get(_entity) is None else response.get(_entity)
-            total = 0 if response.get("total") is None else entityDict.get(_entity)
+            total = 0 if entityDict.get("total") is None else entityDict.get("total")
 
             userAssetDetails = self._getUserAssetDetails(_asset, _user)
             unclaimedRewards = self._usersUnclaimedRewards[_user][_asset]
