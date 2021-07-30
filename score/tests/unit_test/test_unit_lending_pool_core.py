@@ -4,7 +4,7 @@ from iconservice import Address, IconScoreException
 from tbears.libs.scoretest.patch.score_patcher import ScorePatcher, get_interface_score
 from tbears.libs.scoretest.score_test_case import ScoreTestCase
 
-from lendingPoolCore.Math import SECONDS_PER_YEAR
+from lendingPoolCore.Math import *
 from lendingPoolCore.lendingPoolCore import LendingPoolCore
 from lendingPoolCore.utils.checks import *
 
@@ -83,6 +83,43 @@ class TestLendingPoolCore(ScoreTestCase):
             "isFreezed": False,
             "isActive": True,
         }
+
+    def exaPow(self, x: int, n: int) -> int:
+        if n % 2 != 0:
+            z = x
+        else:
+            z = EXA
+
+        n = n // 2
+        while n != 0:
+            x = exaMul(x, x)
+
+            if n % 2 != 0:
+                z = exaMul(z, x)
+
+            n = n // 2
+            
+        return z
+
+    def calculate_compounded_interest(self, _rate: int, timeDifference: int) -> int:
+        ratePerSecond = _rate // SECONDS_PER_YEAR
+        return self.exaPow((ratePerSecond + EXA), timeDifference)
+
+    def test_calculate_compounded_interest(self):     
+        rate = 10 * EXA // 100
+        lastUpdateTimestamp = 0 
+        time_elapsed = 86400 * 15 * 10 ** 6
+        with mock.patch.object(self.lending_pool_core, "now",
+                               return_value=time_elapsed):
+            a = self.lending_pool_core.calculateCompoundedInterest(rate, lastUpdateTimestamp)
+            b = self.calculate_compounded_interest(rate, time_elapsed//10**6)
+            self.assertAlmostEqual(a/EXA,b/EXA, 5)
+
+        with mock.patch.object(self.lending_pool_core, "now",
+                               return_value=time_elapsed):
+            a = self.lending_pool_core.calculateCompoundedInterest(rate, lastUpdateTimestamp)
+            b = self.calculate_compounded_interest(rate, time_elapsed//10**6)
+            self.assertAlmostEqual(a/EXA,b/EXA, 5)
 
     def test_reserves(self):
         result = self.lending_pool_core.getReserves()
