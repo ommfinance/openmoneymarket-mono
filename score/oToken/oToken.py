@@ -108,14 +108,6 @@ class OToken(IconScoreBase, TokenStandard):
     def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         pass
 
-    @eventlog(indexed=1)
-    def Mint(self, account: Address, amount: int):
-        pass
-
-    @eventlog(indexed=1)
-    def Burn(self, account: Address, amount: int):
-        pass
-
     @eventlog(indexed=3)
     def Redeem(self, _from: Address, _value: int, _fromBalanceIncrease: int, _fromIndex: int):
         pass
@@ -445,7 +437,6 @@ class OToken(IconScoreBase, TokenStandard):
 
         # Emits an event log Mint
         self.Transfer(ZERO_SCORE_ADDRESS, account, amount, b'mint')
-        self.Mint(account, amount)
 
     def _burn(self, account: Address, amount: int) -> None:
         """
@@ -460,13 +451,18 @@ class OToken(IconScoreBase, TokenStandard):
         if amount <= 0:
             revert(f'{TAG}: '
                    f'Invalid value: {amount} to burn')
+        totalSupply = self._totalSupply.get()
+        userBalance = self._balances[account] 
+        if amount > totalSupply:
+            revert(f'{TAG}: {amount} is greater than total supply :{totalSupply}')
+        if amount > userBalance:
+            revert(f'{TAG}: Cannot burn more than user balance. Amount to burn: {amount}, User Balance:{userBalance}')
 
-        self._totalSupply.set(self._totalSupply.get() - amount)
+        self._totalSupply.set(totalSupply - amount)
         self._balances[account] -= amount
 
         # Emits an event log Burn
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, b'burn')
-        self.Burn(account, amount)
 
     @external(readonly=True)
     def getTotalStaked(self) -> int:

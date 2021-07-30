@@ -126,13 +126,24 @@ class RewardConfigurationDB(object):
         return _overallPercentage
 
     def getAssetConfigs(self) -> dict:
-        configs = {"liquidity": {}, "staking": {}, "reserve": {}}
+        _total_percentage = 0
+        response = {}
         for asset in self._assets:
             _name = self._assetName[asset]
             _percentage = self.getAssetPercentage(asset)
             _entity = self.getEntity(asset)
-            configs[_entity][_name] = _percentage
-        return configs
+
+            _entityMap = response.get(_entity, {})
+            total = _entityMap.get("total", 0)
+
+            _entityMap[_name] = _percentage
+            _entityMap["total"] = total + _percentage
+            response[_entity] = _entityMap
+            _total_percentage += _percentage
+
+        response['total'] = _total_percentage
+
+        return response
 
     def assetConfigOfLiquidityProvider(self) -> dict:
         configs = {}

@@ -110,6 +110,33 @@ class RewardDistributionController(RewardDistributionManager):
             self.RewardsAccrued(_user, _asset, accruedRewards)
 
     @external(readonly=True)
+    def getDailyRewards(self, _day: int = None) -> dict:
+        _day = self.getDay() if _day is None else _day
+        _distribution = self.tokenDistributionPerDay(_day)
+        _total_rewards = 0
+        response = {}
+        _assets = self._rewardConfig.getAssets()
+        for _asset in _assets:
+            _assetName = self._rewardConfig.getAssetName(_asset)
+            _entity = self._rewardConfig.getEntity(_asset)
+            _percentage = self._rewardConfig.getAssetPercentage(_asset)
+
+            _entity_map = response.get(_entity, {})
+            _entity_total = _entity_map.get("total", 0)
+
+            _distribution_value = exaMul(_distribution, _percentage)
+            _entity_map[_assetName] = _distribution_value
+            _entity_map["total"] = _entity_total + _distribution_value
+
+            response[_entity] = _entity_map
+            _total_rewards += _distribution_value
+
+        response["day"] = _day
+        response['total'] = _total_rewards
+
+        return response
+
+    @external(readonly=True)
     def getRewards(self, _user: Address) -> dict:
         totalRewards = 0
         response = {}
@@ -118,8 +145,8 @@ class RewardDistributionController(RewardDistributionManager):
             _assetName = self._rewardConfig.getAssetName(_asset)
             _entity = self._rewardConfig.getEntity(_asset)
 
-            entityDict = {} if response.get(_entity) is None else response.get(_entity)
-            total = 0 if response.get("total") is None else entityDict.get(_entity)
+            entityDict = response.get(_entity, {})
+            total = entityDict.get("total", 0)
 
             userAssetDetails = self._getUserAssetDetails(_asset, _user)
             unclaimedRewards = self._usersUnclaimedRewards[_user][_asset]
@@ -131,7 +158,7 @@ class RewardDistributionController(RewardDistributionManager):
             totalRewards += unclaimedRewards
 
         response['total'] = totalRewards
-        response['now'] = self.now()//10**6
+        response['now'] = self.now() // 10 ** 6
 
         return response
 
