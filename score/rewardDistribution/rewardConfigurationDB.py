@@ -133,8 +133,8 @@ class RewardConfigurationDB(object):
             _percentage = self.getAssetPercentage(asset)
             _entity = self.getEntity(asset)
 
-            _entityMap = {} if response.get(_entity) is None else response.get(_entity)
-            total = 0 if _entityMap.get("total") is None else _entityMap.get("total")
+            _entityMap = response.get(_entity, {})
+            total = _entityMap.get("total", 0)
 
             _entityMap[_name] = _percentage
             _entityMap["total"] = total + _percentage
