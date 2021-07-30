@@ -1,6 +1,7 @@
 from .utils.checks import *
 from .utils.Math import *
 
+EXA = 10 ** 18
 BATCH_SIZE = 50
 TERM_LENGTH = 43120
 
