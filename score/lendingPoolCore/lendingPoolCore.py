@@ -1,6 +1,6 @@
 from .ReserveData import *
 from .UserData import *
-from .math import *
+from .utils.math import *
 from .utils.checks import *
 
 RESERVE_DB_PREFIX = b'reserve'

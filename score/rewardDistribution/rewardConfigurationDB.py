@@ -1,6 +1,6 @@
 from iconservice import *
 
-from .math import exaMul
+from .utils.math import exaMul
 from .utils.types import AssetConfig
 
 TAG = "Reward Distribution Storage"

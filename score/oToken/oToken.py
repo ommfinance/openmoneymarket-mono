@@ -1,5 +1,5 @@
 from .IIRC2 import TokenStandard
-from .math import *
+from .utils.math import *
 from .utils.checks import *
 
 REWARDS = 'rewards'

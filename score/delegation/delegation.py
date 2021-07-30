@@ -1,4 +1,4 @@
-from .math import *
+from .utils.math import *
 from .utils.checks import *
 
 
