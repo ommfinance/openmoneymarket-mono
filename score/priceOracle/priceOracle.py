@@ -1,4 +1,4 @@
-from .utils.Math import convertToExa, exaMul
+from .utils.math import convertToExa, exaMul
 from .utils.checks import *
 
 EXA = 10 ** 18

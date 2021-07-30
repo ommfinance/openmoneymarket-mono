@@ -1,4 +1,4 @@
-from .Math import *
+from .math import *
 from .utils.checks import *
 
 LENDING_POOL_CORE = "lendingPoolCore"
