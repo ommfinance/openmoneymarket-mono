@@ -329,9 +329,23 @@ class LendingPoolCore(IconScoreBase):
         return exaMul(_rate, timeDelta) + EXA
 
     def calculateCompoundedInterest(self, _rate: int, _lastUpdateTimestamp: int) -> int:
-        timeDifference = (self.now() - _lastUpdateTimestamp) // 10 ** 6
+        # calculation of compound interest using binomial theorem
+        currentTimestamp = self.now() // 10**6
+        exp = currentTimestamp - _lastUpdateTimestamp
+        if exp == 0:
+            return EXA
+
+        expMinusOne = exp - 1
+        expMinusTwo = max(exp - 2, 0)
         ratePerSecond = _rate // SECONDS_PER_YEAR
-        return exaPow((ratePerSecond + EXA), timeDifference)
+
+        basePowerTwo = exaMul(ratePerSecond, ratePerSecond)
+        basePowerThree = exaMul(basePowerTwo, ratePerSecond)
+
+        secondTerm = exp * expMinusOne * basePowerTwo // 2
+        thirdTerm = exp * expMinusOne * expMinusTwo * basePowerThree // 6
+
+        return EXA + ratePerSecond * exp + secondTerm + thirdTerm
 
     @external(readonly=True)
     def getNormalizedIncome(self, _reserve: Address) -> int:
