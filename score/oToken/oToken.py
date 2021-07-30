@@ -451,8 +451,14 @@ class OToken(IconScoreBase, TokenStandard):
         if amount <= 0:
             revert(f'{TAG}: '
                    f'Invalid value: {amount} to burn')
+        totalSupply = self._totalSupply.get()
+        userBalance = self._balances[account] 
+        if amount > totalSupply:
+            revert(f'{TAG}: {amount} is greater than total supply :{totalSupply}')
+        if amount > userBalance:
+            revert(f'{TAG}: Cannot burn more than user balance. Amount to burn: {amount}, User Balance:{userBalance}')
 
-        self._totalSupply.set(self._totalSupply.get() - amount)
+        self._totalSupply.set(totalSupply - amount)
         self._balances[account] -= amount
 
         # Emits an event log Burn
