@@ -9,10 +9,5 @@ def convertToExa(_amount: int, _decimals: int) -> int:
         return _amount * EXA // (10 ** _decimals)
 
 
-def exaDiv(a: int, b: int) -> int:
-    halfB = b // 2
-    return (halfB + (a * EXA)) // b
-
-
 def exaMul(a: int, b: int) -> int:
     return (halfEXA + (a * b)) // EXA

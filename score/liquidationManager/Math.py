@@ -14,24 +14,6 @@ def exaDiv(a: int, b: int) -> int:
     return (halfB + (a * EXA)) // b
 
 
-def exaPow(x: int, n: int) -> int:
-    if n % 2 != 0:
-        z = x
-    else:
-        z = EXA
-
-    n = n // 2
-    while n != 0:
-        x = exaMul(x, x)
-
-        if n % 2 != 0:
-            z = exaMul(z, x)
-
-        n = n // 2
-
-    return z
-
-
 def convertToExa(_amount: int, _decimals: int) -> int:
     if _decimals >= 0:
         return _amount * EXA // (10 ** _decimals)
