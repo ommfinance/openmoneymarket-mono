@@ -1,142 +1,26 @@
 from .ReserveData import *
 from .UserData import *
 from .utils.math import *
-from .utils.checks import *
+from .addresses import *
 
 RESERVE_DB_PREFIX = b'reserve'
 USER_DB_PREFIX = b'userReserve'
-STAKING = "staking"
-FEE_PROVIDER = "feeProvider"
 
 
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-class ReserveAttributes(TypedDict):
-    reserveAddress: Address
-    oTokenAddress: Address
-    dTokenAddress: Address
-    lastUpdateTimestamp: int
-    liquidityRate: int
-    borrowRate: int
-    liquidityCumulativeIndex: int
-    borrowCumulativeIndex: int
-    baseLTVasCollateral: int
-    liquidationThreshold: int
-    liquidationBonus: int
-    decimals: int
-    borrowingEnabled: bool
-    usageAsCollateralEnabled: bool
-    isFreezed: bool
-    isActive: bool
-
-
-class UserDataAttributes(TypedDict):
-    lastUpdateTimestamp: int
-    originationFee: int
-    useAsCollateral: bool
-
-
-class Constant(TypedDict):
-    reserve: Address
-    optimalUtilizationRate: int
-    baseBorrowRate: int
-    slopeRate1: int
-    slopeRate2: int
-
-
-class PrepDelegations(TypedDict):
-    _address: Address
-    _votes_in_per: int
-
-
-# An interface to oToken
-class OTokenInterface(InterfaceScore):
-    @interface
-    def balanceOf(self, _owner: Address) -> int:
-        pass
-
-    @interface
-    def principalBalanceOf(self, _user: Address) -> int:
-        pass
-
-    @interface
-    def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
-        pass
-
-
-# An interface to debt token
-class DTokenInterface(InterfaceScore):
-    @interface
-    def balanceOf(self, _owner: Address) -> int:
-        pass
-
-    @interface
-    def principalBalanceOf(self, _user: Address) -> int:
-        pass
-
-    @interface
-    def mintOnBorrow(self, _user: Address, _amount: int, _balanceIncrease: int):
-        pass
-
-    @interface
-    def getUserBorrowCumulativeIndex(self, _user: Address) -> int:
-        pass
-
-    @interface
-    def principalTotalSupply(self) -> int:
-        pass
-
-    @interface
-    def burnOnRepay(self, _user: Address, _amount: int, _balanceIncrease: int):
-        pass
-
-    @interface
-    def burnOnLiquidation(self, _user: Address, _amount: int, _balanceIncrease: int) -> None:
-        pass
-
-
-# An interface to Reserve
-class ReserveInterface(InterfaceScore):
-    @interface
-    def balanceOf(self, _owner: Address) -> int:
-        pass
-
-    @interface
-    def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        pass
-
-
-class StakingInterface(InterfaceScore):
-    @interface
-    def getTodayRate(self) -> int:
-        pass
-
-    @interface
-    def delegate(self, _delegations: List[PrepDelegations]):
-        pass
-
-
-class LendingPoolCore(IconScoreBase):
+class LendingPoolCore(Addresses):
     _ID = 'id'
     _RESERVE_LIST = 'reserveList'
     _CONSTANTS = 'constants'
-    _ADDRESSES = 'addresses'
-    _CONTRACTS = 'contracts'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._reserveList = ArrayDB(self._RESERVE_LIST, db, value_type=Address)
         self._constants = DictDB(self._CONSTANTS, db, value_type=int, depth=2)
         self.reserve = ReserveDataDB(db)
         self.userReserve = UserReserveDataDB(db)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
 
     def on_update(self) -> None:
         super().on_update()
@@ -153,22 +37,6 @@ class LendingPoolCore(IconScoreBase):
     @external(readonly=True)
     def name(self) -> str:
         return 'OmmLendingPoolCore'
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
-
-    @external(readonly=True)
-    def getAddress(self, _name: str) -> Address:
-        return self._addresses[_name]
 
     def reservePrefix(self, _reserve: Address) -> bytes:
         return b'|'.join([RESERVE_DB_PREFIX, str(_reserve).encode()])
