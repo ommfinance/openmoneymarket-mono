@@ -203,7 +203,7 @@ class LendingPool(Addresses):
         # if self.msg.sender != reserveData['oTokenAddress']:
         #     revert(f'{TAG}: {self.msg.sender} is unauthorized to call, only otoken can invoke the method')
 
-        reserveAvailableLiquidity = core.getReserveAvailableLiquidity(_reserve)
+        reserveAvailableLiquidity = reserveData.get('availableLiquidity')
         if reserveAvailableLiquidity < _amount:
             revert(f'{TAG}: Amount {_amount} is more than available liquidity {reserveAvailableLiquidity}')
 
