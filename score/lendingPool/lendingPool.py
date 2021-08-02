@@ -211,7 +211,7 @@ class LendingPool(Addresses):
         reward.distribute()
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
-        
+
         _data = None
         _to = _user
 
@@ -383,7 +383,7 @@ class LendingPool(Addresses):
         d = None
         try:
             d = json_loads(_data.decode("utf-8"))
-            params = d.get("params")            
+            params = d.get("params")
             method = d.get("method")
         except BaseException as e:
             revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')
