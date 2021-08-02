@@ -1,4 +1,4 @@
-from .Math import *
+from .utils.math import *
 from .rewardConfigurationDB import RewardConfigurationDB
 from .utils.checks import *
 from .utils.types import *
