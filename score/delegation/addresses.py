@@ -3,17 +3,17 @@ from .utils.checks import *
 
 LENDING_POOL_CORE = 'lendingPoolCore'
 OMM_TOKEN = 'ommToken'
-ADDRESS_PROVIDER = 'addressProvider'
 
 
 class Addresses(IconScoreBase):
     _ADDRESSES = 'addresses'
     _CONTRACTS = 'contracts'
+    _ADDRESS_PROVIDER = 'addressProvider'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
-        self._addressProvider = VarDB(ADDRESS_PROVIDER, db, value_type=Address)
+        self._addressProvider = VarDB(self._ADDRESS_PROVIDER, db, value_type=Address)
         self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
     def on_install(self, _address: Address) -> None:
