@@ -3,7 +3,7 @@ from .utils.math import *
 from .addresses import *
 
 
-class DToken(IconScoreBase, TokenStandard, Addresses):
+class DToken(TokenStandard, Addresses):
     """
     Implementation of IRC2
     """
