@@ -383,28 +383,24 @@ class LendingPool(Addresses):
         d = None
         try:
             d = json_loads(_data.decode("utf-8"))
-            params = d.get("params")
-            amount = params.get("amount")
-            if amount is not None:
-                self._require(int(amount) == _value, f"Amount sent\
-                    in param {_value} does not match with amount in data {amount}")
-            purchaseAmount = params.get("_purchaseAmount")
-            if purchaseAmount is not None:
-                self._require(int(purchaseAmount) == _value, f"Amount sent\
-                    in param {_value} does not match with amount in data {purchaseAmount}")
+            params = d.get("params")            
+            method = d.get("method")
         except BaseException as e:
             revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')
-        if set(d.keys()) != {"method", "params"}:
-            revert(f'{TAG}: Invalid parameters.')
-        if d["method"] == "deposit":
-            self._deposit(self.msg.sender, amount, _from)
-        elif d["method"] == "repay":
-            self._repay(self.msg.sender, amount, _from)
-        elif d["method"] == "liquidationCall":
-            self.liquidationCall(Address.from_string(params.get("_collateral")),
-                                 Address.from_string(params.get("_reserve")),
-                                 Address.from_string(params.get("_user")),
-                                 purchaseAmount, _from)
+        if method == "deposit":
+            self._deposit(self.msg.sender, _value, _from)
+        elif method == "repay":
+            self._repay(self.msg.sender, _value, _from)
+        elif method == "liquidationCall" and params is not None:
+            collateral = params.get("_collateral")
+            reserve = params.get("_reserve")
+            user = params.get("_user")
+            self._require(collateral is not None and reserve is not None and user is not None,
+                f" Invalid data: Collateral:{collateral} Reserve:{reserve} User:{user}")
+            self.liquidationCall(Address.from_string(collateral),
+                                 Address.from_string(reserve),
+                                 Address.from_string(user),
+                                 _value, _from)
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
 
