@@ -563,19 +563,28 @@ class LendingPool(IconScoreBase):
         d = None
         try:
             d = json_loads(_data.decode("utf-8"))
+            params = d.get("params")
+            amount = params.get("amount")
+            if amount is not None:
+                self._require(int(amount) == _value, f"Amount sent\
+                    in param {_value} does not match with amount in data {amount}")
+            purchaseAmount = params.get("_purchaseAmount")
+            if purchaseAmount is not None:
+                self._require(int(purchaseAmount) == _value, f"Amount sent\
+                    in param {_value} does not match with amount in data {purchaseAmount}")
         except BaseException as e:
             revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')
         if set(d.keys()) != {"method", "params"}:
             revert(f'{TAG}: Invalid parameters.')
         if d["method"] == "deposit":
-            self._deposit(self.msg.sender, d["params"].get("amount", -1), _from)
+            self._deposit(self.msg.sender, amount, _from)
         elif d["method"] == "repay":
-            self._repay(self.msg.sender, d["params"].get("amount", -1), _from)
+            self._repay(self.msg.sender, amount, _from)
         elif d["method"] == "liquidationCall":
-            self.liquidationCall(Address.from_string(d["params"].get("_collateral")),
-                                 Address.from_string(d["params"].get("_reserve")),
-                                 Address.from_string(d["params"].get("_user")),
-                                 d["params"].get("_purchaseAmount"), _from)
+            self.liquidationCall(Address.from_string(params.get("_collateral")),
+                                 Address.from_string(params.get("_reserve")),
+                                 Address.from_string(params.get("_user")),
+                                 purchaseAmount, _from)
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
 
