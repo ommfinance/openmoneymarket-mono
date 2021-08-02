@@ -1,5 +1,6 @@
 from .utils.checks import *
 from .utils.math import *
+from .addresses import *
 
 BATCH_SIZE = 50
 TERM_LENGTH = 43120
