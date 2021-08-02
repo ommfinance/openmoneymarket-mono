@@ -550,7 +550,6 @@ class LendingPool(IconScoreBase):
 
         liquidationManager = self.create_interface_score(self.getAddress(LIQUIDATION_MANAGER),
                                                          LiquidationManagerInterface)
-        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         liquidation = liquidationManager.liquidationCall(_collateral, _reserve, _user, _purchaseAmount)
         principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
         core.transferToUser(_collateral, _sender, liquidation['maxCollateralToLiquidate'])
