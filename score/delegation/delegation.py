@@ -1,40 +1,8 @@
 from .utils.math import *
-from .utils.checks import *
+from .addresses import *
 
 
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-class PrepDelegations(TypedDict):
-    _address: Address
-    _votes_in_per: int
-
-
-LENDING_POOL_CORE = 'lendingPoolCore'
-OMM_TOKEN = 'ommToken'
-
-
-class SystemInterface(InterfaceScore):
-    @interface
-    def getPRep(self, address: Address) -> dict:
-        pass
-
-
-class OmmTokenInterface(InterfaceScore):
-    @interface
-    def details_balanceOf(self, _owner: Address) -> dict:
-        pass
-
-
-class LendingPoolCoreInterface(InterfaceScore):
-    @interface
-    def updatePrepDelegations(self, _delegations: List[PrepDelegations]):
-        pass
-
-
-class Delegation(IconScoreBase):
+class Delegation(Addresses):
     _PREPS = 'preps'
     _USER_PREPS = 'userPreps'
     _PERCENTAGE_DELEGATIONS = 'percentageDelegations'
@@ -44,14 +12,10 @@ class Delegation(IconScoreBase):
     _EQUAL_DISTRIBUTION = 'equalDistribution'
     _CONTRIBUTORS = 'contributors'
     _VOTE_THRESHOLD = 'voteThreshold'
-    _ADDRESSES = 'addresses'
-    _CONTRACTS = 'contracts'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._preps = ArrayDB(self._PREPS, db, Address)
-        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._userPreps = DictDB(self._USER_PREPS, db, value_type=Address, depth=2)
         self._percentageDelegations = DictDB(self._PERCENTAGE_DELEGATIONS, db, value_type=int, depth=2)
         self._prepVotes = DictDB(self._PREP_VOTES, db, value_type=int)
@@ -60,8 +24,8 @@ class Delegation(IconScoreBase):
         self._contributors = ArrayDB(self._CONTRIBUTORS, db, value_type=Address)
         self._voteThreshold = VarDB(self._VOTE_THRESHOLD, db, value_type=int)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
         self._voteThreshold.set(1 * 10 ** 15)
 
     def on_update(self) -> None:
@@ -80,18 +44,6 @@ class Delegation(IconScoreBase):
     def DelegationUpdated(self, _before: str, _after: str):
         pass
 
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
-
     @only_owner
     @external
     def setVoteThreshold(self, _vote: int):
@@ -100,7 +52,6 @@ class Delegation(IconScoreBase):
     @external(readonly=True)
     def getVoteThreshold(self) -> int:
         return self._voteThreshold.get()
-
 
     @only_owner
     @external
