@@ -259,7 +259,7 @@ class LendingPool(Addresses):
         dataProvider = self.create_interface_score(dataProviderAddress, DataProviderInterface)
         reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
         reward.distribute()
-        availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
+        availableLiquidity = reserveData.get("availableLiquidity")
 
         self._require(availableLiquidity >= _amount, "Borrow error:Not enough available liquidity in the reserve")
 
