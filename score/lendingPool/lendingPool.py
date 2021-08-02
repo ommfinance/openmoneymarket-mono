@@ -25,7 +25,7 @@ class AddressDetails(TypedDict):
 # An interface to fee provider
 class FeeProviderInterface(InterfaceScore):
     @interface
-    def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
+    def calculateOriginationFee(self, _amount: int) -> int:
         pass
 
 
