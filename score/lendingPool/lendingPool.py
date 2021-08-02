@@ -394,14 +394,18 @@ class LendingPool(IconScoreBase):
         reward.distribute()
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
+        
+        _data = None
+        _to = _user
+
         if _waitForUnstaking:
             self._require(_oToken == self.getAddress(oICX),
                           "Redeem with wait for unstaking failed: Invalid token")
             transferData = {"method": "unstake", "user": str(_user)}
-            transferDataBytes = json_dumps(transferData).encode("utf-8")
-            core.transferToUser(_reserve, self.getAddress(STAKING), _amount, transferDataBytes)
-        else:
-            core.transferToUser(_reserve, _user, _amount)
+            _data = json_dumps(transferData).encode("utf-8")
+            _to = self.getAddress(STAKING)
+
+        core.transferToUser(_reserve, _to, _amount, _data)
 
         # self._updateSnapshot(_reserve, _user)
 
