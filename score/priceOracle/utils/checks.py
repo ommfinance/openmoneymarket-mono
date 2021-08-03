@@ -23,7 +23,7 @@ def only_address_provider(func):
     def __wrapper(self: object, *args, **kwargs):
         addressProvider = self._addressProvider.get()
         if self.msg.sender != addressProvider:
-            revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.msg.sender} (address provider){addressProvider}")
+            revert(f"{TAG}: "f"SenderNotAddressProviderError: (sender){self.msg.sender} (address provider){addressProvider}")
         return func(self, *args, **kwargs)
 
     return __wrapper

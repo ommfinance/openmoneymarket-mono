@@ -45,7 +45,7 @@ def only_dex(func):
 
     return __wrapper
 
-def only_address_provider(func): #pylint: disable=C0116
+def only_address_provider(func):
     if not isfunction(func):
         revert(f"{TAG}: ""NotAFunctionError")
 

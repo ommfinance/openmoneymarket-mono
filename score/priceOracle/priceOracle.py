@@ -4,6 +4,8 @@ from .addresses import *
 
 EXA = 10 ** 18
 STABLE_TOKENS = ["USDS", "USDB"]
+BAND_ORACLE = "bandOracle"
+DEX = "dex"
 
 OMM_TOKENS = [
     {
