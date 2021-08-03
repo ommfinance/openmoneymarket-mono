@@ -12,7 +12,7 @@ class AddressDetails(TypedDict):
 
 
 class AssetConfig(TypedDict):
-    _id: int
+    poolID: int
     asset: Address
     distPercentage: int
     assetName: str
