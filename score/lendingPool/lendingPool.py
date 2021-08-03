@@ -245,6 +245,8 @@ class LendingPool(Addresses):
         lendingPoolCoreAddress = self.getAddress(LENDING_POOL_CORE)
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserveData = core.getReserveData(_reserve)
+        self._require(_amount <= reserveData['availableBorrows'] , f"Amount requested {_amount} is more than the {reserveData['availableBorrows']}")
+      
         if self._userBridgeDepositStatus(self.msg.sender):
             self._enableFeeSharing()
         self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
