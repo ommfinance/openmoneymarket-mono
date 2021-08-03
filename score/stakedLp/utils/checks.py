@@ -16,6 +16,20 @@ def only_owner(func):
 
     return __wrapper
 
+def only_governance(func):
+    if not isfunction(func):
+        revert(f'{TAG}'
+               'NotAFunctionError')
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        _governance = self._addresses['governance']
+        if self.msg.sender != _governance:
+            revert(f"{TAG}: "f"SenderNotScoreGovernanceError: (sender){self.msg.sender} (governance){_governance}")
+        return func(self, *args, **kwargs)
+
+    return __wrapper
+
 
 def only_dex(func):
     if not isfunction(func):
