@@ -10,6 +10,7 @@ class ReserveData(object):
         self.lastUpdateTimestamp = VarDB('lastUpdateTimestamp', db, int)
         self.liquidityRate = VarDB('liquidityRate', db, int)
         self.borrowRate = VarDB('borrowRate', db, int)
+        self.borrowThreshold = VarDB('borrowThreshold', db, int)
         self.liquidityCumulativeIndex = VarDB('liquidityCumulativeIndex', db, int)
         self.borrowCumulativeIndex = VarDB('borrowCumulativeIndex', db, int)
         self.baseLTVasCollateral = VarDB('baseLTLasCollateral', db, int)
@@ -65,6 +66,7 @@ def getDataFromReserve(prefix: bytes, _reserve: 'ReserveDataDB') -> dict:
     lastUpdateTimestamp = _reserve[prefix].lastUpdateTimestamp.get()
     liquidityRate = _reserve[prefix].liquidityRate.get()
     borrowRate = _reserve[prefix].borrowRate.get()
+    borrowThreshold = _reserve[prefix].borrowThreshold.get()
     liquidityCumulativeIndex = _reserve[prefix].liquidityCumulativeIndex.get()
     borrowCumulativeIndex = _reserve[prefix].borrowCumulativeIndex.get()
     baseLTVasCollateral = _reserve[prefix].baseLTVasCollateral.get()
@@ -82,6 +84,7 @@ def getDataFromReserve(prefix: bytes, _reserve: 'ReserveDataDB') -> dict:
         'lastUpdateTimestamp': lastUpdateTimestamp,
         'liquidityRate': liquidityRate,
         'borrowRate': borrowRate,
+        'borrowThreshold': borrowThreshold,
         'liquidityCumulativeIndex': liquidityCumulativeIndex,
         'borrowCumulativeIndex': borrowCumulativeIndex,
         'baseLTVasCollateral': baseLTVasCollateral,
