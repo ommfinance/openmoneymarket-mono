@@ -203,7 +203,7 @@ class LendingPool(Addresses):
         # if self.msg.sender != reserveData['oTokenAddress']:
         #     revert(f'{TAG}: {self.msg.sender} is unauthorized to call, only otoken can invoke the method')
 
-        reserveAvailableLiquidity = core.getReserveAvailableLiquidity(_reserve)
+        reserveAvailableLiquidity = reserveData.get('availableLiquidity')
         if reserveAvailableLiquidity < _amount:
             revert(f'{TAG}: Amount {_amount} is more than available liquidity {reserveAvailableLiquidity}')
 
@@ -211,14 +211,18 @@ class LendingPool(Addresses):
         reward.distribute()
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
+
+        _data = None
+        _to = _user
+
         if _waitForUnstaking:
             self._require(_oToken == self.getAddress(oICX),
                           "Redeem with wait for unstaking failed: Invalid token")
             transferData = {"method": "unstake", "user": str(_user)}
-            transferDataBytes = json_dumps(transferData).encode("utf-8")
-            core.transferToUser(_reserve, self.getAddress(STAKING), _amount, transferDataBytes)
-        else:
-            core.transferToUser(_reserve, _user, _amount)
+            _data = json_dumps(transferData).encode("utf-8")
+            _to = self.getAddress(STAKING)
+
+        core.transferToUser(_reserve, _to, _amount, _data)
 
         # self._updateSnapshot(_reserve, _user)
 
@@ -255,7 +259,7 @@ class LendingPool(Addresses):
         dataProvider = self.create_interface_score(dataProviderAddress, DataProviderInterface)
         reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
         reward.distribute()
-        availableLiquidity = core.getReserveAvailableLiquidity(_reserve)
+        availableLiquidity = reserveData.get("availableLiquidity")
 
         self._require(availableLiquidity >= _amount, "Borrow error:Not enough available liquidity in the reserve")
 
@@ -367,7 +371,6 @@ class LendingPool(Addresses):
 
         liquidationManager = self.create_interface_score(self.getAddress(LIQUIDATION_MANAGER),
                                                          LiquidationManagerInterface)
-        core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         liquidation = liquidationManager.liquidationCall(_collateral, _reserve, _user, _purchaseAmount)
         principalCurrency = self.create_interface_score(_reserve, ReserveInterface)
         core.transferToUser(_collateral, _sender, liquidation['maxCollateralToLiquidate'])
@@ -380,19 +383,24 @@ class LendingPool(Addresses):
         d = None
         try:
             d = json_loads(_data.decode("utf-8"))
+            params = d.get("params")
+            method = d.get("method")
         except BaseException as e:
             revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')
-        if set(d.keys()) != {"method", "params"}:
-            revert(f'{TAG}: Invalid parameters.')
-        if d["method"] == "deposit":
-            self._deposit(self.msg.sender, d["params"].get("amount", -1), _from)
-        elif d["method"] == "repay":
-            self._repay(self.msg.sender, d["params"].get("amount", -1), _from)
-        elif d["method"] == "liquidationCall":
-            self.liquidationCall(Address.from_string(d["params"].get("_collateral")),
-                                 Address.from_string(d["params"].get("_reserve")),
-                                 Address.from_string(d["params"].get("_user")),
-                                 d["params"].get("_purchaseAmount"), _from)
+        if method == "deposit":
+            self._deposit(self.msg.sender, _value, _from)
+        elif method == "repay":
+            self._repay(self.msg.sender, _value, _from)
+        elif method == "liquidationCall" and params is not None:
+            collateral = params.get("_collateral")
+            reserve = params.get("_reserve")
+            user = params.get("_user")
+            self._require(collateral is not None and reserve is not None and user is not None,
+                f" Invalid data: Collateral:{collateral} Reserve:{reserve} User:{user}")
+            self.liquidationCall(Address.from_string(collateral),
+                                 Address.from_string(reserve),
+                                 Address.from_string(user),
+                                 _value, _from)
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
 

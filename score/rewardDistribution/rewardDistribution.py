@@ -151,21 +151,30 @@ class RewardDistributionManager(IconScoreBase):
         _emissionPerSecond = self._rewardConfig.updateEmissionPerSecond(asset, distributionPerDay)
         self.AssetConfigUpdated(asset, _emissionPerSecond)
 
-    @only_owner
+    @only_governance
     @external
-    def configureAssets(self, _assetConfig: List[AssetConfig]) -> None:
+    def configureAssetConfigs(self, _assetConfig: List[AssetConfig]) -> None:
         distributionPerDay = self.tokenDistributionPerDay(self.getDay());
         for config in _assetConfig:
-            # set _id to -1 for all asset except pools (pool use configureLPEmission method)
-            config['_id'] = -1
             self._configureAsset(distributionPerDay, config)
 
-    @only_stake_lp_or_omm
+    @only_governance
     @external
-    def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
+    def configureAssetConfig(self, _assetConfig: AssetConfig) -> None:
         distributionPerDay = self.tokenDistributionPerDay(self.getDay());
-        for config in _assetConfig:
-            self._configureAsset(distributionPerDay, config)
+        self._configureAsset(distributionPerDay, _assetConfig)
+
+    @only_governance
+    @external
+    def removeAssetConfig(self, _asset: Address) -> None:
+        _totalBalance = self._getTotalBalance(_asset)
+        self._updateAssetStateInternal(_asset, _totalBalance)
+
+        self._rewardConfig.removeAssetConfig(_asset)
+
+    @external(readonly=True)
+    def getPoolIDByAsset(self, _asset: Address) -> int:
+        return self._rewardConfig.getPoolID(_asset)
 
     @only_owner
     @external
