@@ -2,6 +2,8 @@ from .utils.checks import *
 
 REWARDS = 'rewards'
 LENDING_POOL_CORE = 'lendingPoolCore'
+STAKED_LP = 'stakedLP'
+
 
 class Constant(TypedDict):
     reserve: Address
@@ -35,10 +37,40 @@ class ReserveAttributes(TypedDict):
     isActive: bool
 
 
-# An interface to Rewards
+class AssetConfig(TypedDict):
+    poolID: int
+    asset: Address
+    distPercentage: int
+    assetName: str
+    rewardEntity: str
+
+
 class RewardInterface(InterfaceScore):
+
     @interface
     def setStartTimestamp(self, _timestamp: int):
+        pass
+
+    @interface
+    def configureAssetConfig(self, _assetConfig: AssetConfig) -> None:
+        pass
+
+    @interface
+    def removeAssetConfig(self, _asset: Address) -> None:
+        pass
+
+    @interface
+    def getPoolIDByAsset(self, _asset: Address) -> int:
+        pass
+
+
+class StakedLPInterface(InterfaceScore):
+    @interface
+    def addPool(self, _id: int, _pool: Address) -> None:
+        pass
+
+    @interface
+    def removePool(self, _id) -> None:
         pass
 
 
@@ -78,10 +110,6 @@ class CoreInterface(InterfaceScore):
     @interface
     def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
         pass
-
-
-LENDING_POOL_CORE = 'lendingPoolCore'
-REWARDS = 'rewards'
 
 
 class Governance(IconScoreBase):
@@ -174,3 +202,31 @@ class Governance(IconScoreBase):
     def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
         core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateUsageAsCollateralEnabled(_reserve, _usageAsCollateralEnabled)
+
+    @only_owner
+    @external
+    def addPools(self, _assetConfigs: List[AssetConfig]):
+        for assetConfig in _assetConfigs:
+            self.addPool(assetConfig)
+
+    @only_owner
+    @external
+    def addPool(self, _assetConfig: AssetConfig):
+        _poolID = _assetConfig['poolID']
+        if _poolID > 0:
+            asset = _assetConfig['asset']
+            stakedLP = self.create_interface_score(self._addresses[STAKED_LP], StakedLPInterface)
+            stakedLP.addPool(_poolID, asset)
+
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.configureAssetConfig(_assetConfig)
+
+    @only_owner
+    @external
+    def removePool(self, _asset: Address):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        _poolID = rewards.getPoolIDByAsset(_asset)
+        if _poolID > 0:
+            stakedLP = self.create_interface_score(self._addresses[STAKED_LP], StakedLPInterface)
+            stakedLP.removePool(_poolID)
+        rewards.removeAssetConfig(_asset)

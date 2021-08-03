@@ -29,7 +29,11 @@ class RewardInterface(InterfaceScore):
         pass
 
     @interface
-    def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
+    def configureAssets(self, _assetConfig: List[AssetConfig]) -> None:
+        pass
+
+    @interface
+    def removeAssetConfig(self, _asset: Address) -> None:
         pass
 
 
@@ -153,38 +157,35 @@ class StakedLp(IconScoreBase):
             result.append(user_balance)
         return result
 
-    @only_owner
+    @only_governance
     @external
-    def addPool(self, _pool: Address, _id: int, _distPercentage: int, _poolName: str) -> None:
-        reward = self.create_interface_score(self._addresses["rewards"], RewardInterface)
-        _config = {
-            "_id": _id,
-            "asset": _pool,
-            "distPercentage": _distPercentage,
-            "assetName": _poolName,
-            "rewardEntity": "liquidityProvider",
-        }
-        reward.configureLPEmission([_config])
+    def addPool(self, _id: int, _pool: Address) -> None:
         self._addressMap[_id] = _pool
         if _id not in self._supportedPools:
             self._supportedPools.put(_id)
-
 
     @external(readonly=True)
     def getPoolById(self, _id: int) -> Address:
         return self._addressMap[_id]
 
-    @only_owner
+    @only_governance
     @external
-    def removePool(self, _pool: Address) -> None:
-        if _pool not in self._supportedPools:
-            revert(f"{TAG}: {_pool} is not in contributor list")
-        else:
-            top = self._supportedPools.pop()
-            if top != _pool:
-                for i in range(len(self._supportedPools)):
-                    if self._supportedPools[i] == _pool:
-                        self._supportedPools[i] = top
+    def removePool(self, _poolID: int) -> None:
+        pool = self._addressMap[_poolID]
+        if pool is None:
+            revert(f"{TAG}: {_poolID} is not in address map")
+        self._addressMap.remove(pool)
+
+        top = self._supportedPools.pop()
+        _is_removed = top == _poolID
+        if _is_removed is False:
+            for i in range(len(self._supportedPools)):
+                if self._supportedPools[i] == _poolID:
+                    self._supportedPools[i] = top
+                    _is_removed = True
+
+        if _is_removed is False:
+            revert(f"{TAG}: {_poolID} is not in supported pool list")
 
     @external(readonly=True)
     def getSupportedPools(self) -> dict:
@@ -220,7 +221,7 @@ class StakedLp(IconScoreBase):
         self._check_first_time(_user, _id, userBalance)
         self._poolStakeDetails[_user][_id][Status.AVAILABLE] = self._poolStakeDetails[_user][_id][
                                                                    Status.AVAILABLE] - _value
-        self._poolStakeDetails[_user][_id][Status.STAKED] = previousUserStaked+_value
+        self._poolStakeDetails[_user][_id][Status.STAKED] = previousUserStaked + _value
         self._totalStaked[_id] = self._totalStaked[_id] + _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         reward.handleAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])

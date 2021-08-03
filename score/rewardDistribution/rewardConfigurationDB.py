@@ -1,11 +1,9 @@
 from iconservice import *
 
-from .utils.math import exaMul
+from .utils.math import exaMul, EXA
 from .utils.types import AssetConfig
 
 TAG = "Reward Distribution Storage"
-
-SUPPORTED_RECIPIENTS = ["worker", "daoFund", "lendingBorrow", "liquidityProvider"]
 
 
 class ItemNotFound(Exception):
@@ -19,6 +17,7 @@ class ItemNotSupported(Exception):
 class RewardConfigurationDB(object):
     EMISSION_PER_SECOND = 'EmissionPerSecond'
     ENTITY_DISTRIBUTION_PERCENTAGE = 'EntityDistributionPercentage'
+    SUPPORTED_RECIPIENTS = 'SupportedRecipients'
     ASSET_LEVEL_PERCENTAGE = 'AssetLevelPercentage'
     Reward_Entity_MAPPING = 'RewardEntityMapping'
     POOL_ID_MAPPING = 'PoolIDMapping'
@@ -33,6 +32,7 @@ class RewardConfigurationDB(object):
 
     def __init__(self, key: str, db: IconScoreDatabase) -> None:
         self._distributionPercentage = DictDB(f'{key}{self.ENTITY_DISTRIBUTION_PERCENTAGE}', db, value_type=int)
+        self._supportedRecipients = ArrayDB(f'{key}{self.SUPPORTED_RECIPIENTS}', db, value_type=str)
         self._emissionPerSecond = DictDB(f'{key}{self.EMISSION_PER_SECOND}', db, value_type=int)
         self._assetLevelPercentage = DictDB(f'{key}{self.ASSET_LEVEL_PERCENTAGE}', db, value_type=int)
 
@@ -43,6 +43,10 @@ class RewardConfigurationDB(object):
 
         self._assets = ArrayDB(f'{key}{self.ASSETS}', db, value_type=Address)
         self._indexes = DictDB(f'{key}{self.ASSET_INDEXES}', db, value_type=int)
+
+    def _require(self, condition: bool, message: str) -> None:
+        if not condition:
+            revert(f'{TAG} {message}')
 
     def __get_size(self) -> int:
         return len(self._assets)
@@ -59,8 +63,12 @@ class RewardConfigurationDB(object):
             self._assets.put(asset)
             self._indexes[asset] = self.__len__()
 
+    def setRecipient(self, recipient: str) -> None:
+        if recipient not in self._supportedRecipients:
+            self._supportedRecipients.put(recipient)
+
     def setDistributionPercentage(self, recipient: str, percentage: int):
-        if recipient not in SUPPORTED_RECIPIENTS:
+        if recipient not in self._supportedRecipients:
             raise ItemNotSupported(f"{TAG}: unsupported recipient {recipient}")
         self._distributionPercentage[recipient] = percentage
 
@@ -70,22 +78,22 @@ class RewardConfigurationDB(object):
     def getAllDistributionPercentage(self) -> dict:
         return {
             recipient: self._distributionPercentage[recipient]
-            for recipient in SUPPORTED_RECIPIENTS
+            for recipient in self._supportedRecipients
         }
 
     def getRecipients(self) -> list:
-        return [item for item in SUPPORTED_RECIPIENTS]
+        return [item for item in self._supportedRecipients]
 
     def removeAssetConfig(self, asset: Address) -> None:
         index = self.__get_index(asset)
         if index == 0:
             raise ItemNotFound(f"{TAG}: Asset not found {asset}")
 
-        self._assetLevelPercentage[asset].remove(asset)
-        self._rewardEntityMapping[asset].remove(asset)
-        self._assetName[asset].remove(asset)
-        self._poolIDMapping[asset].remove(asset)
-
+        self._assetLevelPercentage.remove(asset)
+        self._rewardEntityMapping.remove(asset)
+        self._assetName.remove(asset)
+        self._poolIDMapping.remove(asset)
+        self._emissionPerSecond.remove(asset)
         last_index = self.__len__()
         last_asset = self._assets.pop()
         self._indexes.remove(asset)
@@ -104,10 +112,18 @@ class RewardConfigurationDB(object):
         distPercentage = config['distPercentage']
         self._assetLevelPercentage[asset] = distPercentage
         self._rewardEntityMapping[asset] = config['rewardEntity']
-        self._poolIDMapping[asset] = config['_id']
+        self._poolIDMapping[asset] = config['poolID']
         self._assetName[asset] = assetName
-
         self.__add_asset(asset)
+
+        self._validateTotalPercentage( config['rewardEntity'])
+
+    def _validateTotalPercentage(self, rewardEntity):
+        total_percentage = 0
+        for _asset in self._assets:
+            if self._rewardEntityMapping[_asset] == rewardEntity:
+                total_percentage += self._assetLevelPercentage[_asset]
+        self._require(total_percentage <= EXA, f"{total_percentage} should be less than or equals to {EXA}")
 
     def getPoolID(self, asset: Address) -> int:
         return self._poolIDMapping[asset]
