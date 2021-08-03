@@ -61,7 +61,9 @@ class LendingPoolCore(Addresses):
     def updateBorrowRate(self, _reserve: Address, _borrowRate: int):
         prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].borrowRate.set(_borrowRate)
-
+    
+    @only_governance
+    @external
     def updateBorrowThreshold(self, _reserve: Address, _borrowThreshold: int):
         prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].borrowThreshold.set(_borrowThreshold)
@@ -164,12 +166,13 @@ class LendingPoolCore(Addresses):
 
     @only_governance
     @external
-    def addReserveData(self, _reserve: ReserveAttributes):
+    def addReserveData(self, _reserve: ReserveAttributes, _borrowThreshold: int):
         reserve_data_obj = createReserveDataObject(_reserve)
         if not self._check_reserve(reserve_data_obj.reserveAddress):
             self._addNewReserve(reserve_data_obj.reserveAddress)
         prefix = self.reservePrefix(reserve_data_obj.reserveAddress)
         addDataToReserve(prefix, self.reserve, reserve_data_obj)
+        self.reserve[prefix].borrowThreshold.set(_borrowThreshold)
 
     @external(readonly=True)
     def getReserveData(self, _reserve: Address) -> dict:
