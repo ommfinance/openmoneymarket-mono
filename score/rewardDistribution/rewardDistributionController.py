@@ -70,8 +70,12 @@ class RewardDistributionController(RewardDistributionManager):
 
     def on_install(self, _distPercentage: List[DistPercentage]) -> None:
         super().on_install()
-        self._updateDistPercentage(_distPercentage)
         self._distComplete['daoFund'] = True
+        self._rewardConfig.setRecipient("worker")
+        self._rewardConfig.setRecipient("daoFund")
+        self._rewardConfig.setRecipient("lendingBorrow")
+        self._rewardConfig.setRecipient("liquidityProvider")
+        self._updateDistPercentage(_distPercentage)
 
     def on_update(self) -> None:
         super().on_update()
