@@ -45,16 +45,3 @@ class OmmToken(IRC2Mintable):
         :return: total staked balance
         """
         return self.total_staked_balance()
-
-    @only_owner
-    @external
-    def addPool(self, _distPercentage: int, _poolName: str = "OMM") -> None:
-        reward = self.create_interface_score(self._addresses["rewards"], RewardDistributionInterface)
-        _config = {
-            "_id": -1,
-            "asset": self.address,
-            "distPercentage": _distPercentage,
-            "assetName": _poolName,
-            "rewardEntity": "liquidityProvider",
-        }
-        reward.configureLPEmission([_config])

@@ -344,6 +344,7 @@ class AddressProvider(IconScoreBase):
     def setStakedLpAddresses(self) -> None:
         stakedLpAddresses: List[AddressDetails] = [
             {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
+            {"name": self.GOVERNANCE, "address": self._addresses[self.GOVERNANCE]},
             {"name": self.DEX, "address": self._addresses[self.DEX]}
         ]
 
@@ -355,6 +356,7 @@ class AddressProvider(IconScoreBase):
     def setGovernanceAddresses(self) -> None:
         governanceAddresses: List[AddressDetails] = [
             {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
+            {"name": self.STAKED_LP, "address": self._addresses[self.STAKED_LP]},
             {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]}
         ]
 
