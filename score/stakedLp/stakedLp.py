@@ -1,54 +1,11 @@
 from .utils.checks import *
+from .interfaces import *
+from .addresses import Addresses
 
 MICROSECONDS = 10 ** 6
-REWARDS = 'rewards'
-DEX = 'dex'
 
 
-class SupplyDetails(TypedDict):
-    principalUserBalance: int
-    principalTotalSupply: int
-
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-class AssetConfig(TypedDict):
-    _id: int
-    asset: Address
-    distPercentage: int
-    assetName: str
-    rewardEntity: str
-
-
-class RewardInterface(InterfaceScore):
-    @interface
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
-        pass
-
-    @interface
-    def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
-        pass
-
-
-class LiquidityPoolInterface(InterfaceScore):
-    @interface
-    def balanceOf(self, _owner: Address, _id: int) -> int:
-        pass
-
-    @interface
-    def transfer(self, _to: Address, _value: int, _id: int, _data: bytes = None):
-        pass
-
-
-class Status:
-    AVAILABLE = 0
-    STAKED = 1
-
-
-class StakedLp(IconScoreBase):
+class StakedLp(Addresses):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -58,11 +15,9 @@ class StakedLp(IconScoreBase):
         self._addressMap = DictDB('addressMap', db, value_type=Address)
         self._minimumStake = VarDB('minimumStake', db, value_type=int)
         self._unstakingTime = VarDB('unstakingTime', db, value_type=int)
-        self._addresses = DictDB('addresses', db, value_type=Address)
-        self._contracts = ArrayDB('contracts', db, value_type=str)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
         self._minimumStake.set(0)
         self._unstakingTime.set(0)
 
@@ -76,19 +31,7 @@ class StakedLp(IconScoreBase):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "Omm Stake Lp"
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
+        return TAG
 
     @only_owner
     @external
@@ -108,7 +51,7 @@ class StakedLp(IconScoreBase):
     def setUnstakingPeriod(self, _time: int) -> None:
         """
         Set the minimum staking period
-        :param _time: Staking time period in days.
+        :param _time: Staking time period in seconds.
         """
         StakedLp._require(_time >= 0, "Time cannot be negative.")
         # total_time = _time * DAY_TO_MICROSECOND  # convert days to microseconds
