@@ -55,14 +55,15 @@ def only_lending_pool(func):
     return __wrapper
 
 
-def origin_owner(func):
+def only_address_provider(func):
     if not isfunction(func):
         revert(f"{TAG}: ""NotAFunctionError")
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.tx.origin != self.owner:
-            revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.tx.origin} (owner){self.owner}")
+        addressProvider = self._addressProvider.get()
+        if self.msg.sender != addressProvider:
+            revert(f"{TAG}: "f"SenderNotAddressProviderError: (sender){self.msg.sender} (address provider){addressProvider}")
         return func(self, *args, **kwargs)
 
     return __wrapper
