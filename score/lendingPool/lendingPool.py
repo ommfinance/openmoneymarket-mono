@@ -211,7 +211,7 @@ class LendingPool(Addresses):
         reward.distribute()
 
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
-
+        
         _data = None
         _to = _user
 

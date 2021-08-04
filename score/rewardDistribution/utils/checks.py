@@ -87,6 +87,24 @@ def only_owner_or_contracts(func, contracts=[]):
     return __wrapper
 
 
+def only_owner_or_contracts(func, contracts=[]):
+    if not isfunction(func):
+        revert(f"{TAG}: ""NotAFunctionError")
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        _user_list = [self.owner]
+        for contract in contracts:
+            _user_list.append(self._addresses[contract])
+        if self.msg.sender not in _user_list:
+            revert(
+                f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} is not (owner or {contracts.join('or')}){_user_list.join('or')}")
+
+        return func(self, *args, **kwargs)
+
+    return __wrapper
+
+
 def only_stake_lp_or_omm(func):
     if not isfunction(func):
         revert(f"{TAG}: ""NotAFunctionError")
