@@ -1,6 +1,6 @@
 from .utils.checks import *
 from .interfaces import *
-from .addresses import Addresses *
+from .addresses import *
 
 MICROSECONDS = 10 ** 6
 

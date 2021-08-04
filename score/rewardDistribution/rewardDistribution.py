@@ -3,7 +3,7 @@ from .utils.math import *
 from .rewardConfigurationDB import RewardConfigurationDB
 from .utils.checks import *
 from .utils.types import *
-from interfaces import *
+from .interfaces import *
 
 TAG = 'OMM Reward Distribution Manager'
 
