@@ -3,7 +3,7 @@ from iconservice import *
 from .utils.math import exaMul, EXA
 from .utils.types import AssetConfig
 
-TAG = "Reward Distribution Storage"
+TAG = "OMM Reward Distribution Storage"
 
 
 class ItemNotFound(Exception):

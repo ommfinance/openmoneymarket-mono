@@ -5,9 +5,10 @@ from .utils.checks import *
 from .utils.types import *
 from interfaces import *
 
-TAG = 'Reward Distribution Manager'
+TAG = 'OMM Reward Distribution Manager'
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
+
 
 class RewardDistributionManager(Addresses):
     REWARD_CONFIG = 'rewardConfig'
@@ -16,7 +17,6 @@ class RewardDistributionManager(Addresses):
     ASSET_INDEX = 'assetIndex'
     USER_INDEX = 'userIndex'
     RESERVE_ASSETS = 'reserveAssets'
-
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -101,7 +101,7 @@ class RewardDistributionManager(Addresses):
         return self._rewardConfig.getAssetConfigs()
 
     @external(readonly=True)
-    def distPercentageOfAllLP(self):
+    def distPercentageOfAllLP(self) -> dict:
         return self._rewardConfig.assetConfigOfLiquidityProvider();
 
     def _configureAsset(self, distributionPerDay: int, _assetConfig: AssetConfig):
