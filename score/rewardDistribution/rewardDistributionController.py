@@ -1,12 +1,10 @@
-from .addresses import Addresses
 from .rewardDistribution import *
 from .utils.checks import *
 from .utils.types import *
-from interfaces import *
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
-TAG = 'Reward Distribution Controller'
+TAG = 'OMM Reward Distribution Controller'
 
 
 class RewardDistributionController(RewardDistributionManager):
