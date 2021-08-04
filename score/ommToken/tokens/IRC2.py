@@ -1,49 +1,15 @@
 from .IIRC2 import TokenStandard
 from ..utils.checks import *
 from ..utils.consts import *
+from ..addresses import *
+from ..interfaces import *
 
 TAG = 'OMM_Token_IRC_2'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6
 MICROSECONDS = 10 ** 6
-DELEGATION = 'delegation'
-REWARDS = 'rewards'
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
 
 
-class PrepDelegationDetails(TypedDict):
-    prepAddress: Address
-    prepPercentage: int
-
-
-class TokenFallbackInterface(InterfaceScore):
-    @interface
-    def tokenFallback(self, _from: Address, _value: int, _data: bytes):
-        pass
-
-
-class DelegationInterface(InterfaceScore):
-    @interface
-    def updateDelegations(self, _delegations: List[PrepDelegationDetails] = None, _user: Address = None):
-        pass
-
-
-class RewardDistributionInterface(InterfaceScore):
-    @interface
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
-        pass
-
-
-class Status:
-    AVAILABLE = 0
-    STAKED = 1
-    UNSTAKING = 2
-    UNSTAKING_PERIOD = 3
-
-
-class IRC2(TokenStandard, IconScoreBase):
+class IRC2(TokenStandard, Addresses):
     """
     Implementation of IRC2
     """
@@ -59,8 +25,6 @@ class IRC2(TokenStandard, IconScoreBase):
     _STAKED_BALANCES = 'staked_balances'
     _TOTAL_STAKED_BALANCE = 'total_stake_balance'
     _UNSTAKING_PERIOD = 'unstaking_period'
-    _ADDRESSES = "addresses"
-    _CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -79,11 +43,10 @@ class IRC2(TokenStandard, IconScoreBase):
         self._staked_balances = DictDB(self._STAKED_BALANCES, db, value_type=int, depth=2)
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
-        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
     def on_install(
             self,
+            _addressProvider: Address,
             _tokenName: str,
             _symbolName: str,
             _initialSupply: int = DEFAULT_INITIAL_SUPPLY,
@@ -115,7 +78,7 @@ class IRC2(TokenStandard, IconScoreBase):
         if _decimals < 0:
             revert("Decimals cannot be less than zero")
 
-        super().on_install()
+        super().on_install(_addressProvider)
 
         total_supply = _initialSupply * 10 ** _decimals
 
@@ -180,18 +143,6 @@ class IRC2(TokenStandard, IconScoreBase):
     def unstaked_balanceOf(self, _owner: Address) -> int:
         detail_balance = self.details_balanceOf(_owner)
         return detail_balance["unstakingBalance"]
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
 
     @only_owner
     @external

@@ -28,8 +28,8 @@ class RewardDistributionInterface(InterfaceScore):
 
 class OmmToken(IRC2Mintable):
 
-    def on_install(self) -> None:
-        super().on_install(TOKEN_NAME, SYMBOL_NAME)
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider, TOKEN_NAME, SYMBOL_NAME)
 
     @external(readonly=True)
     def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
