@@ -1,6 +1,5 @@
 from iconservice import *
-
-from rewardDistribution.utils.types import SupplyDetails
+from .utils.types import SupplyDetails
 
 
 class TokenInterface(InterfaceScore):
