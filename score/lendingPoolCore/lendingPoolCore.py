@@ -298,13 +298,12 @@ class LendingPoolCore(IconScoreBase):
 
     @only_governance
     @external
-    def addReserveData(self, _reserve: ReserveAttributes, _borrowThreshold: int):
+    def addReserveData(self, _reserve: ReserveAttributes):
         reserve_data_obj = createReserveDataObject(_reserve)
         if not self._check_reserve(reserve_data_obj.reserveAddress):
             self._addNewReserve(reserve_data_obj.reserveAddress)
         prefix = self.reservePrefix(reserve_data_obj.reserveAddress)
         addDataToReserve(prefix, self.reserve, reserve_data_obj)
-        self.reserve[prefix].borrowThreshold.set(_borrowThreshold)
 
     @external(readonly=True)
     def getReserveData(self, _reserve: Address) -> dict:
