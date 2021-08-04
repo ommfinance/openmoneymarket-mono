@@ -27,7 +27,7 @@ class DToken(TokenStandard, Addresses):
         self._balances = DictDB(self._BALANCES, db, value_type=int)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
 
-    def on_install(self, _addressProvider: Address, _name: str, _symbol: str, _decimals: int = 18, ) -> None:
+    def on_install(self, _addressProvider: Address, _name: str, _symbol: str, _decimals: int = 18) -> None:
         """
         Variable Initialization.
         :param _addressProvider: the address of addressProvider
