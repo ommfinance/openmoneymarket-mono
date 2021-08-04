@@ -4,43 +4,7 @@ from .utils.types import *
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
-TAG = 'Reward Distribution Controller'
-
-
-class TokenInterface(InterfaceScore):
-    @interface
-    def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        pass
-
-    @interface
-    def mint(self, _amount: int):
-        pass
-
-
-# An interface to Worker Token
-class WorkerTokenInterface(InterfaceScore):
-    @interface
-    def getWallets(self) -> list:
-        pass
-
-    @interface
-    def totalSupply(self) -> int:
-        pass
-
-    @interface
-    def balanceOf(self, _owner: Address) -> int:
-        pass
-
-
-# An interface to LendingPoolCore
-class CoreInterface(InterfaceScore):
-    @interface
-    def getReserves(self) -> list:
-        pass
-
-    @interface
-    def getReserveConfiguration(self, _reserve: Address) -> dict:
-        pass
+TAG = 'OMM Reward Distribution Controller'
 
 
 class RewardDistributionController(RewardDistributionManager):
@@ -68,8 +32,8 @@ class RewardDistributionController(RewardDistributionManager):
         self._offset = DictDB('offset', db, value_type=int)
         self._rewardsActivate = VarDB(self.REWARDS_ACTIVATE, db, value_type=int)
 
-    def on_install(self, _distPercentage: List[DistPercentage]) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address, _distPercentage: List[DistPercentage]) -> None:
+        super().on_install(_addressProvider)
         self._distComplete['daoFund'] = True
         self._rewardConfig.setRecipient("worker")
         self._rewardConfig.setRecipient("daoFund")

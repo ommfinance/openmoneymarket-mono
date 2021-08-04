@@ -1,47 +1,22 @@
+from .addresses import Addresses
 from .utils.math import *
 from .rewardConfigurationDB import RewardConfigurationDB
 from .utils.checks import *
 from .utils.types import *
+from .interfaces import *
 
-TAG = 'Reward Distribution Manager'
+TAG = 'OMM Reward Distribution Manager'
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
 
-class TokenInterface(InterfaceScore):
-    @interface
-    def getTotalStaked(self) -> int:
-        pass
-
-    @interface
-    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
-        pass
-
-
-class LPInterface(InterfaceScore):
-
-    @interface
-    def getTotalStaked(self, _id: int) -> int:
-        pass
-
-    @interface
-    def getPoolById(self, _id: int) -> Address:
-        pass
-
-    @interface
-    def getLPStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
-        pass
-
-
-class RewardDistributionManager(IconScoreBase):
+class RewardDistributionManager(Addresses):
     REWARD_CONFIG = 'rewardConfig'
     LAST_UPDATE_TIMESTAMP = 'lastUpdateTimestamp'
     TIMESTAMP_AT_START = 'timestampAtStart'
     ASSET_INDEX = 'assetIndex'
     USER_INDEX = 'userIndex'
     RESERVE_ASSETS = 'reserveAssets'
-    ADDRESSES = "addresses"
-    CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -53,8 +28,6 @@ class RewardDistributionManager(IconScoreBase):
 
         self._reserveAssets = ArrayDB(self.RESERVE_ASSETS, db, value_type=Address)
         self._timestampAtStart = VarDB(self.TIMESTAMP_AT_START, db, value_type=int)
-        self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
 
     def on_update(self) -> None:
         super().on_update()
@@ -74,18 +47,6 @@ class RewardDistributionManager(IconScoreBase):
     @external(readonly=True)
     def getAssetEmission(self) -> dict:
         return self._rewardConfig.getAllEmissionPerSecond()
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
     def getAssets(self) -> list:
@@ -140,7 +101,7 @@ class RewardDistributionManager(IconScoreBase):
         return self._rewardConfig.getAssetConfigs()
 
     @external(readonly=True)
-    def distPercentageOfAllLP(self):
+    def distPercentageOfAllLP(self) -> dict:
         return self._rewardConfig.assetConfigOfLiquidityProvider();
 
     def _configureAsset(self, distributionPerDay: int, _assetConfig: AssetConfig):

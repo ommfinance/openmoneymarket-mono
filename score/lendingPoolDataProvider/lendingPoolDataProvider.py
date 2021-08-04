@@ -1,182 +1,20 @@
 from .utils.math import *
+from .interfaces import *
+from .addresses import *
 from .utils.checks import *
 
 HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 10 ** 18
-LENDING_POOL_CORE = 'lendingPoolCore'
-LENDING_POOL = 'lendingPool'
-LIQUIDATION_MANAGER = 'liquidationManager'
-PRICE_ORACLE = 'priceOracle'
-STAKING = 'staking'
-FEE_PROVIDER = 'feeProvider'
-REWARDS = 'rewards'
 
-
-class SupplyDetails(TypedDict):
-    principalUserBalance: int
-    principalTotalSupply: int
-    decimals: int
-
-
-class RewardPercentage(TypedDict):
-    reserve: Address
-    rewardPercentage: int
-    lendingPercentage: int
-    borrowingPercentage: int
-
-
-class DistPercentage(TypedDict):
-    recipient: str
-    distPercentage: int
-
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-# An interface to fee provider
-class FeeProviderInterface(InterfaceScore):
-    @interface
-    def calculateOriginationFee(self, _user: Address, _amount: int) -> int:
-        pass
-
-    @interface
-    def getLoanOriginationFeePercentage(self) -> int:
-        pass
-
-
-# An interface to LendingPoolCore
-class CoreInterface(InterfaceScore):
-    @interface
-    def getReserves(self) -> list:
-        pass
-
-    @interface
-    def getUserBasicReserveData(self, _reserve: Address, _user: Address) -> dict:
-        pass
-
-    @interface
-    def getReserveConfiguration(self, _reserve: Address) -> dict:
-        pass
-
-    @interface
-    def getReserveData(self, _reserve: Address) -> dict:
-        pass
-
-    @interface
-    def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
-        pass
-
-    @interface
-    def getCompoundedBorrowBalance(self, _reserve: Address, _user: Address) -> int:
-        pass
-
-
-# An interface to PriceOracle
-class OracleInterface(InterfaceScore):
-    @interface
-    def get_reference_data(self, _base: str, _quote: str) -> int:
-        pass
-
-
-# An interface to oToken
-class oTokenInterface(InterfaceScore):
-    @interface
-    def balanceOf(self, _owner: Address) -> int:
-        pass
-
-    @interface
-    def principalBalanceOf(self, _user: Address) -> int:
-        pass
-
-    @interface
-    def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
-        pass
-
-    @interface
-    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
-        pass
-
-
-# An interface to oToken
-class dTokenInterface(InterfaceScore):
-    @interface
-    def balanceOf(self, _owner: Address) -> int:
-        pass
-
-    @interface
-    def getUserBorrowCumulativeIndex(self, _user: Address) -> int:
-        pass
-
-    @interface
-    def principalBalanceOf(self, _user: Address) -> int:
-        pass
-
-    @interface
-    def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
-        pass
-
-
-# An interface to LendingPool
-class LendingPoolInterface(InterfaceScore):
-    @interface
-    def getBorrowWallets(self, _index: int) -> list:
-        pass
-
-    @interface
-    def getLoanOriginationFeePercentage(self) -> int:
-        pass
-
-
-# An interface to liquidation manager
-class LiquidationInterface(InterfaceScore):
-    @interface
-    def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
-                         _ltv: int) -> int:
-        pass
-
-
-class StakingInterface(InterfaceScore):
-    @interface
-    def getTodayRate(self) -> int:
-        pass
-
-    @interface
-    def getUserUnstakeInfo(self, _address: Address) -> list:
-        pass
-
-
-class RewardInterface(InterfaceScore):
-
-    @interface
-    def getRecipients(self) -> list:
-        pass
-
-    @interface
-    def getAllDistributionPercentage(self) -> dict:
-        pass
-
-    @interface
-    def assetDistPercentage(self, asset: Address) -> int:
-        pass
-
-
-
-
-class LendingPoolDataProvider(IconScoreBase):
+class LendingPoolDataProvider(Addresses):
     _SYMBOL = 'symbol'
     _REWARD_PERCENTAGE = 'rewardPercentage'
-    _CONTRACTS = 'contracts'
-    _ADDRESSES = 'addresses'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._symbol = DictDB(self._SYMBOL, db, value_type=str)
-        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
 
     def on_update(self) -> None:
         super().on_update()
@@ -193,18 +31,6 @@ class LendingPoolDataProvider(IconScoreBase):
     @external(readonly=True)
     def getSymbol(self, _reserve: Address) -> str:
         return self._symbol[_reserve]
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
     def getRecipients(self) -> list:

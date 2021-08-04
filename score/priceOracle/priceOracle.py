@@ -1,11 +1,11 @@
 from .utils.math import convertToExa, exaMul
 from .utils.checks import *
+from .addresses import *
 
 EXA = 10 ** 18
-BAND_ORACLE = 'bandOracle'
-DEX = 'dex'
-ADDRESS_PROVIDER = 'addressProvider'
 STABLE_TOKENS = ["USDS", "USDB"]
+BAND_ORACLE = "bandOracle"
+DEX = "dex"
 
 OMM_TOKENS = [
     {
@@ -27,44 +27,9 @@ OMM_TOKENS = [
 ]
 
 
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-class OracleInterface(InterfaceScore):
-    @interface
-    def get_reference_data(self, _base: str, _quote: str) -> dict:
-        pass
-
-
-class DataSourceInterface(InterfaceScore):
-    @interface
-    def lookupPid(self, _name: str) -> int:
-        pass
-
-    @interface
-    def getPoolStats(self, _id: int) -> dict:
-        pass
-
-    @interface
-    def getPriceByName(self, _name: str) -> int:
-        pass
-
-
-class TokenInterface(InterfaceScore):
-    @interface
-    def decimals(self) -> int:
-        pass
-
-
-class PriceOracle(IconScoreBase):
+class PriceOracle(Addresses):
     _PRICE = 'price'
-    _ORACLE_PRICE_BOOL = 'oraclePriceFeed'
-
-    _ADDRESSES = 'addresses'
-    _CONTRACTS = 'contracts'
-
+    _ORACLE_PRICE_BOOL = 'oraclePriceBool'
     _OMM_POOL = "ommPool"
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -72,11 +37,9 @@ class PriceOracle(IconScoreBase):
         self._price = DictDB(self._PRICE, db, value_type=int, depth=2)
         self._oraclePriceBool = VarDB(self._ORACLE_PRICE_BOOL, db, value_type=bool)
         self._ommPool = VarDB(self._OMM_POOL, db, value_type=str)
-        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
         self._oraclePriceBool.set(True)
         self._ommPool.set("OMM")
 
@@ -85,23 +48,7 @@ class PriceOracle(IconScoreBase):
 
     @external(readonly=True)
     def name(self) -> str:
-        return f"{TAG}"
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
-
-    @external(readonly=True)
-    def getAddress(self, _name: str) -> Address:
-        return self._addresses[_name]
+        return TAG
 
     @external
     @only_owner

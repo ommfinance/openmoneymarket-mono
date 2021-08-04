@@ -1,128 +1,15 @@
 from .utils.checks import *
-
-REWARDS = 'rewards'
-LENDING_POOL_CORE = 'lendingPoolCore'
-STAKED_LP = 'stakedLP'
+from .addresses import *
+from .interfaces import *
 
 
-class Constant(TypedDict):
-    reserve: Address
-    optimalUtilizationRate: int
-    baseBorrowRate: int
-    slopeRate1: int
-    slopeRate2: int
-
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-class ReserveAttributes(TypedDict):
-    reserveAddress: Address
-    oTokenAddress: Address
-    dTokenAddress: Address
-    lastUpdateTimestamp: int
-    liquidityRate: int
-    borrowRate: int
-    liquidityCumulativeIndex: int
-    borrowCumulativeIndex: int
-    baseLTVasCollateral: int
-    liquidationThreshold: int
-    liquidationBonus: int
-    decimals: int
-    borrowingEnabled: bool
-    usageAsCollateralEnabled: bool
-    isFreezed: bool
-    isActive: bool
-
-
-class AssetConfig(TypedDict):
-    poolID: int
-    asset: Address
-    distPercentage: int
-    assetName: str
-    rewardEntity: str
-
-
-class RewardInterface(InterfaceScore):
-
-    @interface
-    def setStartTimestamp(self, _timestamp: int):
-        pass
-
-    @interface
-    def configureAssetConfig(self, _assetConfig: AssetConfig) -> None:
-        pass
-
-    @interface
-    def removeAssetConfig(self, _asset: Address) -> None:
-        pass
-
-    @interface
-    def getPoolIDByAsset(self, _asset: Address) -> int:
-        pass
-
-
-class StakedLPInterface(InterfaceScore):
-    @interface
-    def addPool(self, _id: int, _pool: Address) -> None:
-        pass
-
-    @interface
-    def removePool(self, _id) -> None:
-        pass
-
-
-class CoreInterface(InterfaceScore):
-    @interface
-    def updateIsFreezed(self, _reserve: Address, _isFreezed: bool):
-        pass
-
-    @interface
-    def updateIsActive(self, _reserve: Address, _isActive: bool):
-        pass
-
-    @interface
-    def setReserveConstants(self, _constants: List[Constant]) -> None:
-        pass
-
-    @interface
-    def addReserveData(self, _reserve: ReserveAttributes):
-        pass
-
-    @interface
-    def updateBaseLTVasCollateral(self, _reserve: Address, _baseLTVasCollateral: int):
-        pass
-
-    @interface
-    def updateLiquidationThreshold(self, _reserve: Address, _liquidationThreshold: int):
-        pass
-
-    @interface
-    def updateLiquidationBonus(self, _reserve: Address, _liquidationBonus: int):
-        pass
-
-    @interface
-    def updateBorrowingEnabled(self, _reserve: Address, _borrowingEnabled: bool):
-        pass
-
-    @interface
-    def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
-        pass
-
-
-class Governance(IconScoreBase):
-    _CONTRACTS = 'contracts'
-    _ADDRESSES = 'addresses'
+class Governance(Addresses):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
 
     def on_update(self) -> None:
         super().on_update()
@@ -130,18 +17,6 @@ class Governance(IconScoreBase):
     @external(readonly=True)
     def name(self) -> str:
         return "OmmGovernanceManager"
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
 
     @only_owner
     @external

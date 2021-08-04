@@ -1,175 +1,12 @@
 from .utils.checks import *
 from .utils.math import *
+from .addresses import *
 
 BATCH_SIZE = 50
 TERM_LENGTH = 43120
 
-# ADDRESSES
-sICX = "sICX"
-oICX = "oICX"
-LENDING_POOL_DATA_PROVIDER = "lendingPoolDataProvider"
-STAKING = "staking"
-OMM_TOKEN = "ommToken"
-BRIDGE_OTOKEN = "bridgeOToken"
-REWARDS = "rewards"
-LENDING_POOL_CORE = "lendingPoolCore"
-FEE_PROVIDER = "feeProvider"
-LIQUIDATION_MANAGER = "liquidationManager"
 
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-# An interface to fee provider
-class FeeProviderInterface(InterfaceScore):
-    @interface
-    def calculateOriginationFee(self, _amount: int) -> int:
-        pass
-
-
-# An interface to oToken
-class OTokenInterface(InterfaceScore):
-    @interface
-    def balanceOf(self, _owner: Address) -> int:
-        pass
-
-    @interface
-    def mintOnDeposit(self, _user: Address, _amount: int) -> None:
-        pass
-
-    @interface
-    def redeem(self, _user: Address, _amount: int) -> None:
-        pass
-
-
-# An interface to reserves
-class ReserveInterface(InterfaceScore):
-    @interface
-    def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        pass
-
-
-# An interface to reserves
-class RewardInterface(InterfaceScore):
-    @interface
-    def distribute(self):
-        pass
-
-    @interface
-    def claimRewards(self, _user: Address) -> int:
-        pass
-
-
-# An interface for sicx
-class StakingInterface(InterfaceScore):
-    @interface
-    def stakeICX(self, _to: Address, _data: bytes = None) -> int:
-        pass
-
-    @interface
-    def getTodayRate(self) -> int:
-        pass
-
-
-# An interface to LendingPoolCore
-class CoreInterface(InterfaceScore):
-    @interface
-    def getReserves(self) -> list:
-        pass
-
-    @interface
-    def getUserBasicReserveData(self, _reserve: Address, _user: Address) -> dict:
-        pass
-
-    @interface
-    def getReserveConfiguration(self, _reserve: Address) -> dict:
-        pass
-
-    @interface
-    def getReserveData(self, _reserve: Address) -> dict:
-        pass
-
-    @interface
-    def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
-        pass
-
-    @interface
-    def updateStateOnBorrow(self, _reserve: Address, _user: Address, _amountBorrowed: int, _borrowFee: int) -> dict:
-        pass
-
-    @interface
-    def mintOnDeposit(self, _user: Address, _amount: int) -> None:
-        pass
-
-    @interface
-    def isReserveBorrowingEnabled(self, _reserve: Address) -> bool:
-        pass
-
-    @interface
-    def getReserveAvailableLiquidity(self, _reserve: Address) -> int:
-        pass
-
-    @interface
-    def transferToUser(self, _reserve: Address, _user: Address, _amount: int, _data: bytes) -> None:
-        pass
-
-    @interface
-    def getUserBorrowBalances(self, _reserve: Address, _user: Address) -> dict:
-        pass
-
-    @interface
-    def updateStateOnRepay(self, _reserve: Address, _user: Address, _paybackAmountMinusFees: int,
-                           _originationFeeRepaid: int, _balanceIncrease: int, _repaidWholeLoan: bool):
-        pass
-
-    @interface
-    def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int,
-                            _userRedeemEverything: bool) -> None:
-        pass
-
-
-# An interface to USDb contract
-class DataProviderInterface(InterfaceScore):
-    @interface
-    def getUserAccountData(self, _user: Address) -> dict:
-        pass
-
-    @interface
-    def calculateCollateralNeededUSD(self, _reserve: Address, _amount: int, _fee: int,
-                                     _userCurrentBorrowBalanceUSD: int,
-                                     _userCurrentFeesUSD: int, _userCurrentLtv: int) -> int:
-        pass
-
-    @interface
-    def getUserReserveData(self, _reserve: Address, _user: Address) -> dict:
-        pass
-
-    @interface
-    def getReserveData(self, _reserve: Address) -> dict:
-        pass
-
-
-# An interface to liquidation manager
-class LiquidationManagerInterface(InterfaceScore):
-    @interface
-    def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
-        pass
-
-
-# An interface to omm token
-class OmmTokenInterface(InterfaceScore):
-    @interface
-    def unstake(self, _value: int, _user: Address) -> None:
-        pass
-
-    @interface
-    def stake(self, _value: int, _user: Address) -> None:
-        pass
-
-
-class LendingPool(IconScoreBase):
+class LendingPool(Addresses):
     BORROW_WALLETS = 'borrowWallets'
     DEPOSIT_WALLETS = 'depositWallets'
     BORROW_INDEX = 'borrowIndex'
@@ -177,13 +14,9 @@ class LendingPool(IconScoreBase):
     FEE_SHARING_USERS = 'feeSharingUsers'
     FEE_SHARING_TXN_LIMIT = 'feeSharingTxnLimit'
     BRIDGE_FEE_THRESHOLD = "bridgeFeeThreshold"
-    ADDRESSES = "addresses"
-    CONTRACTS = "contracts"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
         self._borrowWallets = ArrayDB(self.BORROW_WALLETS, db, value_type=Address)
         self._depositWallets = ArrayDB(self.DEPOSIT_WALLETS, db, value_type=Address)
         self._borrowIndex = DictDB(self.BORROW_INDEX, db, value_type=int)
@@ -192,8 +25,8 @@ class LendingPool(IconScoreBase):
         self._feeSharingTxnLimit = VarDB(self.FEE_SHARING_TXN_LIMIT, db, value_type=int)
         self._bridgeFeeThreshold = VarDB(self.BRIDGE_FEE_THRESHOLD, db, value_type=int)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
         self._bridgeFeeThreshold.set(0)
 
     def on_update(self) -> None:
@@ -216,22 +49,6 @@ class LendingPool(IconScoreBase):
     def Repay(self, _reserve: Address, _user: Address, _paybackAmount: int, _originationFee: int,
               _borrowBalanceIncrease: int, _timestamp: int):
         pass
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
-
-    @external(readonly=True)
-    def getAddress(self, _name: str) -> Address:
-        return self._addresses[_name]
 
     @external(readonly=True)
     def name(self) -> str:
@@ -566,7 +383,7 @@ class LendingPool(IconScoreBase):
         d = None
         try:
             d = json_loads(_data.decode("utf-8"))
-            params = d.get("params")            
+            params = d.get("params")
             method = d.get("method")
         except BaseException as e:
             revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')

@@ -1,45 +1,9 @@
 from .IIRC2 import TokenStandard
 from .utils.math import *
-from .utils.checks import *
-
-REWARDS = 'rewards'
-LENDING_POOL_CORE = 'lendingPoolCore'
-RESERVE = 'reserve'
+from .addresses import *
 
 
-class SupplyDetails(TypedDict):
-    principalUserBalance: int
-    principalTotalSupply: int
-
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-class LendingPoolCoreInterface(InterfaceScore):
-    @interface
-    def getNormalizedDebt(self, _reserve: Address) -> int:
-        pass
-
-    @interface
-    def getReserveBorrowCumulativeIndex(self, _reserve: int) -> int:
-        pass
-
-
-class DistributionManager(InterfaceScore):
-    @interface
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
-        pass
-
-
-class TokenFallbackInterface(InterfaceScore):
-    @interface
-    def tokenFallback(self, _from: Address, _value: int, _data: bytes):
-        pass
-
-
-class DToken(IconScoreBase, TokenStandard):
+class DToken(TokenStandard, Addresses):
     """
     Implementation of IRC2
     """
@@ -48,8 +12,6 @@ class DToken(IconScoreBase, TokenStandard):
     _DECIMALS = 'decimals'
     _TOTAL_SUPPLY = 'total_supply'
     _BALANCES = 'balances'
-    _CONTRACTS = 'contracts'
-    _ADDRESSES = 'addresses'
     _USER_INDEXES = 'user_indexes'
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -59,23 +21,22 @@ class DToken(IconScoreBase, TokenStandard):
         super().__init__(db)
 
         self._name = VarDB(self._NAME, db, value_type=str)
-        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._symbol = VarDB(self._SYMBOL, db, value_type=str)
         self._decimals = VarDB(self._DECIMALS, db, value_type=int)
         self._totalSupply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
         self._balances = DictDB(self._BALANCES, db, value_type=int)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
 
-    def on_install(self, _name: str, _symbol: str, _decimals: int = 18) -> None:
+    def on_install(self, _addressProvider: Address, _name: str, _symbol: str, _decimals: int = 18) -> None:
         """
         Variable Initialization.
+        :param _addressProvider: the address of addressProvider
         :param _name: The name of the token.
         :param _symbol: The symbol of the token.
         :param _decimals: The number of decimals. Set to 18 by default.
 
         """
-        super().on_install()
+        super().on_install(_addressProvider)
 
         if len(_symbol) <= 0:
             revert(f"Invalid Symbol name")
@@ -135,18 +96,6 @@ class DToken(IconScoreBase, TokenStandard):
         number of decimals during initialization.
         """
         return self._decimals.get()
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
     def getUserBorrowCumulativeIndex(self, _user: Address) -> int:
@@ -257,7 +206,7 @@ class DToken(IconScoreBase, TokenStandard):
         decimals = self.decimals()
         rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
         if self.principalBalanceOf(_user) == 0:
-            self._resetDataOnZeroBalanceInternal(_user)        
+            self._resetDataOnZeroBalanceInternal(_user)
         self.BurnOnLiquidation(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
     @external

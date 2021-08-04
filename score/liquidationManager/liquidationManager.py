@@ -1,105 +1,16 @@
 from .utils.math import *
 from .utils.checks import *
-
-LENDING_POOL_CORE = "lendingPoolCore"
-LENDING_POOL_DATA_PROVIDER = "lendingPoolDataProvider"
-PRICE_ORACLE = "priceOracle"
-FEE_PROVIDER = "feeProvider"
-STAKING = "staking"
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-class DataProviderInterface(InterfaceScore):
-    @interface
-    def getUserAccountData(self, _user: Address) -> dict:
-        pass
-
-    @interface
-    def getReserveData(self, _reserve: Address) -> dict:
-        pass
-
-    @interface
-    def getSymbol(self, _reserveAddress: Address) -> str:
-        pass
-
-    @interface
-    def getReserveConfigurationData(self, _reserve: Address) -> dict:
-        pass
+from .addresses import *
+from .interfaces import *
 
 
-class CoreInterface(InterfaceScore):
-    @interface
-    def getUserUnderlyingAssetBalance(self, _reserve: Address, _user: Address) -> int:
-        pass
-
-    @interface
-    def getUserBorrowBalances(self, _reserve: Address, _user: Address):
-        pass
-
-    @interface
-    def getReserveConfiguration(self, _reserve: Address) -> dict:
-        pass
-
-    @interface
-    def getUserOriginationFee(self, _reserve: Address, _user: Address) -> int:
-        pass
-
-    @interface
-    def updateStateOnLiquidation(self, _principalReserve: Address, _collateralReserve: Address, _user: Address,
-                                 _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,
-                                 _liquidatedCollateralForFee: int, _balanceIncrease: int):
-        pass
-
-    @interface
-    def getReserveOTokenAddress(self, _reserve: Address) -> Address:
-        pass
-
-    @interface
-    def transferToUser(self, _reserve: Address, _user: Address, _amount: int) -> None:
-        pass
-
-    @interface
-    def liquidateFee(self, _reserve: Address, _amount: int, _destination: Address) -> None:
-        pass
-
-
-class OtokenInterface(InterfaceScore):
-    @interface
-    def burnOnLiquidation(self, _user: Address, _value: int) -> None:
-        pass
-
-
-class ReserveInterface(InterfaceScore):
-    @interface
-    def transfer(self, _to: Address, _amount: int) -> None:
-        pass
-
-
-class OracleInterface(InterfaceScore):
-    @interface
-    def get_reference_data(self, _base: str, _quote: str) -> int:
-        pass
-
-
-class StakingInterface(InterfaceScore):
-    @interface
-    def getTodayRate(self) -> int:
-        pass
-
-
-class LiquidationManager(IconScoreBase):
-    ADDRESSES = "addresses"
-    CONTRACTS = "contracts"
+class LiquidationManager(Addresses):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._addresses = DictDB(self.ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self.CONTRACTS, db, value_type=str)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
 
     def on_update(self) -> None:
         super().on_update()
@@ -118,22 +29,6 @@ class LiquidationManager(IconScoreBase):
     @external(readonly=True)
     def name(self) -> str:
         return "OmmLiquidationManager"
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
-
-    @external(readonly=True)
-    def getAddress(self, _name: str) -> Address:
-        return self._addresses[_name]
 
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,

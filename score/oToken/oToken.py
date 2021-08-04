@@ -1,55 +1,11 @@
 from .IIRC2 import TokenStandard
 from .utils.math import *
 from .utils.checks import *
-
-REWARDS = 'rewards'
-RESERVE = 'reserve'
-LENDING_POOL_CORE = 'lendingPoolCore'
-LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
+from .addresses import *
+from .interfaces import *
 
 
-class SupplyDetails(TypedDict):
-    principalUserBalance: int
-    principalTotalSupply: int
-
-
-class AddressDetails(TypedDict):
-    name: str
-    address: Address
-
-
-class LendingPoolCoreInterface(InterfaceScore):
-    @interface
-    def getNormalizedIncome(self, _reserve: Address) -> int:
-        pass
-
-    @interface
-    def getReserveLiquidityCumulativeIndex(self, _reserve: Address) -> int:
-        pass
-
-
-class DistributionManager(InterfaceScore):
-    @interface
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
-        pass
-
-
-class DataProviderInterface(InterfaceScore):
-    @interface
-    def balanceDecreaseAllowed(self, _underlyingAssetAddress: Address, _user: Address, _amount: int):
-        pass
-
-
-# An interface of tokenFallback.
-# Receiving SCORE that has implemented this interface can handle
-# the receiving or further routine.
-class TokenFallbackInterface(InterfaceScore):
-    @interface
-    def tokenFallback(self, _from: Address, _value: int, _data: bytes):
-        pass
-
-
-class OToken(IconScoreBase, TokenStandard):
+class OToken(Addresses, TokenStandard):
     """
     Implementation of IRC2
     """
@@ -59,8 +15,6 @@ class OToken(IconScoreBase, TokenStandard):
     _TOTAL_SUPPLY = 'total_supply'
     _BALANCES = 'balances'
     _USER_INDEXES = 'user_indexes'
-    _ADDRESSES = 'addresses'
-    _CONTRACTS = 'contracts'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -74,10 +28,8 @@ class OToken(IconScoreBase, TokenStandard):
         self._totalSupply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
         self._balances = DictDB(self._BALANCES, db, value_type=int)
         self._userIndexes = DictDB(self._USER_INDEXES, db, value_type=int)
-        self._addresses = DictDB(self._ADDRESSES, db, value_type=Address)
-        self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
 
-    def on_install(self, _name: str, _symbol: str, _decimals: int = 18) -> None:
+    def on_install(self, _addressProvider: Address, _name: str, _symbol: str, _decimals: int = 18) -> None:
         """
         Variable Initialization.
         :param _name: The name of the token.
@@ -85,7 +37,7 @@ class OToken(IconScoreBase, TokenStandard):
         :param _decimals: The number of decimals. Set to 18 by default.
 
         """
-        super().on_install()
+        super().on_install(_addressProvider)
 
         if len(_symbol) <= 0:
             revert(f"Invalid Symbol name")
@@ -173,18 +125,6 @@ class OToken(IconScoreBase, TokenStandard):
                        core.getNormalizedIncome(self._addresses[RESERVE])),
                 borrowIndex)
             return convertExaToOther(balance, decimals)
-
-    @origin_owner
-    @external
-    def setAddresses(self, _addressDetails: List[AddressDetails]) -> None:
-        for contracts in _addressDetails:
-            if contracts['name'] not in self._contracts:
-                self._contracts.put(contracts['name'])
-            self._addresses[contracts['name']] = contracts['address']
-
-    @external(readonly=True)
-    def getAddresses(self) -> dict:
-        return {item: self._addresses[item] for item in self._contracts}
 
     @external(readonly=True)
     def getUserLiquidityCumulativeIndex(self, _user: Address) -> int:
