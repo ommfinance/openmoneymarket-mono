@@ -193,11 +193,14 @@ class LendingPoolCore(IconScoreBase):
     def updateBorrowRate(self, _reserve: Address, _borrowRate: int):
         prefix = self.reservePrefix(_reserve)
         self.reserve[prefix].borrowRate.set(_borrowRate)
-    
+
     @only_governance
     @external
     def updateBorrowThreshold(self, _reserve: Address, _borrowThreshold: int):
         prefix = self.reservePrefix(_reserve)
+        if _borrowThreshold < 0 and _borrowThreshold > EXA:
+            revert(f"{TAG} : Invalid borrow threshold value")
+
         self.reserve[prefix].borrowThreshold.set(_borrowThreshold)
 
     def updateBorrowCumulativeIndex(self, _reserve: Address, _borrowCumulativeIndex: int):
@@ -313,7 +316,8 @@ class LendingPoolCore(IconScoreBase):
             response['totalLiquidity'] = self.getReserveTotalLiquidity(_reserve)
             response['availableLiquidity'] = self.getReserveAvailableLiquidity(_reserve)
             response['totalBorrows'] = self.getReserveTotalBorrows(_reserve)
-            response['availableBorrows'] = exaMul(response['borrowThreshold'], response['totalLiquidity']) - response['totalBorrows']
+            response['availableBorrows'] = exaMul(response['borrowThreshold'], response['totalLiquidity']) - response[
+                'totalBorrows']
         else:
             response = {}
         return response
