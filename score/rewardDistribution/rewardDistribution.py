@@ -29,6 +29,10 @@ class RewardDistributionManager(Addresses):
         self._reserveAssets = ArrayDB(self.RESERVE_ASSETS, db, value_type=Address)
         self._timestampAtStart = VarDB(self.TIMESTAMP_AT_START, db, value_type=int)
 
+    def on_install(self, _address: Address, _timestamp: int) -> None:
+        super().on_install(_address)
+        self._timestampAtStart.set(_timestamp)
+
     def on_update(self) -> None:
         super().on_update()
 
@@ -224,11 +228,6 @@ class RewardDistributionManager(Addresses):
     @external(readonly=True)
     def getDay(self) -> int:
         return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
-
-    @only_governance
-    @external
-    def setStartTimestamp(self, _timestamp: int):
-        self._timestampAtStart.set(_timestamp)
 
     @external(readonly=True)
     def getStartTimestamp(self) -> int:
