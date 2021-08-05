@@ -123,18 +123,19 @@ class RewardDistributionController(RewardDistributionManager):
     @only_lending_pool
     @external
     def claimRewards(self, _user: Address) -> int:
-        userAssetList = []
         unclaimedRewards = 0
+        accruedRewards = 0
         _assets = self._rewardConfig.getAssets()
 
         for _asset in _assets:
             _assetName = self._rewardConfig.getAssetName(_asset)
             unclaimedRewards += self._usersUnclaimedRewards[_user][_asset]
             userAssetDetails = self._getUserAssetDetails(_asset, _user)
-            userAssetList.append(userAssetDetails)
+            accruedRewards += self._updateUserReserveInternal(_user, userAssetDetails['asset'],
+                                                              userAssetDetails['userBalance'],
+                                                              userAssetDetails['totalBalance'])
             self._usersUnclaimedRewards[_user][_asset] = 0
 
-        accruedRewards = self._claimRewards(_user, userAssetList)
         if accruedRewards != 0:
             unclaimedRewards += accruedRewards
             self.RewardsAccrued(_user, self.address, accruedRewards)
