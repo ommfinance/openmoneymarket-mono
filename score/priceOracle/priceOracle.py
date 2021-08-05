@@ -48,7 +48,7 @@ class PriceOracle(Addresses):
 
     @external(readonly=True)
     def name(self) -> str:
-        return TAG
+        return f'OMM {TAG}'
 
     @external
     @only_owner

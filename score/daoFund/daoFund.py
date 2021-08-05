@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'Omm Dao Fund'
+TAG = 'Dao Fund Manager'
 
 
 # This contract manages the fund for Dao operations
@@ -22,7 +22,7 @@ class DaoFund(IconScoreBase):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "Omm Dao Fund Manager"
+        return f"Omm {TAG}"
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes = None) -> None:

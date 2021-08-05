@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'Omm Delegation'
+TAG = 'Delegation'
 
 
 def only_owner(func):

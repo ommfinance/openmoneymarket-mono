@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'Omm Worker Token'
+TAG = 'Worker Token'
 
 BATCH_SIZE = 100
 
@@ -79,7 +79,7 @@ class WorkerToken(IconScoreBase, TokenStandard):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OMM Worker Token"
+        return f"OMM {TAG}"
 
     @external(readonly=True)
     def symbol(self) -> str:

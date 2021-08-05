@@ -31,7 +31,7 @@ class StakedLp(Addresses):
 
     @external(readonly=True)
     def name(self) -> str:
-        return TAG
+        return f'Omm {TAG}'
 
     @only_owner
     @external

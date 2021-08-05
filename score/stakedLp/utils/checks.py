@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'Omm Staked Lp'
+TAG = 'Staked Lp'
 
 
 def only_owner(func):

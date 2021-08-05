@@ -27,7 +27,7 @@ class LiquidationManager(Addresses):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "Omm Liquidation Manager"
+        return f"Omm {TAG}"
 
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,

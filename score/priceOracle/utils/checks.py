@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'Omm Price Oracle Proxy'
+TAG = 'Price Oracle Proxy'
 
 def only_owner(func):
     if not isfunction(func):
