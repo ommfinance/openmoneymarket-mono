@@ -7,6 +7,14 @@ OMM_TOKEN = 'ommToken'
 WORKER_TOKEN = 'workerToken'
 DAO_FUND = 'daoFund'
 GOVERNANCE = 'governance'
+oICX = 'oICX'
+oUSDs = 'oUSDS'
+oIUSDC = 'oIUSDC'
+dICX = 'dICX'
+dUSDs = 'dUSDS'
+dIUSDC = 'dIUSDC'
+
+AUTHORIZED_ASSETS = [oICX, oUSDs, oIUSDC, dICX, dUSDs, dIUSDC, OMM_TOKEN]
 
 
 def only_owner(func):
@@ -68,5 +76,17 @@ def only_address_provider(func):
 
     return __wrapper
 
+def only_staked_lp(func):
+    if not isfunction(func):
+        revert(f"{TAG}: ""NotAFunctionError")
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        stakedLP = self._addresses[STAKED_LP]
+        if self.msg.sender != addressProvider:
+            revert(f"{TAG}: "f"SenderNotAuthorizedError: (sender){self.msg.sender} (stakedLP){stakedLP}")
+        return func(self, *args, **kwargs)
+
+    return __wrapper
 
 
