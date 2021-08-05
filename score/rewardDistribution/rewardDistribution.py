@@ -37,11 +37,11 @@ class RewardDistributionManager(Addresses):
         super().on_update()
 
     @eventlog(indexed=1)
-    def AssetIndexUpdated(self, _asset: Address, _index: int) -> None:
+    def AssetIndexUpdated(self, _asset: Address, _oldIndex: int, _newIndex: int) -> None:
         pass
 
     @eventlog(indexed=2)
-    def UserIndexUpdated(self, _user: Address, _asset: Address, _index: int) -> None:
+    def UserIndexUpdated(self, _user: Address, _asset: Address, _oldIndex: int, _newIndex: int) -> None:
         pass
 
     @eventlog(indexed=1)
@@ -164,7 +164,7 @@ class RewardDistributionManager(Addresses):
         newIndex = self._getAssetIndex(oldIndex, _emissionPerSecond, lastUpdateTimestamp, _totalBalance)
         if newIndex != oldIndex:
             self._assetIndex[_asset] = newIndex
-            self.AssetIndexUpdated(_asset, newIndex)
+            self.AssetIndexUpdated(_asset, oldIndex, newIndex)
 
         self._lastUpdateTimestamp[_asset] = currentTime
         return newIndex
@@ -180,7 +180,7 @@ class RewardDistributionManager(Addresses):
             if _userBalance != 0:
                 accruedRewards = RewardDistributionManager._getRewards(_userBalance, newIndex, userIndex)
             self._userIndex[_user][_asset] = newIndex
-            self.UserIndexUpdated(_user, _asset, newIndex)
+            self.UserIndexUpdated(_user, _asset, userIndex, newIndex)
 
         return accruedRewards
 
