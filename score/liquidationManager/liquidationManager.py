@@ -17,18 +17,17 @@ class LiquidationManager(Addresses):
 
     @eventlog(indexed=3)
     def OriginationFeeLiquidated(self, _collateral: Address, _reserve: Address, _user: Address, _feeLiquidated: int,
-                                 _liquidatedCollateralForFee: int, _timestamp: int):
+                                 _liquidatedCollateralForFee: int):
         pass
 
     @eventlog(indexed=3)
     def LiquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int,
-                        _liquidatedCollateralAmount: int, _accruedBorrowInterest: int, _liquidator: Address,
-                        _timestamp: int):
+                        _liquidatedCollateralAmount: int, _accruedBorrowInterest: int, _liquidator: Address):
         pass
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmLiquidationManager"
+        return "Omm Liquidation Manager"
 
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
@@ -180,10 +179,9 @@ class LiquidationManager(Addresses):
             collateralOtoken.burnOnLiquidation(_user, liquidatedCollateralForFee)
             # the liquidated fee is sent to fee provider
             core.liquidateFee(_collateral, liquidatedCollateralForFee, self.getAddress(FEE_PROVIDER))
-            self.OriginationFeeLiquidated(_collateral, _reserve, _user, feeLiquidated, liquidatedCollateralForFee,
-                                          self.now())
+            self.OriginationFeeLiquidated(_collateral, _reserve, _user, feeLiquidated, liquidatedCollateralForFee)
         self.LiquidationCall(_collateral, _reserve, _user, actualAmountToLiquidate, maxCollateralToLiquidate,
-                             userBorrowBalances['borrowBalanceIncrease'], self.tx.origin, self.now())
+                             userBorrowBalances['borrowBalanceIncrease'], self.tx.origin)
         return {
             'maxCollateralToLiquidate': maxCollateralToLiquidate,
             'actualAmountToLiquidate': actualAmountToLiquidate

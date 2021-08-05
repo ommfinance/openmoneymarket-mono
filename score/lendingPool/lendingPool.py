@@ -33,26 +33,26 @@ class LendingPool(Addresses):
         super().on_update()
 
     @eventlog(indexed=3)
-    def Deposit(self, _reserve: Address, _sender: Address, _amount: int, _timestamp: int):
+    def Deposit(self, _reserve: Address, _sender: Address, _amount: int):
         pass
 
     @eventlog(indexed=3)
     def Borrow(self, _reserve: Address, _user: Address, _amount: int, _borrowRate: int, _borrowFee: int,
-               _borrowBalanceIncrease: int, _timestamp: int):
+               _borrowBalanceIncrease: int):
         pass
 
     @eventlog(indexed=3)
-    def RedeemUnderlying(self, _reserve: Address, _user: Address, _amount: int, _timestamp: int):
+    def RedeemUnderlying(self, _reserve: Address, _user: Address, _amount: int):
         pass
 
     @eventlog(indexed=3)
     def Repay(self, _reserve: Address, _user: Address, _paybackAmount: int, _originationFee: int,
-              _borrowBalanceIncrease: int, _timestamp: int):
+              _borrowBalanceIncrease: int):
         pass
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmLendingPool"
+        return "Omm Lending Pool"
 
     @only_owner
     @external
@@ -150,7 +150,7 @@ class LendingPool(Addresses):
             _amount = staking.icx(self.msg.value).stakeICX(lendingPoolCoreAddress)
         # self._updateSnapshot(_reserve, _sender)
 
-        self.Deposit(_reserve, _sender, _amount, self.now())
+        self.Deposit(_reserve, _sender, _amount)
 
     @external
     def redeem(self, _oToken: Address, _amount: int, _waitForUnstaking: bool = False) -> None:
@@ -226,7 +226,7 @@ class LendingPool(Addresses):
 
         # self._updateSnapshot(_reserve, _user)
 
-        self.RedeemUnderlying(_reserve, _user, _amount, self.now())
+        self.RedeemUnderlying(_reserve, _user, _amount)
 
     @staticmethod
     def _require(_condition: bool, _message: str):
@@ -290,7 +290,7 @@ class LendingPool(Addresses):
         core.transferToUser(_reserve, self.msg.sender, _amount)
         # self._updateSnapshot(_reserve, self.msg.sender)
         self.Borrow(_reserve, self.msg.sender, _amount, borrowData['currentBorrowRate'], borrowFee,
-                    borrowData['balanceIncrease'], self.now())
+                    borrowData['balanceIncrease'])
 
     def _repay(self, _reserve: Address, _amount: int, _sender: Address):
         """
@@ -350,7 +350,7 @@ class LendingPool(Addresses):
         if returnAmount > 0:
             reserve.transfer(_sender, returnAmount)
         self.Repay(_reserve, _sender, paybackAmountMinusFees, userBasicReserveData['originationFee'],
-                   borrowData['borrowBalanceIncrease'], self.now())
+                   borrowData['borrowBalanceIncrease'])
 
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int,
                         _sender: Address):
