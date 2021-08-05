@@ -107,3 +107,7 @@ class CoreInterface(InterfaceScore):
     def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
         pass
 
+    @interface
+    def updateBorrowThreshold(self, _reserve: Address, _borrowThreshold: int):
+        pass
+
