@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'OMM Worker Token'
+TAG = 'Omm Worker Token'
 
 BATCH_SIZE = 100
 

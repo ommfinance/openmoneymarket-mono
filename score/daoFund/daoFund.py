@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'OMM Dao Fund'
+TAG = 'Omm Dao Fund'
 
 
 # This contract manages the fund for Dao operations

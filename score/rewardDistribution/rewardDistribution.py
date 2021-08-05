@@ -5,7 +5,7 @@ from .utils.checks import *
 from .utils.types import *
 from .interfaces import *
 
-TAG = 'OMM Reward Distribution Manager'
+TAG = 'Omm Reward Distribution Manager'
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 

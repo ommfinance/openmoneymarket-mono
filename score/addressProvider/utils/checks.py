@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'OMM Address Provider'
+TAG = 'Omm Address Provider'
 
 
 def only_owner(func):

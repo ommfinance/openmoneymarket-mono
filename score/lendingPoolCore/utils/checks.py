@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = "OMM Lending Pool Core"
+TAG = "Omm Lending Pool Core"
 
 # Address
 LENDING_POOL = "lendingPool"

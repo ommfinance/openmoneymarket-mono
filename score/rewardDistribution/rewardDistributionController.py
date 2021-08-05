@@ -4,7 +4,7 @@ from .utils.types import *
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
-TAG = 'OMM Reward Distribution Controller'
+TAG = 'Omm Reward Distribution Controller'
 
 
 class RewardDistributionController(RewardDistributionManager):
