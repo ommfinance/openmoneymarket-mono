@@ -12,19 +12,17 @@ class RewardDistributionController(RewardDistributionManager):
     DAY = 'day'
     DIST_COMPLETE = 'distComplete'
     TOKEN_DIST_TRACKER = 'tokenDistTracker'
+    IS_INITIALIZED = 'isInitialized'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._day = VarDB(self.DAY, db, value_type=int)
+        self._isInitialized = VarDB(self.IS_INITIALIZED, db, value_type=bool)
         self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth=2)
-
-        self._distComplete = DictDB(self.DIST_COMPLETE, db, value_type=bool)
-
         self._tokenDistTracker = DictDB(self.TOKEN_DIST_TRACKER, db, value_type=int)
 
-    def on_install(self, _addressProvider: Address, _startTimestamp: int, _distPercentage: List[DistPercentage]) -> None:
-        super().on_install(_addressProvider, _startTimestamp)
-        self._distComplete['daoFund'] = True
+    def on_install(self, _addressProvider: Address, _distPercentage: List[DistPercentage]) -> None:
+        super().on_install(_addressProvider)
         self._rewardConfig.setRecipient("worker")
         self._rewardConfig.setRecipient("daoFund")
         self._rewardConfig.setRecipient("lendingBorrow")
@@ -66,7 +64,7 @@ class RewardDistributionController(RewardDistributionManager):
     @external
     @only_staked_lp
     def handleLPAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
-        self._handleAction( _user, _userBalance, _totalSupply, _asset)        
+        self._handleAction( _user, _userBalance, _totalSupply, _asset)
 
     def _handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
         RewardDistributionManager._require(self._rewardConfig.is_valid_asset(_asset) , f'Asset Not Authorized: {_asset}')
@@ -128,6 +126,14 @@ class RewardDistributionController(RewardDistributionManager):
 
         return response
 
+    @only_owner
+    @external
+    def startDistribution(self) -> None:
+        if self.getDay() == 0 and not self._isInitialized.get():
+            self._mintDailyOMM()
+            self.updateEmissionPerSecond()
+            self._isInitialized.set(True)
+
     @only_lending_pool
     @external
     def claimRewards(self, _user: Address) -> int:
@@ -162,48 +168,38 @@ class RewardDistributionController(RewardDistributionManager):
         ommToken = self.create_interface_score(self._addresses[OMM_TOKEN], TokenInterface)
         day: int = self._day.get()
 
-        if self._distComplete['daoFund']:
-            self._initialize()
-
         if day >= self.getDay():
             return
 
-        if not self._distComplete['worker']:
-            self.State("distribute worker")
-            totalSupply = worker.totalSupply()
-            tokenDistTracker = self._tokenDistTracker['worker']
-            for user in worker.getWallets():
-                if tokenDistTracker <= 0:
-                    break
-                tokenAmount = exaMul(exaDiv(worker.balanceOf(user), totalSupply), tokenDistTracker)
-                self.Distribution("worker", user, tokenAmount)
-                ommToken.transfer(user, tokenAmount)
-                totalSupply -= worker.balanceOf(user)
-                tokenDistTracker -= tokenAmount
+        totalSupply = worker.totalSupply()
+        tokenDistTracker = self._tokenDistTracker['worker']
+        for user in worker.getWallets():
+            if tokenDistTracker <= 0:
+                break
+            tokenAmount = exaMul(exaDiv(worker.balanceOf(user), totalSupply), tokenDistTracker)
+            self.Distribution("worker", user, tokenAmount)
+            ommToken.transfer(user, tokenAmount)
+            totalSupply -= worker.balanceOf(user)
+            tokenDistTracker -= tokenAmount
 
-            self._distComplete['worker'] = True
-
-        elif not self._distComplete['daoFund']:
-            self.State("distribute daoFund")
-            daoFundAddress = self._addresses[DAO_FUND]
-            tokenDistTrackerDaoFund: int = self._tokenDistTracker['daoFund']
-            ommToken.transfer(daoFundAddress, tokenDistTrackerDaoFund)
-            self._distComplete['daoFund'] = True
-            self.Distribution("daoFund", daoFundAddress, tokenDistTrackerDaoFund)
-            self._day.set(day + 1)
+        daoFundAddress = self._addresses[DAO_FUND]
+        tokenDistTrackerDaoFund: int = self._tokenDistTracker['daoFund']
+        ommToken.transfer(daoFundAddress, tokenDistTrackerDaoFund)
+        self.Distribution("daoFund", daoFundAddress, tokenDistTrackerDaoFund)
+        self._day.set(day + 1)
+        self._mintDailyOMM()
 
     @external(readonly=True)
     def getDistributedDay(self) -> int:
         return self._day.get()
 
-    def _initialize(self) -> None:
+    def _mintDailyOMM(self) -> None:
         day: int = self._day.get()
         tokenDistributionPerDay: int = self.tokenDistributionPerDay(day)
         ommToken = self.create_interface_score(self._addresses[OMM_TOKEN], TokenInterface)
         ommToken.mint(tokenDistributionPerDay)
 
         for recipient in ('worker', 'daoFund'):
-            self._distComplete[recipient] = False
             _distributionPercentage = self.getDistributionPercentage(recipient)
             self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay, _distributionPercentage)
 
