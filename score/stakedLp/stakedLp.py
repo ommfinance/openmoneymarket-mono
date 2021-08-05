@@ -31,7 +31,7 @@ class StakedLp(Addresses):
 
     @external(readonly=True)
     def name(self) -> str:
-        return TAG
+        return f'Omm {TAG}'
 
     @only_owner
     @external
@@ -163,7 +163,7 @@ class StakedLp(Addresses):
         self._poolStakeDetails[_user][_id][Status.STAKED] = previousUserStaked + _value
         self._totalStaked[_id] = self._totalStaked[_id] + _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
-        reward.handleAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])
+        reward.handleLPAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])
 
     @external
     def unstake(self, _id: int, _value: int) -> None:
@@ -181,7 +181,7 @@ class StakedLp(Addresses):
         self._poolStakeDetails[_user][_id][Status.AVAILABLE] += _value
         self._totalStaked[_id] = self._totalStaked[_id] - _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
-        reward.handleAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])
+        reward.handleLPAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])
         lpToken = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
         lpToken.transfer(_user, _value, _id, b'transferBackToUser')
 

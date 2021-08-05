@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = "Governance"
+TAG = "Governance Manager"
 
 
 def only_owner(func):

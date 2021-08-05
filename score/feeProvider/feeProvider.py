@@ -1,7 +1,7 @@
 from .utils.checks import *
 from .utils.math import *
 
-TAG = 'FeeProvider'
+TAG = 'Fee Provider'
 
 
 class FeeProvider(IconScoreBase):
@@ -17,6 +17,10 @@ class FeeProvider(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
+    @eventlog(indexed=3)
+    def FeeRecieved(self, _from: Address, _value: int, _data: bytes):
+        pass
+
     @only_owner
     @external
     def setLoanOriginationFeePercentage(self, _percentage: int) -> None:
@@ -24,7 +28,7 @@ class FeeProvider(IconScoreBase):
 
     @external(readonly=True)
     def name(self) -> str:
-        return f"Omm{TAG}"
+        return f"Omm {TAG}"
 
     @external(readonly=True)
     def calculateOriginationFee(self, _amount: int) -> int:
@@ -36,4 +40,4 @@ class FeeProvider(IconScoreBase):
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
-        pass
+        self.FeeRecieved(_from, _value, _data)
