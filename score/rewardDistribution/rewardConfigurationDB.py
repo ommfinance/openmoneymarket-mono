@@ -19,7 +19,7 @@ class RewardConfigurationDB(object):
     ENTITY_DISTRIBUTION_PERCENTAGE = 'EntityDistributionPercentage'
     SUPPORTED_RECIPIENTS = 'SupportedRecipients'
     ASSET_LEVEL_PERCENTAGE = 'AssetLevelPercentage'
-    Reward_Entity_MAPPING = 'RewardEntityMapping'
+    REWARD_ENTITY_MAPPING = 'RewardEntityMapping'
     POOL_ID_MAPPING = 'PoolIDMapping'
     ASSET_NAME = 'AssetName'
     ASSETS = 'Assets'
