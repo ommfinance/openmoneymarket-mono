@@ -119,7 +119,7 @@ class RewardDistributionManager(Addresses):
         return self._rewardConfig.assetConfigOfLiquidityProvider()
 
     def _configureAsset(self, distributionPerDay: int, _assetConfig: AssetConfig):
-        asset = _assetConfpassig['asset']
+        asset = _assetConfig['asset']
         self._rewardConfig.setAssetConfig(_assetConfig)
         _totalBalance = self._getTotalBalance(asset)
         self._updateAssetStateInternal(asset, _totalBalance)
