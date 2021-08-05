@@ -67,6 +67,10 @@ class RewardInterface(InterfaceScore):
     def disableRewardClaim(self)->None:
         pass
 
+    @interface
+    def transferOmmToDaoFund(self, _value: int):
+        pass
+
 
 class StakedLPInterface(InterfaceScore):
     @interface
