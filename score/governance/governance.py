@@ -16,7 +16,7 @@ class Governance(Addresses):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmGovernanceManager"
+        return f"Omm {TAG}"
 
     @only_owner
     @external

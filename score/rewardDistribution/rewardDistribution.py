@@ -5,7 +5,7 @@ from .utils.checks import *
 from .utils.types import *
 from .interfaces import *
 
-TAG = 'OMM Reward Distribution Manager'
+TAG = 'Omm Reward Distribution Manager'
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 MINUTE_IN_MICROSECONDS = 60 * 10 ** 6
@@ -30,15 +30,19 @@ class RewardDistributionManager(Addresses):
         self._reserveAssets = ArrayDB(self.RESERVE_ASSETS, db, value_type=Address)
         self._timestampAtStart = VarDB(self.TIMESTAMP_AT_START, db, value_type=int)
 
+    def on_install(self, _address: Address, _timestamp: int) -> None:
+        super().on_install(_address)
+        self._timestampAtStart.set(_timestamp)
+
     def on_update(self) -> None:
         super().on_update()
 
     @eventlog(indexed=1)
-    def AssetIndexUpdated(self, _asset: Address, _index: int) -> None:
+    def AssetIndexUpdated(self, _asset: Address, _oldIndex: int, _newIndex: int) -> None:
         pass
 
     @eventlog(indexed=2)
-    def UserIndexUpdated(self, _user: Address, _asset: Address, _index: int) -> None:
+    def UserIndexUpdated(self, _user: Address, _asset: Address, _oldIndex: int, _newIndex: int) -> None:
         pass
 
     @eventlog(indexed=1)
@@ -52,6 +56,11 @@ class RewardDistributionManager(Addresses):
     @external(readonly=True)
     def getAssets(self) -> list:
         return [asset for asset in self._rewardConfig.getAssets()]
+
+    @staticmethod
+    def _require(_condition: bool, _message: str):
+        if not _condition:
+            revert(f'{TAG}:  {_message}')
 
     @external(readonly=True)
     def getAssetNames(self) -> dict:
@@ -165,7 +174,7 @@ class RewardDistributionManager(Addresses):
         newIndex = self._getAssetIndex(oldIndex, _emissionPerSecond, lastUpdateTimestamp, _totalBalance)
         if newIndex != oldIndex:
             self._assetIndex[_asset] = newIndex
-            self.AssetIndexUpdated(_asset, newIndex)
+            self.AssetIndexUpdated(_asset, oldIndex, newIndex)
 
         self._lastUpdateTimestamp[_asset] = currentTime
         return newIndex
@@ -181,7 +190,7 @@ class RewardDistributionManager(Addresses):
             if _userBalance != 0:
                 accruedRewards = RewardDistributionManager._getRewards(_userBalance, newIndex, userIndex)
             self._userIndex[_user][_asset] = newIndex
-            self.UserIndexUpdated(_user, _asset, newIndex)
+            self.UserIndexUpdated(_user, _asset, userIndex, newIndex)
 
         return accruedRewards
 
@@ -231,11 +240,6 @@ class RewardDistributionManager(Addresses):
     @external(readonly=True)
     def getDay(self) -> int:
         return (self.now() - self._timestampAtStart.get()) // DAY_IN_MICROSECONDS
-
-    @only_governance
-    @external
-    def setStartTimestamp(self, _timestamp: int):
-        self._timestampAtStart.set(_timestamp)
 
     @external(readonly=True)
     def getStartTimestamp(self) -> int:

@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = "DToken"
+TAG = "Omm dToken"
 
 
 def only_lending_pool_core(func):
