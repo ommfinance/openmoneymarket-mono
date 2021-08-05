@@ -7,14 +7,6 @@ OMM_TOKEN = 'ommToken'
 WORKER_TOKEN = 'workerToken'
 DAO_FUND = 'daoFund'
 GOVERNANCE = 'governance'
-oICX = 'oICX'
-oUSDs = 'oUSDS'
-oIUSDC = 'oIUSDC'
-dICX = 'dICX'
-dUSDs = 'dUSDS'
-dIUSDC = 'dIUSDC'
-
-AUTHORIZED_ASSETS = [oICX, oUSDs, oIUSDC, dICX, dUSDs, dIUSDC, OMM_TOKEN]
 
 
 def only_owner(func):

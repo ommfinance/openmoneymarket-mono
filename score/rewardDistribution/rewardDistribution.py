@@ -56,6 +56,11 @@ class RewardDistributionManager(Addresses):
     def getAssets(self) -> list:
         return [asset for asset in self._rewardConfig.getAssets()]
 
+    @staticmethod
+    def _require(_condition: bool, _message: str):
+        if not _condition:
+            revert(f'{TAG}:  {_message}')
+
     @external(readonly=True)
     def getAssetNames(self) -> dict:
         return self._rewardConfig.getAssetNames()
