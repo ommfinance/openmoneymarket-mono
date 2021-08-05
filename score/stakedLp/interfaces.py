@@ -24,7 +24,7 @@ class AssetConfig(TypedDict):
 
 class RewardInterface(InterfaceScore):
     @interface
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
+    def handleLPAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
         pass
 
     @interface
