@@ -189,14 +189,6 @@ class RewardDistributionManager(Addresses):
             timeDelta = currentTime - _lastUpdateTimestamp
             return exaDiv(_emissionPerSecond * timeDelta, _totalBalance) + _currentIndex
 
-    def _claimRewards(self, _user: Address, assetInputs: List[UserAssetInput]) -> int:
-        accruedRewards = 0
-        for asset in assetInputs:
-            accruedRewards += self._updateUserReserveInternal(_user, asset['asset'], asset['userBalance'],
-                                                              asset['totalBalance'])
-
-        return accruedRewards
-
     def _getUnclaimedRewards(self, _user: Address, _assetInput: 'UserAssetInput') -> int:
         asset = _assetInput['asset']
         userBalance = _assetInput['userBalance']
