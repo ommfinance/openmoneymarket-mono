@@ -62,6 +62,12 @@ class Governance(Addresses):
 
     @only_owner
     @external
+    def updateBorrowThreshold(self, _reserve: Address, _borrowThreshold: int):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.updateBorrowThreshold(_reserve, _borrowThreshold)
+
+    @only_owner
+    @external
     def updateLiquidationBonus(self, _reserve: Address, _liquidationBonus: int):
         core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateLiquidationBonus(_reserve, _liquidationBonus)
