@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = "OMM oToken"
+TAG = "Omm oToken"
 
 
 def only_lending_pool(func):

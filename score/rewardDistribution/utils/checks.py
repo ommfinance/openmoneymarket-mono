@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = "OmmRewards"
+TAG = "Omm Rewards"
 STAKED_LP = 'stakedLP'
 LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
 OMM_TOKEN = 'ommToken'
