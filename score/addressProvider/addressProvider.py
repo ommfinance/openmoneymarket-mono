@@ -320,6 +320,12 @@ class AddressProvider(IconScoreBase):
             {"name": self.GOVERNANCE, "address": self._addresses[self.GOVERNANCE]},
             {"name": self.STAKED_LP, "address": self._addresses[self.STAKED_LP]},
             {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]},
+            {"name": self.oICX, "address": self._addresses[self.oICX]},
+            {"name": self.oUSDs, "address": self._addresses[self.oUSDs]},
+            {"name": self.oIUSDC, "address": self._addresses[self.oIUSDC]},
+            {"name": self.dICX, "address": self._addresses[self.dICX]},
+            {"name": self.dUSDs, "address": self._addresses[self.dUSDs]},
+            {"name": self.dIUSDC, "address": self._addresses[self.dIUSDC]},
             {"name": self.ADDRESS_PROVIDER, "address": self.address}
         ]
 
