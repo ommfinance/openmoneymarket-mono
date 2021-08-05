@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'DaoFund'
+TAG = 'Dao Fund Manager'
 
 
 # This contract manages the fund for Dao operations
@@ -17,13 +17,13 @@ class DaoFund(IconScoreBase):
         super().on_update()
 
     @eventlog(indexed=3)
-    def FundReceived(self, _amount: int, _reserve: Address, _time: int):
+    def FundReceived(self, _amount: int, _reserve: Address):
         pass
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmDaoFundManager"
+        return f"Omm {TAG}"
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes = None) -> None:
-        self.FundReceived(_value, self.msg.sender, self.now())
+        self.FundReceived(_value, self.msg.sender)

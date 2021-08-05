@@ -4,7 +4,7 @@ from .utils.types import *
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
 
-TAG = 'OMM Reward Distribution Controller'
+TAG = 'Reward Distribution Controller'
 
 
 class RewardDistributionController(RewardDistributionManager):
@@ -52,7 +52,7 @@ class RewardDistributionController(RewardDistributionManager):
 
     @external(readonly=True)
     def name(self) -> str:
-        return f"{TAG}"
+        return f"Omm {TAG}"
 
     @external(readonly=True)
     def getRecipients(self) -> list:
