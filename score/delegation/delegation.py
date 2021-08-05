@@ -38,7 +38,7 @@ class Delegation(Addresses):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmDelegation"
+        return "Omm Delegation"
 
     @eventlog(indexed=2)
     def DelegationUpdated(self, _before: str, _after: str):
