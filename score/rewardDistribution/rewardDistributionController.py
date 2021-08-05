@@ -32,8 +32,8 @@ class RewardDistributionController(RewardDistributionManager):
         self._offset = DictDB('offset', db, value_type=int)
         self._rewardsActivate = VarDB(self.REWARDS_ACTIVATE, db, value_type=int)
 
-    def on_install(self, _addressProvider: Address, _distPercentage: List[DistPercentage]) -> None:
-        super().on_install(_addressProvider)
+    def on_install(self, _addressProvider: Address, _startTimestamp: int, _distPercentage: List[DistPercentage]) -> None:
+        super().on_install(_addressProvider, _startTimestamp)
         self._distComplete['daoFund'] = True
         self._rewardConfig.setRecipient("worker")
         self._rewardConfig.setRecipient("daoFund")
