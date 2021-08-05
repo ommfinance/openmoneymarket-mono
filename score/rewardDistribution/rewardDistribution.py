@@ -211,10 +211,6 @@ class RewardDistributionManager(Addresses):
     def _getRewards(_userBalance: int, _assetIndex: int, _userIndex: int) -> int:
         return exaMul(_userBalance, _assetIndex - _userIndex)
 
-    def _getEmissionPerSecond(self, distributionPercent):
-        distributionPerDay = self.tokenDistributionPerDay(self.getDay());
-        return exaMul(distributionPerDay // 86400, distributionPercent)
-
     @external(readonly=True)
     def tokenDistributionPerDay(self, _day: int) -> int:
         DAYS_PER_YEAR = 365
