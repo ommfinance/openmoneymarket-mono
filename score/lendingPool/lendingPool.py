@@ -52,7 +52,7 @@ class LendingPool(Addresses):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "Omm Lending Pool"
+        return f"Omm {TAG}"
 
     @only_owner
     @external

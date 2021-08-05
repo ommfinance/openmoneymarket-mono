@@ -55,7 +55,7 @@ class AddressProvider(IconScoreBase):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "Omm Address Provider"
+        return f"Omm {TAG}"
 
     @only_owner
     @external

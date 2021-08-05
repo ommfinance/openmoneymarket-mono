@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = "Omm Liquidation Manager"
+TAG = "Liquidation Manager"
 
 
 def only_owner(func):
