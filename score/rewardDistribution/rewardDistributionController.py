@@ -10,27 +10,17 @@ TAG = 'OMM Reward Distribution Controller'
 class RewardDistributionController(RewardDistributionManager):
     USERS_UNCLAIMED_REWARDS = 'usersUnclaimedRewards'
     DAY = 'day'
-    TOKEN_VALUE = 'tokenValue'
-    DEX = "dex"
-    POOL_ID = "pool_id"
-    REWARDS_BATCH_SIZE = "rewardsBatchSize"
-    CLAIMED_BIT_MAP = "claimedBitMap"
-    REWARDS_ACTIVATE = "rewardsActivate"
+    DIST_COMPLETE = 'distComplete'
+    TOKEN_DIST_TRACKER = 'tokenDistTracker'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._day = VarDB(self.DAY, db, value_type=int)
         self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth=2)
 
-        self._precompute = DictDB('preCompute', db, value_type=bool)
-        self._compIndex = DictDB('compIndex', db, value_type=int)
-        self._amountMulApy = DictDB('amountMulApy', db, value_type=int, depth=3)
-        self._totalAmount = DictDB('totalAmount', db, value_type=int)
-        self._distComplete = DictDB('distComplete', db, value_type=bool)
-        self._distIndex = DictDB('distIndex', db, value_type=int)
-        self._tokenDistTracker = DictDB('tokenDistTracker', db, value_type=int)
-        self._offset = DictDB('offset', db, value_type=int)
-        self._rewardsActivate = VarDB(self.REWARDS_ACTIVATE, db, value_type=int)
+        self._distComplete = DictDB(self.DIST_COMPLETE, db, value_type=bool)
+
+        self._tokenDistTracker = DictDB(self.TOKEN_DIST_TRACKER, db, value_type=int)
 
     def on_install(self, _addressProvider: Address, _distPercentage: List[DistPercentage]) -> None:
         super().on_install(_addressProvider)
@@ -133,19 +123,19 @@ class RewardDistributionController(RewardDistributionManager):
     @only_lending_pool
     @external
     def claimRewards(self, _user: Address) -> int:
-
-        userAssetList = []
         unclaimedRewards = 0
+        accruedRewards = 0
         _assets = self._rewardConfig.getAssets()
 
         for _asset in _assets:
             _assetName = self._rewardConfig.getAssetName(_asset)
             unclaimedRewards += self._usersUnclaimedRewards[_user][_asset]
             userAssetDetails = self._getUserAssetDetails(_asset, _user)
-            userAssetList.append(userAssetDetails)
+            accruedRewards += self._updateUserReserveInternal(_user, userAssetDetails['asset'],
+                                                              userAssetDetails['userBalance'],
+                                                              userAssetDetails['totalBalance'])
             self._usersUnclaimedRewards[_user][_asset] = 0
 
-        accruedRewards = self._claimRewards(_user, userAssetList)
         if accruedRewards != 0:
             unclaimedRewards += accruedRewards
             self.RewardsAccrued(_user, self.address, accruedRewards)
