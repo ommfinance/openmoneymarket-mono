@@ -22,8 +22,8 @@ class RewardDistributionController(RewardDistributionManager):
 
         self._tokenDistTracker = DictDB(self.TOKEN_DIST_TRACKER, db, value_type=int)
 
-    def on_install(self, _addressProvider: Address, _distPercentage: List[DistPercentage]) -> None:
-        super().on_install(_addressProvider)
+    def on_install(self, _addressProvider: Address, _startTimestamp: int, _distPercentage: List[DistPercentage]) -> None:
+        super().on_install(_addressProvider, _startTimestamp)
         self._distComplete['daoFund'] = True
         self._rewardConfig.setRecipient("worker")
         self._rewardConfig.setRecipient("daoFund")
@@ -59,9 +59,17 @@ class RewardDistributionController(RewardDistributionManager):
         return self._rewardConfig.getRecipients()
 
     @external
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address = None) -> None:
-        if _asset is None:
-            _asset = self.msg.sender
+    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
+        _asset = self.msg.sender
+        self._handleAction( _user, _userBalance, _totalSupply, _asset)
+
+    @external
+    @only_staked_lp
+    def handleLPAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
+        self._handleAction( _user: Address, _userBalance: int, _totalSupply: int, _asset: Address)        
+
+    def _handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
+        RewardDistributionManager._require(self._rewardConfig.__get_index(_asset) > 0, f'Asset Not Authorized: {_asset}')
         accruedRewards = self._updateUserReserveInternal(_user, _asset, _userBalance, _totalSupply)
         if accruedRewards != 0:
             self._usersUnclaimedRewards[_user][_asset] += accruedRewards
