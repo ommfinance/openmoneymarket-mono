@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = 'LendingPool'
+TAG = 'OMM Lending Pool'
 
 
 def only_owner(func):

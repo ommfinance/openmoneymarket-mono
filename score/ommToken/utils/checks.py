@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = "OmmToken"
+TAG = "OMM Token"
 
 
 def only_owner(func):

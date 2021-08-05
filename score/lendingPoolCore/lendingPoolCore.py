@@ -36,7 +36,7 @@ class LendingPoolCore(Addresses):
 
     @external(readonly=True)
     def name(self) -> str:
-        return 'OmmLendingPoolCore'
+        return 'Omm Lending Pool Core'
 
     def reservePrefix(self, _reserve: Address) -> bytes:
         return b'|'.join([RESERVE_DB_PREFIX, str(_reserve).encode()])

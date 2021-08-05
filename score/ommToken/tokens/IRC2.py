@@ -4,7 +4,7 @@ from ..utils.consts import *
 from ..addresses import *
 from ..interfaces import *
 
-TAG = 'OMM_Token_IRC_2'
+TAG = 'OMM Token'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6
 MICROSECONDS = 10 ** 6
 

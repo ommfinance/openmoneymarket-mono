@@ -21,7 +21,7 @@ class LendingPoolDataProvider(Addresses):
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmLendingPoolDataProvider"
+        return "Omm Lending Pool Data Provider"
 
     @only_owner
     @external
