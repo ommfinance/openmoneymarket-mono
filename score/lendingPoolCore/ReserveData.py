@@ -115,7 +115,8 @@ def createReserveDataObject(reserveData: dict) -> 'ReserveDataObject':
         borrowingEnabled=reserveData['borrowingEnabled'],
         usageAsCollateralEnabled=reserveData['usageAsCollateralEnabled'],
         isFreezed=reserveData['isFreezed'],
-        isActive=reserveData['isActive']
+        isActive=reserveData['isActive'],
+        borrowThreshold=1 * 10 ** 18,
     )
 
 
@@ -138,3 +139,4 @@ class ReserveDataObject(object):
         self.usageAsCollateralEnabled = kwargs.get('usageAsCollateralEnabled')
         self.isFreezed = kwargs.get('isFreezed')
         self.isActive = kwargs.get('isActive')
+        self.borrowThreshold = kwargs.get('borrowThreshold')
