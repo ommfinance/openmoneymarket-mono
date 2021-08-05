@@ -116,7 +116,7 @@ def createReserveDataObject(reserveData: dict) -> 'ReserveDataObject':
         usageAsCollateralEnabled=reserveData['usageAsCollateralEnabled'],
         isFreezed=reserveData['isFreezed'],
         isActive=reserveData['isActive'],
-        borrowThreshold=1 * 10 ** 18,
+        borrowThreshold=1 * 10 ** 18
     )
 
 
