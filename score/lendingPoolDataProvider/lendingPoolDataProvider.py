@@ -459,11 +459,3 @@ class LendingPoolDataProvider(Addresses):
         userReserveData = self.getUserReserveData(_reserve, _user)
         return userReserveData['currentBorrowBalance'] + userReserveData['originationFee']
 
-    @external(readonly=True)
-    def getAssetPrincipalSupply(self, _asset: Address, _user: Address) -> SupplyDetails:
-        token = create_interface_score(_asset, oTokenInterface)
-        supply = token.getPrincipalSupply(_user)
-        decimals = supply['decimals']
-        supply['principalUserBalance'] = convertToExa(supply['principalUserBalance'], decimals)
-        supply['principalTotalSupply'] = convertToExa(supply['principalTotalSupply'], decimals)
-        return supply
