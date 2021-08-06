@@ -80,7 +80,7 @@ class RewardDistributionController(RewardDistributionManager):
         self._isRewardClaimEnabled.set(True)
 
     @external(readonly=True)
-    def getRecipients(self) -> bool:
+    def isRewardClaimable(self) -> bool:
         return self._isRewardClaimEnabled.get()
 
     @external
