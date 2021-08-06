@@ -59,6 +59,10 @@ class RewardInterface(InterfaceScore):
     def getPoolIDByAsset(self, _asset: Address) -> int:
         pass
 
+    @interface
+    def transferOmmToDaoFund(self, _value: int):
+        pass
+
 
 class StakedLPInterface(InterfaceScore):
     @interface
@@ -106,4 +110,3 @@ class CoreInterface(InterfaceScore):
     @interface
     def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
         pass
-

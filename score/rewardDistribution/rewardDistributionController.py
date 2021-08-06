@@ -207,6 +207,12 @@ class RewardDistributionController(RewardDistributionManager):
             _distributionPercentage = self.getDistributionPercentage(recipient)
             self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay, _distributionPercentage)
 
+    @only_governance
+    @external()
+    def transferOmmToDaoFund(self, _value: int):
+        ommToken = self.create_interface_score(self._addresses[OMM_TOKEN], TokenInterface)
+        ommToken.transfer(self._addresses[DAO_FUND],_value)
+
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
         pass

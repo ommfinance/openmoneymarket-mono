@@ -111,3 +111,9 @@ class Governance(Addresses):
             stakedLP = self.create_interface_score(self._addresses[STAKED_LP], StakedLPInterface)
             stakedLP.removePool(_poolID)
         rewards.removeAssetConfig(_asset)
+
+    @only_owner
+    @external
+    def transferOmmToDaoFund(self,_value:int):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.transferToDaoFund(_value)
