@@ -66,6 +66,10 @@ class RewardInterface(InterfaceScore):
     @interface
     def disableRewardClaim(self)->None:
         pass
+      
+    @interface 
+    def transferOmmToDaoFund(self, _value: int):
+        pass
 
 
 class StakedLPInterface(InterfaceScore):
@@ -114,4 +118,3 @@ class CoreInterface(InterfaceScore):
     @interface
     def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
         pass
-
