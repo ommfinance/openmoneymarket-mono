@@ -36,7 +36,7 @@ class RewardConfigurationDB(object):
         self._emissionPerSecond = DictDB(f'{key}{self.EMISSION_PER_SECOND}', db, value_type=int)
         self._assetLevelPercentage = DictDB(f'{key}{self.ASSET_LEVEL_PERCENTAGE}', db, value_type=int)
 
-        self._rewardEntityMapping = DictDB(f'{key}{self.Reward_Entity_MAPPING}', db, value_type=str)
+        self._rewardEntityMapping = DictDB(f'{key}{self.REWARD_ENTITY_MAPPING}', db, value_type=str)
         self._poolIDMapping = DictDB(f'{key}{self.POOL_ID_MAPPING}', db, value_type=int)
 
         self._assetName = DictDB(f'{key}{self.ASSET_NAME}', db, value_type=str)
@@ -56,6 +56,9 @@ class RewardConfigurationDB(object):
 
     def __len__(self) -> int:
         return self.__get_size()
+
+    def is_valid_asset(self, asset) -> bool:
+        return self.__get_index(asset) > 0
 
     def __add_asset(self, asset) -> None:
         index = self.__get_index(asset)

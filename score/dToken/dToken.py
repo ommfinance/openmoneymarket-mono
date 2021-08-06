@@ -1,6 +1,6 @@
 from .IIRC2 import TokenStandard
-from .utils.math import *
 from .addresses import *
+from .utils.math import *
 
 
 class DToken(TokenStandard, Addresses):

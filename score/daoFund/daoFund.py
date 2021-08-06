@@ -16,7 +16,7 @@ class DaoFund(IconScoreBase):
     def on_update(self) -> None:
         super().on_update()
 
-    @eventlog(indexed=3)
+    @eventlog(indexed=1)
     def FundReceived(self, _amount: int, _reserve: Address):
         pass
 

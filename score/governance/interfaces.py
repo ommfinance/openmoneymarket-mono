@@ -66,8 +66,8 @@ class RewardInterface(InterfaceScore):
     @interface
     def disableRewardClaim(self)->None:
         pass
-      
-    @interface 
+
+    @interface
     def transferOmmToDaoFund(self, _value: int):
         pass
 
@@ -118,3 +118,8 @@ class CoreInterface(InterfaceScore):
     @interface
     def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
         pass
+
+    @interface
+    def updateBorrowThreshold(self, _reserve: Address, _borrowThreshold: int):
+        pass
+

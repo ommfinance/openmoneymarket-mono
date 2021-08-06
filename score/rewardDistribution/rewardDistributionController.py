@@ -86,11 +86,10 @@ class RewardDistributionController(RewardDistributionManager):
     @external
     @only_staked_lp
     def handleLPAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
-        self._handleAction( _user: Address, _userBalance: int, _totalSupply: int, _asset: Address)        
+        self._handleAction( _user, _userBalance, _totalSupply, _asset)
 
     def _handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
-        RewardDistributionManager._require(self._rewardConfig.__get_index(_asset) > 0,
-                                           f'Asset Not Authorized: {_asset}')
+        RewardDistributionManager._require(self._rewardConfig.is_valid_asset(_asset) , f'Asset Not Authorized: {_asset}')
         accruedRewards = self._updateUserReserveInternal(_user, _asset, _userBalance, _totalSupply)
         if accruedRewards != 0:
             self._usersUnclaimedRewards[_user][_asset] += accruedRewards

@@ -75,10 +75,8 @@ def only_staked_lp(func):
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
         stakedLP = self._addresses[STAKED_LP]
-        if self.msg.sender != addressProvider:
+        if self.msg.sender != stakedLP:
             revert(f"{TAG}: "f"SenderNotAuthorizedError: (sender){self.msg.sender} (stakedLP){stakedLP}")
         return func(self, *args, **kwargs)
 
     return __wrapper
-
-
