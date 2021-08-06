@@ -59,6 +59,14 @@ class RewardInterface(InterfaceScore):
     def getPoolIDByAsset(self, _asset: Address) -> int:
         pass
 
+    @interface
+    def enableRewardClaim(self)->None:
+        pass
+
+    @interface
+    def disableRewardClaim(self)->None:
+        pass
+
 
 class StakedLPInterface(InterfaceScore):
     @interface

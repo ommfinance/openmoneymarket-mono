@@ -18,16 +18,20 @@ class RewardDistributionController(RewardDistributionManager):
         super().__init__(db)
         self._day = VarDB(self.DAY, db, value_type=int)
         self._isInitialized = VarDB(self.IS_INITIALIZED, db, value_type=bool)
+        self._isRewardClaimEnabled = VarDB(self.IS_INITIALIZED, db, value_type=bool)
         self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth=2)
         self._tokenDistTracker = DictDB(self.TOKEN_DIST_TRACKER, db, value_type=int)
 
-    def on_install(self, _addressProvider: Address, _distPercentage: List[DistPercentage]) -> None:
-        super().on_install(_addressProvider)
+    def on_install(self, _addressProvider: Address, _startTimestamp: int,
+                   _distPercentage: List[DistPercentage]) -> None:
+        super().on_install(_addressProvider, _startTimestamp)
+
         self._rewardConfig.setRecipient("worker")
         self._rewardConfig.setRecipient("daoFund")
         self._rewardConfig.setRecipient("lendingBorrow")
         self._rewardConfig.setRecipient("liquidityProvider")
         self._updateDistPercentage(_distPercentage)
+        self._isRewardClaimEnabled.set(False)
 
     def on_update(self) -> None:
         super().on_update()
@@ -38,6 +42,10 @@ class RewardDistributionController(RewardDistributionManager):
 
     @eventlog(indexed=1)
     def State(self, _state: str):
+        pass
+
+    @eventlog
+    def OmmTokenMinted(self, _day: int, _value: int):
         pass
 
     @eventlog
@@ -59,7 +67,21 @@ class RewardDistributionController(RewardDistributionManager):
     @external
     def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
         _asset = self.msg.sender
-        self._handleAction( _user, _userBalance, _totalSupply, _asset)
+        self._handleAction(_user, _userBalance, _totalSupply, _asset)
+
+    @only_governance
+    @external
+    def disableRewardClaim(self):
+        self._isRewardClaimEnabled.set(False)
+
+    @only_governance
+    @external
+    def enableRewardClaim(self):
+        self._isRewardClaimEnabled.set(True)
+
+    @external(readonly=True)
+    def getRecipients(self) -> bool:
+        return self._isRewardClaimEnabled.get()
 
     @external
     @only_staked_lp
@@ -134,9 +156,14 @@ class RewardDistributionController(RewardDistributionManager):
             self.updateEmissionPerSecond()
             self._isInitialized.set(True)
 
+    def _checkIfRewardClaimEnabled(self) -> bool:
+        return self._isRewardClaimEnabled.get()
+
     @only_lending_pool
     @external
     def claimRewards(self, _user: Address) -> int:
+        if not self._checkIfRewardClaimEnabled():
+            revert(f"{TAG} : Currently, the reward claim is not active")
         unclaimedRewards = 0
         accruedRewards = 0
         _assets = self._rewardConfig.getAssets()
@@ -202,6 +229,7 @@ class RewardDistributionController(RewardDistributionManager):
         for recipient in ('worker', 'daoFund'):
             _distributionPercentage = self.getDistributionPercentage(recipient)
             self._tokenDistTracker[recipient] = exaMul(tokenDistributionPerDay, _distributionPercentage)
+        self.OmmTokenMinted(day, tokenDistributionPerDay)
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
