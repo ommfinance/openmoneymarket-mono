@@ -210,7 +210,6 @@ class RewardDistributionController(RewardDistributionManager):
         daoFundAddress = self._addresses[DAO_FUND]
         tokenDistTrackerDaoFund: int = self._tokenDistTracker['daoFund']
         ommToken.transfer(daoFundAddress, tokenDistTrackerDaoFund)
-            ommToken.transfer(daoFundAddress, tokenDistTrackerDaoFund)
         self.Distribution("daoFund", daoFundAddress, tokenDistTrackerDaoFund)
         self._day.set(day + 1)
         self._mintDailyOMM()
