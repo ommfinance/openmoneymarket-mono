@@ -79,7 +79,7 @@ class RewardDistributionManager(Addresses):
         self._rewardConfig.setAssetName(_asset, _name)
 
     def _updateDistPercentage(self, _distPercentage: List[DistPercentage]):
-        if ((self.now() - self._timestampAtStart.get()) - self.getDay() * DAY_IN_MICROSECONDS) < 15 * MINUTE_IN_MICROSECONDS:
+        if ((self.now() - self._timestampAtStart.get()) % DAY_IN_MICROSECONDS) < 15 * MINUTE_IN_MICROSECONDS:
             revert(f"{TAG}: Distribution percentage to be changed within 15 minutes of the start of the day")
 
         totalPercentage = 0
