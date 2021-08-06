@@ -157,13 +157,11 @@ class RewardDistributionController(RewardDistributionManager):
             self.updateEmissionPerSecond()
             self._isInitialized.set(True)
 
-    def _checkIfRewardClaimEnabled(self) -> bool:
-        return self._isRewardClaimEnabled.get()
 
     @only_lending_pool
     @external
     def claimRewards(self, _user: Address) -> int:
-        if not self._checkIfRewardClaimEnabled():
+        if not self.isRewardClaimable():
             revert(f"{TAG} : Currently, the reward claim is not active")
         unclaimedRewards = 0
         accruedRewards = 0
