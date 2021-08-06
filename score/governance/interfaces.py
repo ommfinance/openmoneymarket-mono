@@ -60,6 +60,14 @@ class RewardInterface(InterfaceScore):
         pass
 
     @interface
+    def enableRewardClaim(self)->None:
+        pass
+
+    @interface
+    def disableRewardClaim(self)->None:
+        pass
+      
+    @interface 
     def transferOmmToDaoFund(self, _value: int):
         pass
 

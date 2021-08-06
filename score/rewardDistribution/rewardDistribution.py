@@ -8,6 +8,7 @@ from .interfaces import *
 TAG = 'Omm Reward Distribution Manager'
 
 DAY_IN_MICROSECONDS = 86400 * 10 ** 6
+MINUTE_IN_MICROSECONDS = 60 * 10 ** 6
 
 
 class RewardDistributionManager(Addresses):
@@ -78,6 +79,9 @@ class RewardDistributionManager(Addresses):
         self._rewardConfig.setAssetName(_asset, _name)
 
     def _updateDistPercentage(self, _distPercentage: List[DistPercentage]):
+        if ((self.now() - self._timestampAtStart.get()) % DAY_IN_MICROSECONDS) < 15 * MINUTE_IN_MICROSECONDS:
+            revert(f"{TAG}: Distribution percentage to be changed within 15 minutes of the start of the day")
+
         totalPercentage = 0
         for config in _distPercentage:
             _recipient = config["recipient"]
@@ -85,7 +89,8 @@ class RewardDistributionManager(Addresses):
             totalPercentage += _percentage
             self._rewardConfig.setDistributionPercentage(config["recipient"], config["percentage"])
 
-        assert totalPercentage == 1 * 10 ** 18
+        if totalPercentage != EXA:
+            revert(f"{TAG}: Percentage doesn't sum upto 100")
 
     @only_owner
     @external
@@ -111,7 +116,7 @@ class RewardDistributionManager(Addresses):
 
     @external(readonly=True)
     def distPercentageOfAllLP(self) -> dict:
-        return self._rewardConfig.assetConfigOfLiquidityProvider();
+        return self._rewardConfig.assetConfigOfLiquidityProvider()
 
     def _configureAsset(self, distributionPerDay: int, _assetConfig: AssetConfig):
         asset = _assetConfig['asset']
@@ -124,14 +129,14 @@ class RewardDistributionManager(Addresses):
     @only_governance
     @external
     def configureAssetConfigs(self, _assetConfig: List[AssetConfig]) -> None:
-        distributionPerDay = self.tokenDistributionPerDay(self.getDay());
+        distributionPerDay = self.tokenDistributionPerDay(self.getDay())
         for config in _assetConfig:
             self._configureAsset(distributionPerDay, config)
 
     @only_governance
     @external
     def configureAssetConfig(self, _assetConfig: AssetConfig) -> None:
-        distributionPerDay = self.tokenDistributionPerDay(self.getDay());
+        distributionPerDay = self.tokenDistributionPerDay(self.getDay())
         self._configureAsset(distributionPerDay, _assetConfig)
 
     @only_governance
@@ -149,7 +154,7 @@ class RewardDistributionManager(Addresses):
     @only_owner
     @external
     def updateEmissionPerSecond(self) -> None:
-        distributionPerDay = self.tokenDistributionPerDay(self.getDay());
+        distributionPerDay = self.tokenDistributionPerDay(self.getDay())
         _assets = self._rewardConfig.getAssets()
         for asset in _assets:
             _totalBalance = self._getTotalBalance(asset)
@@ -216,7 +221,9 @@ class RewardDistributionManager(Addresses):
     def tokenDistributionPerDay(self, _day: int) -> int:
         DAYS_PER_YEAR = 365
 
-        if _day < 30:
+        if _day < 0:
+            return 0
+        elif _day < 30:
             return 10 ** 24
         elif _day < DAYS_PER_YEAR:
             return 4 * 10 ** 23

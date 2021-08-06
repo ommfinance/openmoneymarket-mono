@@ -86,6 +86,18 @@ class Governance(Addresses):
 
     @only_owner
     @external
+    def enableRewardClaim(self):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.enableRewardClaim()
+
+    @only_owner
+    @external
+    def disableRewardClaim(self):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.disableRewardClaim()
+
+    @only_owner
+    @external
     def addPools(self, _assetConfigs: List[AssetConfig]):
         for assetConfig in _assetConfigs:
             self.addPool(assetConfig)
