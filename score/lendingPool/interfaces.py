@@ -36,10 +36,6 @@ class ReserveInterface(InterfaceScore):
 # An interface to reserves
 class RewardInterface(InterfaceScore):
     @interface
-    def distribute(self):
-        pass
-
-    @interface
     def claimRewards(self, _user: Address) -> int:
         pass
 
