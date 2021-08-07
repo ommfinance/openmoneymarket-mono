@@ -143,11 +143,11 @@ class LendingPool(Addresses):
         core.updateStateOnDeposit(_reserve, _sender, _amount, oToken.balanceOf(_sender) == 0)
 
         oToken.mintOnDeposit(_sender, _amount)
-        if _reserve != self.getAddress(sICX):
-            reserve.transfer(lendingPoolCoreAddress, _amount)
-        else:
+        if _reserve == self.getAddress(sICX) and self.msg.value != 0:
             # icx sent to staking contract and equivalent sicx received to lendingPoolCore
             _amount = staking.icx(self.msg.value).stakeICX(lendingPoolCoreAddress)
+        else:
+            reserve.transfer(lendingPoolCoreAddress, _amount)
         # self._updateSnapshot(_reserve, _sender)
 
         self.Deposit(_reserve, _sender, _amount)
