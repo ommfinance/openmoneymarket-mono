@@ -135,19 +135,17 @@ class LendingPool(Addresses):
 
         reserve = self.create_interface_score(_reserve, ReserveInterface)
         staking = self.create_interface_score(self.getAddress(STAKING), StakingInterface)
-        reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
-        reward.distribute()
         oTokenAddress = reserveData['oTokenAddress']
 
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
         core.updateStateOnDeposit(_reserve, _sender, _amount, oToken.balanceOf(_sender) == 0)
 
         oToken.mintOnDeposit(_sender, _amount)
-        if _reserve != self.getAddress(sICX):
-            reserve.transfer(lendingPoolCoreAddress, _amount)
-        else:
+        if _reserve == self.getAddress(sICX) and self.msg.value != 0:
             # icx sent to staking contract and equivalent sicx received to lendingPoolCore
             _amount = staking.icx(self.msg.value).stakeICX(lendingPoolCoreAddress)
+        else:
+            reserve.transfer(lendingPoolCoreAddress, _amount)
         # self._updateSnapshot(_reserve, _sender)
 
         self.Deposit(_reserve, _sender, _amount)
@@ -207,9 +205,6 @@ class LendingPool(Addresses):
         if reserveAvailableLiquidity < _amount:
             revert(f'{TAG}: Amount {_amount} is more than available liquidity {reserveAvailableLiquidity}')
 
-        reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
-        reward.distribute()
-
         core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
         
         _data = None
@@ -259,8 +254,6 @@ class LendingPool(Addresses):
             self._borrowIndex[self.msg.sender] = len(self._borrowWallets)
         dataProviderAddress = self.getAddress(LENDING_POOL_DATA_PROVIDER)
         dataProvider = self.create_interface_score(dataProviderAddress, DataProviderInterface)
-        reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
-        reward.distribute()
         availableLiquidity = reserveData.get("availableLiquidity")
 
         self._require(availableLiquidity >= _amount, "Borrow error:Not enough available liquidity in the reserve")
@@ -310,9 +303,6 @@ class LendingPool(Addresses):
         borrowData: dict = core.getUserBorrowBalances(_reserve, _sender)
         userBasicReserveData: dict = core.getUserBasicReserveData(_reserve, _sender)
         self._require(borrowData['compoundedBorrowBalance'] > 0, 'The user does not have any borrow pending')
-
-        reward = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
-        reward.distribute()
 
         paybackAmount = borrowData['compoundedBorrowBalance'] + userBasicReserveData['originationFee']
         returnAmount = 0
