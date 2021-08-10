@@ -39,7 +39,7 @@ def only_governance(func):
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
         governance = self._addresses['governance']
-        if self.msg.sender != addressProvider:
+        if self.msg.sender != governance:
             revert(
                 f"{TAG}: "f"SenderNotGovernanceError: (sender){self.msg.sender} (governance){governance}")
         return func(self, *args, **kwargs)
