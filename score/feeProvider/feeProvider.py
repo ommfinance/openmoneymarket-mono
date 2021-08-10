@@ -1,4 +1,5 @@
 from .utils.checks import *
+from .utils.math import *
 from .addresses import *
 
 TAG = 'Fee Provider'
