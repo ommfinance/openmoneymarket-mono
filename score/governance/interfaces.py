@@ -128,3 +128,9 @@ class DaoFundInterface(interfaceScore):
     @interface
     def transferOmm(self, _value: int, _address: Address):
         pass
+
+
+class FeeProviderInterface(interfaceScore):
+    @interface
+    def transferFund(self, _token: Address, _value: int, _to: Address):
+        pass
