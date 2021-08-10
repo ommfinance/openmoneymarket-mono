@@ -7,6 +7,7 @@ REWARDS = 'rewards'
 LENDING_POOL_CORE = 'lendingPoolCore'
 STAKED_LP = 'stakedLP'
 DAO_FUND = 'daoFund'
+FEE_PROVIDER = 'feeProvider'
 
 
 class Addresses(IconScoreBase):
