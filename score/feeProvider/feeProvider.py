@@ -4,7 +4,7 @@ from .addresses import *
 TAG = 'Fee Provider'
 
 
-class FeeProvider(IconScoreBase):
+class FeeProvider(Addresses):
     ORIGINATION_FEE_PERCENT = 'originationFeePercent'
 
     def __init__(self, db: IconScoreDatabase) -> None:

@@ -6,7 +6,7 @@ TAG = 'Dao Fund Manager'
 
 # This contract manages the fund for Dao operations
 
-class DaoFund(IconScoreBase):
+class DaoFund(Addresses):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
