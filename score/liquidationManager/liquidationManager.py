@@ -94,6 +94,7 @@ class LiquidationManager(Addresses):
             return 0
         return exaDiv(_totalBorrowBalanceUSD, _totalCollateralBalanceUSD - _totalFeesUSD)
 
+    @only_lending_pool
     @external
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
         core = self.create_interface_score(self.getAddress(LENDING_POOL_CORE), CoreInterface)
