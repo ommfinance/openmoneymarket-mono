@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = "Governance Manager"
+TAG = "Dao Fund Manager"
 
 
 def only_owner(func):
