@@ -2,6 +2,7 @@ from .interfaces import *
 from .utils.checks import *
 
 LENDING_POOL_CORE = "lendingPoolCore"
+LENDING_POOL = "lendingPool"
 LENDING_POOL_DATA_PROVIDER = "lendingPoolDataProvider"
 PRICE_ORACLE = "priceOracle"
 FEE_PROVIDER = "feeProvider"

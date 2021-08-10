@@ -29,3 +29,16 @@ def only_address_provider(func):
         return func(self, *args, **kwargs)
 
     return __wrapper
+
+def only_lending_pool(func):
+    if not isfunction(func):
+        revert(f"{TAG}: ""NotAFunctionError")
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        lendingPool = self._addresses['lendingPool']
+        if self.msg.sender != lendingPool:
+            revert(f"{TAG}: SenderNotLendingPoolError: (sender){self.msg.sender} (lending pool){lendingPool}")
+        return func(self, *args, **kwargs)
+
+    return __wrapper

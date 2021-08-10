@@ -190,6 +190,7 @@ class AddressProvider(IconScoreBase):
         liquidationManagerAddressDetails: List[AddressDetails] = [
             {"name": self.LENDING_POOL_DATA_PROVIDER, "address": self._addresses[self.LENDING_POOL_DATA_PROVIDER]},
             {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
+            {"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
             {"name": self.STAKING, "address": self._addresses[self.STAKING]},
             {"name": self.FEE_PROVIDER, "address": self._addresses[self.FEE_PROVIDER]},
             {"name": self.ADDRESS_PROVIDER, "address": self.address},
