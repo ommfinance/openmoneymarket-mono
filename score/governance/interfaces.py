@@ -60,11 +60,11 @@ class RewardInterface(InterfaceScore):
         pass
 
     @interface
-    def enableRewardClaim(self)->None:
+    def enableRewardClaim(self) -> None:
         pass
 
     @interface
-    def disableRewardClaim(self)->None:
+    def disableRewardClaim(self) -> None:
         pass
 
     @interface
@@ -123,3 +123,8 @@ class CoreInterface(InterfaceScore):
     def updateBorrowThreshold(self, _reserve: Address, _borrowThreshold: int):
         pass
 
+
+class DaoFundInterface(interfaceScore):
+    @interface
+    def transferOmm(self, _value: int, _address: Address):
+        pass
