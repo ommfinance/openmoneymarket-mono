@@ -126,7 +126,7 @@ class Governance(Addresses):
 
     @only_owner
     @external
-    def transferOmmFromDaoFund(self,_value:int,_address:Addresses):
+    def transferOmmFromDaoFund(self,_value:int,_address:Address):
         daoFund = self.create_interface_score(self._addresses[DAO_FUND],DaoFundInterface)
         daoFund.transferOmm(_value,_address)
 
