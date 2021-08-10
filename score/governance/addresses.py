@@ -6,6 +6,7 @@ from .utils.checks import *
 REWARDS = 'rewards'
 LENDING_POOL_CORE = 'lendingPoolCore'
 STAKED_LP = 'stakedLP'
+DAO_FUND = 'daoFund'
 
 
 class Addresses(IconScoreBase):
