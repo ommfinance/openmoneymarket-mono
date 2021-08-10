@@ -18,7 +18,7 @@ class FeeProvider(IconScoreBase):
         super().on_update()
 
     @eventlog(indexed=3)
-    def FeeReceived(self, _from: Address, _value: int, _data: bytes):
+    def FeeReceived(self, _from: Address, _value: int, _data: bytes,_sender:Address):
         pass
 
     @only_owner
@@ -40,7 +40,7 @@ class FeeProvider(IconScoreBase):
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
-        self.FeeReceived(_from, _value, _data)
+        self.FeeReceived(_from, _value, _data,self.msg.sender)
 
     @only_governance
     @external
