@@ -12,7 +12,4 @@ class TokenInterface(InterfaceScore):
         pass
 
 
-class DaoFundInterface(interfaceScore):
-    @interface
-    def transferOmmToWallet(self, _value: int, _address: Address):
-        pass
+
