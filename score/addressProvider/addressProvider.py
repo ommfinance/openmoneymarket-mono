@@ -127,6 +127,7 @@ class AddressProvider(IconScoreBase):
         self.setGovernanceAddresses()
         self.setStakedLpAddresses()
         self.setPriceOracleAddress()
+        self.setDaoFundAddresses()
 
     @only_owner
     @external
@@ -357,8 +358,21 @@ class AddressProvider(IconScoreBase):
         governanceAddresses: List[AddressDetails] = [
             {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
             {"name": self.STAKED_LP, "address": self._addresses[self.STAKED_LP]},
-            {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]}
+            {"name": self.LENDING_POOL_CORE, "address": self._addresses[self.LENDING_POOL_CORE]},
+            {"name": self.DAO_FUND, "address": self._addresses[self.DAO_FUND]}
         ]
 
         governance = self.create_interface_score(self._addresses[self.GOVERNANCE], AddressInterface)
         governance.setAddresses(governanceAddresses)
+
+    @only_owner
+    @external
+    def setDaoFundAddresses(self) -> None:
+        daoFundAddresses: List[AddressDetails] = [
+            {"name": self.GOVERNANCE, "address": self._addresses[self.GOVERNANCE]},
+            {"name":self.OMM_TOKEN,"address":self._addresses[self.OMM_TOKEN]}
+
+        ]
+
+        daoFund = self.create_interface_score(self._addresses[self.DAO_FUND], AddressInterface)
+        daoFund.setAddresses(daoFundAddresses)
