@@ -1,11 +1,11 @@
 from iconservice import *
 
-TAG = 'Fee Provider'
+TAG = "Dao Fund Manager"
 
 
 def only_owner(func):
     if not isfunction(func):
-        revert(f"{TAG}: NotAFunctionError")
+        revert(f"{TAG}:" "NotAFunctionError")
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):

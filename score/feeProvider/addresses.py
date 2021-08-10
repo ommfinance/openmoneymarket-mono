@@ -1,13 +1,8 @@
 from .interfaces import *
 from .utils.checks import *
 
-
 # ADDRESSES
-REWARDS = 'rewards'
-LENDING_POOL_CORE = 'lendingPoolCore'
-STAKED_LP = 'stakedLP'
-DAO_FUND = 'daoFund'
-FEE_PROVIDER = 'feeProvider'
+GOVERNANCE = 'governance'
 
 
 class Addresses(IconScoreBase):

@@ -20,12 +20,6 @@ class Governance(Addresses):
 
     @only_owner
     @external
-    def setStartTimestamp(self, _timestamp: int) -> None:
-        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
-        rewards.setStartTimestamp(_timestamp)
-
-    @only_owner
-    @external
     def setReserveActiveStatus(self, _reserve: Address, _status: bool):
         core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateIsActive(_reserve, _status)
@@ -128,4 +122,16 @@ class Governance(Addresses):
     @external
     def transferOmmToDaoFund(self,_value:int):
         rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
-        rewards.transferToDaoFund(_value)
+        rewards.transferOmmToDaoFund(_value)
+
+    @only_owner
+    @external
+    def transferOmmFromDaoFund(self,_value:int,_address:Address):
+        daoFund = self.create_interface_score(self._addresses[DAO_FUND],DaoFundInterface)
+        daoFund.transferOmm(_value,_address)
+
+    @only_owner
+    @external
+    def transferFundFromFeeProvider(self,_token:Address,_value:int,_to:Address):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER],FeeProviderInterface)
+        feeProvider.transferFund(_token,_value,_to)
