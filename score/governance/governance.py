@@ -20,12 +20,6 @@ class Governance(Addresses):
 
     @only_owner
     @external
-    def setStartTimestamp(self, _timestamp: int) -> None:
-        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
-        rewards.setStartTimestamp(_timestamp)
-
-    @only_owner
-    @external
     def setReserveActiveStatus(self, _reserve: Address, _status: bool):
         core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         core.updateIsActive(_reserve, _status)
