@@ -1,6 +1,5 @@
 from .IIRC2 import TokenStandard
 from .utils.math import *
-from .utils.checks import *
 from .addresses import *
 from .interfaces import *
 
@@ -32,6 +31,7 @@ class OToken(Addresses, TokenStandard):
     def on_install(self, _addressProvider: Address, _name: str, _symbol: str, _decimals: int = 18) -> None:
         """
         Variable Initialization.
+        :param _addressProvider: The address of the addressProvider SCORE.
         :param _name: The name of the token.
         :param _symbol: The symbol of the token.
         :param _decimals: The number of decimals. Set to 18 by default.
@@ -166,12 +166,14 @@ class OToken(Addresses, TokenStandard):
         balance = self._calculateCumulatedBalanceInternal(_owner, currentPrincipalBalance)
         return balance
 
-    # This shows the state updated balance and includes the accrued interest upto the most recent computation initiated by the user transaction
+    # This shows the state updated balance and includes the accrued interest upto the most recent computation
+    # initiated by the user transaction
     @external(readonly=True)
     def principalBalanceOf(self, _user: Address) -> int:
         return self._balances[_user]
 
-    # The transfer is only allowed if transferring this amount of the underlying collateral doesn't bring the health factor below 1
+    # The transfer is only allowed if transferring this amount of the underlying collateral doesn't bring the health
+    # factor below 1
     @external(readonly=True)
     def isTransferAllowed(self, _user: Address, _amount: int) -> bool:
         dataProvider = self.create_interface_score(self._addresses[LENDING_POOL_DATA_PROVIDER], DataProviderInterface)
@@ -193,7 +195,7 @@ class OToken(Addresses, TokenStandard):
     def redeem(self, _user: Address, _amount: int) -> dict:
         """
         Redeems certain amount of tokens to get the equivalent amount of underlying asset.
-
+        :param _amount: The address of user redeeming assets.
         :param _amount: The amount of oToken.
 
         """
@@ -231,10 +233,11 @@ class OToken(Addresses, TokenStandard):
         self.Redeem(_user, amountToRedeem, balanceIncrease, index)
         return {
             'reserve': self._addresses[RESERVE],
-            'amountToRedeem': amountToRedeem,
-            'oTokenRemaining': currentBalance - amountToRedeem
+            'amountToRedeem': amountToRedeem
+
         }
-        # pool.redeemUnderlying(self.getReserve(), _user, amountToRedeem, currentBalance - amountToRedeem,_waitForUnstaking)
+        # pool.redeemUnderlying(self.getReserve(), _user, amountToRedeem, currentBalance - amountToRedeem,
+        # _waitForUnstaking)
 
     def _resetDataOnZeroBalanceInternal(self, _user: Address) -> None:
         self._userIndexes[_user] = 0
