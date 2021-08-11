@@ -1,6 +1,5 @@
-from .utils.checks import *
-from .utils.math import *
 from .addresses import *
+from .utils.math import *
 
 BATCH_SIZE = 50
 TERM_LENGTH = 43120
@@ -138,7 +137,7 @@ class LendingPool(Addresses):
         oTokenAddress = reserveData['oTokenAddress']
 
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
-        core.updateStateOnDeposit(_reserve, _sender, _amount, oToken.balanceOf(_sender) == 0)
+        core.updateStateOnDeposit(_reserve, _sender, _amount)
 
         oToken.mintOnDeposit(_sender, _amount)
         if _reserve == self.getAddress(sICX) and self.msg.value != 0:
@@ -157,7 +156,7 @@ class LendingPool(Addresses):
         oToken = self.create_interface_score(_oToken, OTokenInterface)
         redeemParams = oToken.redeem(self.msg.sender, _amount)
         self.redeemUnderlying(redeemParams['reserve'], self.msg.sender, _oToken, redeemParams['amountToRedeem'],
-                              redeemParams['oTokenRemaining'], _waitForUnstaking)
+                              _waitForUnstaking)
 
     @external
     def claimRewards(self):
@@ -181,14 +180,13 @@ class LendingPool(Addresses):
         ommToken.unstake(_value, self.msg.sender)
 
     def redeemUnderlying(self, _reserve: Address, _user: Address, _oToken: Address, _amount: int,
-                         _oTokenbalanceAfterRedeem: int,
+
                          _waitForUnstaking: bool = False):
         """
         redeems the underlying amount of assets requested by the _user.This method is called from the oToken contract
         :param _reserve:the address of the reserve
         :param _user:the address of the user requesting the redeem
         :param _amount:the amount to be deposited, should be -1 if the user wants to redeem everything
-        :param _oTokenbalanceAfterRedeem:the remaining balance of _user after the redeem is successful
         :param _waitForUnstaking:
         :return:
         """
@@ -205,8 +203,8 @@ class LendingPool(Addresses):
         if reserveAvailableLiquidity < _amount:
             revert(f'{TAG}: Amount {_amount} is more than available liquidity {reserveAvailableLiquidity}')
 
-        core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
-        
+        core.updateStateOnRedeem(_reserve, _user, _amount)
+
         _data = None
         _to = _user
 
@@ -240,8 +238,9 @@ class LendingPool(Addresses):
         lendingPoolCoreAddress = self.getAddress(LENDING_POOL_CORE)
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserveData = core.getReserveData(_reserve)
-        self._require(_amount <= reserveData['availableBorrows'] , f"Amount requested {_amount} is more than the {reserveData['availableBorrows']}")
-      
+        self._require(_amount <= reserveData['availableBorrows'],
+                      f"Amount requested {_amount} is more than the {reserveData['availableBorrows']}")
+
         if self._userBridgeDepositStatus(self.msg.sender):
             self._enableFeeSharing()
         self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
@@ -372,7 +371,6 @@ class LendingPool(Addresses):
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
-        d = None
         try:
             d = json_loads(_data.decode("utf-8"))
             params = d.get("params")
@@ -388,7 +386,7 @@ class LendingPool(Addresses):
             reserve = params.get("_reserve")
             user = params.get("_user")
             self._require(collateral is not None and reserve is not None and user is not None,
-                f" Invalid data: Collateral:{collateral} Reserve:{reserve} User:{user}")
+                          f" Invalid data: Collateral:{collateral} Reserve:{reserve} User:{user}")
             self.liquidationCall(Address.from_string(collateral),
                                  Address.from_string(reserve),
                                  Address.from_string(user),
