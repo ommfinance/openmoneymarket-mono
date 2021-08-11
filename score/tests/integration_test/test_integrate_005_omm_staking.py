@@ -53,9 +53,10 @@ class OMMStakingCases(OmmUtils):
                 self._set_balances("before")
                 tx_res = self._stakeOMM(self._user, self._amount)
                 self._check_tx_result(tx_res, case)
-                self._stake_test(_success, case.get('addedStake'))
+                if case.get('expectedResult') == 1:
+                    self._stake_test(_success, case.get('addedStake'))
 
-            if _step == Steps.TRANSFER_OMM:
+            elif _step == Steps.TRANSFER_OMM:
                 tx_res = self._transferOMM(self._user, self.deployer_wallet.get_address(), self._amount)
                 self._check_tx_result(tx_res, case)
 
@@ -64,6 +65,24 @@ class OMMStakingCases(OmmUtils):
                 tx_res = self._unstakeOMM(self._user, self._amount)
                 self._check_tx_result(tx_res, case)
                 self._unstake_test(_success)     
+
+            elif _step == Steps.ADD_TO_LOCKLIST:
+                tx_result = self.send_tx(
+                    from_=self.deployer_wallet,
+                    to=self.contracts['ommToken'],
+                    method="add_to_lockList",
+                    params={'_user': self._user.get_address()}
+                    )
+                self.assertEqual(tx_result['status'], case['expectedResult'])
+
+            elif _step == Steps.REMOVE_FROM_LOCKLIST:
+                tx_result = self.send_tx(
+                    from_=self.deployer_wallet,
+                    to=self.contracts['ommToken'],
+                    method="remove_from_lockList",
+                    params={'_user': self._user.get_address()}
+                    )
+                self.assertEqual(tx_result['status'], case['expectedResult'])
 
             elif _step == Steps.DEPOSIT_USDS:
                 tx_res = self._depositUSDS(self._user, self._amount)
@@ -80,7 +99,8 @@ class OMMStakingCases(OmmUtils):
 
         self.assertEqual(tx_result['status'], case['expectedResult'])
         self._set_balances("after")
-        self._test_fee_sharing(case.get("feeShared"))
+        if (tx_result['status'] == 1): 
+            self._test_fee_sharing(case.get("feeShared"))
 
     def _set_balances(self, key: str):
         self.balance[key]["user1"]["icx"] = self.get_balance(self._user.get_address())
