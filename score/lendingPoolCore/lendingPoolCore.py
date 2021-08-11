@@ -324,23 +324,16 @@ class LendingPoolCore(Addresses):
 
     @only_lending_pool
     @external
-    def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
+    def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int) -> None:
 
         self.updateCumulativeIndexes(_reserve)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, _amount, 0)
 
-        if _isFirstDeposit:
-            self.setUserUseReserveAsCollateral(_reserve, _user, True)
-
     @only_lending_pool
     @external
-    def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int,
-                            _userRedeemEverything: bool) -> None:
+    def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int) -> None:
         self.updateCumulativeIndexes(_reserve)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountRedeemed)
-
-        if _userRedeemEverything:
-            self.setUserUseReserveAsCollateral(_reserve, _user, False)
 
     @only_lending_pool
     @external

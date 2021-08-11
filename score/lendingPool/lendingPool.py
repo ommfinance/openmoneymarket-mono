@@ -80,7 +80,7 @@ class LendingPool(Addresses):
     def getFeeSharingTxnLimit(self) -> int:
         return self._feeSharingTxnLimit.get()
 
-    def _userBridgeDepositStatus(self, _user: Address) -> bool:
+    def _userBridgeDepositStatuupdateStateOnRedeems(self, _user: Address) -> bool:
         bridgeOtoken = self.create_interface_score(self.getAddress(BRIDGE_OTOKEN), OTokenInterface)
         return bridgeOtoken.balanceOf(_user) > self._bridgeFeeThreshold.get()
 
@@ -138,7 +138,7 @@ class LendingPool(Addresses):
         oTokenAddress = reserveData['oTokenAddress']
 
         oToken = self.create_interface_score(oTokenAddress, OTokenInterface)
-        core.updateStateOnDeposit(_reserve, _sender, _amount, oToken.balanceOf(_sender) == 0)
+        core.updateStateOnDeposit(_reserve, _sender, _amount)
 
         oToken.mintOnDeposit(_sender, _amount)
         if _reserve == self.getAddress(sICX) and self.msg.value != 0:
@@ -205,7 +205,7 @@ class LendingPool(Addresses):
         if reserveAvailableLiquidity < _amount:
             revert(f'{TAG}: Amount {_amount} is more than available liquidity {reserveAvailableLiquidity}')
 
-        core.updateStateOnRedeem(_reserve, _user, _amount, _oTokenbalanceAfterRedeem == 0)
+        core.updateStateOnRedeem(_reserve, _user, _amount)
         
         _data = None
         _to = _user
