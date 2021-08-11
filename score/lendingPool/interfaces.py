@@ -22,7 +22,7 @@ class OTokenInterface(InterfaceScore):
         pass
 
     @interface
-    def redeem(self, _user: Address, _amount: int) -> None:
+    def redeem(self, _user: Address, _amount: int) -> dict:
         pass
 
 
