@@ -6,7 +6,6 @@ class UserReserveData(object):
     def __init__(self, db: IconScoreDatabase) -> None:
         self.lastUpdateTimestamp = VarDB('lastUpdateTimestamp', db, int)
         self.originationFee = VarDB('originationFee', db, int)
-        self.useAsCollateral = VarDB('usageAsCollateralEnabled', db, bool)
 
 
 class UserReserveDataDB:
@@ -29,20 +28,17 @@ class UserReserveDataDB:
 def getDataFromUserReserve(prefix: bytes, userReserve: 'UserReserveDataDB') -> dict:
     lastUpdateTimestamp = userReserve[prefix].lastUpdateTimestamp.get()
     originationFee = userReserve[prefix].originationFee.get()
-    useAsCollateral = userReserve[prefix].useAsCollateral.get()
 
     return {
         'lastUpdateTimestamp': lastUpdateTimestamp,
-        'originationFee': originationFee,
-        'useAsCollateral': useAsCollateral
+        'originationFee': originationFee
     }
 
 
 def createUserReserveDataObject(reserveData: dict) -> 'UserReserveDataObject':
     return UserReserveDataObject(
         lastUpdateTimestamp=reserveData['lastUpdateTimestamp'],
-        originationFee=reserveData['originationFee'],
-        useAsCollateral=reserveData['useAsCollateral']
+        originationFee=reserveData['originationFee']
     )
 
 
@@ -51,4 +47,3 @@ class UserReserveDataObject(object):
     def __init__(self, **kwargs) -> None:
         self.lastUpdateTimestamp = kwargs.get('lastUpdateTimestamp')
         self.originationFee = kwargs.get('originationFee')
-        self.useAsCollateral = kwargs.get('useAsCollateral')

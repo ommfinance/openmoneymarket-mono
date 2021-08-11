@@ -329,7 +329,6 @@ class TestIntegrationDepositUSDb(IconIntegrateTestBase):
         self.assertEqual(userReserveData['originationFee'], 0)
         self.assertEqual(userReserveData['userBorrowCumulativeIndex'], 0)
         self.assertEqual(userReserveData['lastUpdateTimestamp'], 0)
-        self.assertEqual(userReserveData['useAsCollateral'], True)
 
     def test_userAllReserveData(self):
         # getting user account data (data for all reserves)

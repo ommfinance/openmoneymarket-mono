@@ -28,7 +28,6 @@ class ReserveAttributes(TypedDict):
 class UserDataAttributes(TypedDict):
     lastUpdateTimestamp: int
     originationFee: int
-    useAsCollateral: bool
 
 
 class Constant(TypedDict):

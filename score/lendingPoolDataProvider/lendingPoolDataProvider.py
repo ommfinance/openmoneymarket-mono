@@ -125,7 +125,7 @@ class LendingPoolDataProvider(Addresses):
                                              userBasicReserveData['underlyingBalance'])
                 totalLiquidityBalanceUSD += liquidityBalanceUSD
 
-                if reserveConfiguration['usageAsCollateralEnabled'] and userBasicReserveData['useAsCollateral']:
+                if reserveConfiguration['usageAsCollateralEnabled']:
                     totalCollateralBalanceUSD += liquidityBalanceUSD
                     currentLtv += exaMul(liquidityBalanceUSD, reserveConfiguration['baseLTVasCollateral'])
                     currentLiquidationThreshold += exaMul(liquidityBalanceUSD,
@@ -189,7 +189,6 @@ class LendingPoolDataProvider(Addresses):
         # userBorrowCumulativeIndex = userReserveData['userBorrowCumulativeIndex']
         userBorrowCumulativeIndex = dToken.getUserBorrowCumulativeIndex(_user)
         lastUpdateTimestamp = userReserveData['lastUpdateTimestamp']
-        useAsCollateral = userReserveData['useAsCollateral']
         price_provider = self.create_interface_score(self._addresses[PRICE_ORACLE], OracleInterface)
         symbol = self._symbol[_reserve]
         price = price_provider.get_reference_data(symbol, "USD")
@@ -220,7 +219,6 @@ class LendingPoolDataProvider(Addresses):
             'originationFee': originationFee,
             'userBorrowCumulativeIndex': userBorrowCumulativeIndex,
             'lastUpdateTimestamp': lastUpdateTimestamp,
-            'useAsCollateral': useAsCollateral,
             'exchangeRate': price,
             'decimals': reserveDecimals
         }
@@ -238,7 +236,7 @@ class LendingPoolDataProvider(Addresses):
         reserveLiquidationThreshold = reserveConfiguration['liquidationThreshold']
         reserveUsageAsCollateralEnabled = reserveConfiguration['usageAsCollateralEnabled']
 
-        if not reserveUsageAsCollateralEnabled or not userReserveData['useAsCollateral']:
+        if not reserveUsageAsCollateralEnabled:
             return True
 
         userAccountData = self.getUserAccountData(_user)
