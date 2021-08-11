@@ -27,10 +27,14 @@ OMM_TOKENS = [
 
 
 class PriceOracle(Addresses):
+    _PRICE = 'price'
+    _ORACLE_PRICE_BOOL = 'oraclePriceBool'
     _OMM_POOL = "ommPool"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
+        self._price = DictDB(self._PRICE, db, value_type=int, depth=2)
+        self._oraclePriceBool = VarDB(self._ORACLE_PRICE_BOOL, db, value_type=bool)
         self._ommPool = VarDB(self._OMM_POOL, db, value_type=str)
 
     def on_install(self, _addressProvider: Address) -> None:
@@ -44,6 +48,15 @@ class PriceOracle(Addresses):
     def name(self) -> str:
         return f'Omm {TAG}'
 
+    @external
+    @only_owner
+    def setOraclePriceBool(self, _value: bool):
+        self._oraclePriceBool.set(_value)
+
+    @external(readonly=True)
+    def getOraclePriceBool(self) -> bool:
+        return self._oraclePriceBool.get()
+
     @only_owner
     @external
     def setOMMPool(self, _value: str):
@@ -53,13 +66,21 @@ class PriceOracle(Addresses):
     def getOMMPool(self) -> str:
         return self._ommPool.get()
 
+    @only_owner
+    @external
+    def set_reference_data(self, _base: str, _quote: str, _rate: int) -> None:
+        self._price[_base][_quote] = _rate
+
     def _get_price(self, _base: str, _quote) -> int:
-        if _base in STABLE_TOKENS:
-            return 1 * 10 ** 18
+        if self._oraclePriceBool.get():
+            if _base in STABLE_TOKENS:
+                return 1 * 10 ** 18
+            else:
+                oracle = self.create_interface_score(self.getAddress(BAND_ORACLE), OracleInterface)
+                price = oracle.get_reference_data(_base, _quote)
+                return price['rate']
         else:
-            oracle = self.create_interface_score(self.getAddress(BAND_ORACLE), OracleInterface)
-            price = oracle.get_reference_data(_base, _quote)
-            return price['rate']
+            return self._price[_base][_quote]
 
     def _get_omm_price(self, _quote: str) -> int:
         dex = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
