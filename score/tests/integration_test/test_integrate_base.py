@@ -38,17 +38,23 @@ halfEXA = EXA // 2
 SECONDS_PER_YEAR = 31536000
 PREP_LIST = ["hxec79e9c1c882632688f8c8f9a07832bcabe8be8f","hxd3be921dfe193cd49ed7494a53743044e3376cd3",\
             "hx9e7509f86ea3ba5c139161d6e92a3982659e9f30", "hxaad52424d4aec9dac7d9f6796da527f471269d2c"]
+
 OMM_SICX_ID = 1
 OMM_USDS_ID = 2
+
 OUSDS_EMISSION = int(0.5 * 0.5 * EXA)
 DUSDS_EMISSION = int(0.5 * 0.5 * EXA)
 DICX_EMISSION = int(0.5 * 0.5 * EXA)
 OICX_EMISSION = int(0.5 * 0.5 * EXA)
+
 OMM_SICX_DIST_PERCENTAGE = int(0.1 * EXA)
 OMM_USDS_DIST_PERCENTAGE = int(0.1 * EXA)
 OMM_DIST_PERCENTAGE = int(0.2 * EXA)
-WORKER_DIST_PERCENTAGE = int(0.2 * EXA)
-DAO_DIST_PERCENTAGE = int(0.2 * EXA)
+
+WORKER_DIST_PERCENTAGE = int(0.3 * EXA)
+DAO_DIST_PERCENTAGE = int(0.4 * EXA)
+LENDING_BORROW_PERCENTAGE = int(0.1*EXA)
+LP_OMM_STAKING_PERCENTAGE = int(0.2*EXA)
 
 RE_DEPLOY_CONTRACT=[]
 
@@ -99,7 +105,7 @@ def convertExaToOther(_amount: int, _decimals: int) -> int:
 class OMMTestBase(TestUtils):
     DIR = ROOT
 
-    CONTRACTS = ['addressProvider', 'daoFund', 'delegation', 'lendingPool', 'feeProvider',
+    CONTRACTS = ['daoFund', 'delegation', 'lendingPool', 'feeProvider',
                  'lendingPoolCore', 'lendingPoolDataProvider', 'liquidationManager', 'stakedLp',
                  'ommToken', 'priceOracle', 'rewardDistribution', 'governance', 'workerToken']
     OTOKENS = ['oUSDS', 'oICX']
@@ -153,22 +159,40 @@ class OMMTestBase(TestUtils):
         ]
 
     def _deploy_all(self):
+        _deploy = self.build_deploy_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts.get("addressProvider", SCORE_INSTALL_ADDRESS),
+            content=os.path.abspath((os.path.join(self.DIR, "addressProvider"))),
+            params={}
+        )
+
+        tx_hash = self.process_transaction(_deploy, self.icon_service)
+        tx_result = self.get_tx_result(tx_hash['txHash'])
+        self.assertEqual(True, tx_result['status'])
+        self.assertTrue('scoreAddress' in tx_result)
+        _addressProvider = tx_result['scoreAddress']
+
         txns = []
 
         for item in self.CONTRACTS:
             params = {}
-            if item == "sample_token":
-                params = {'_name': "BridgeDollars",
-                          '_symbol': 'USDs', '_decimals': 18}
-            elif item == "omm_token":
+            if item == "omm_token":
                 params = {'_initialSupply': 0, '_decimals': 18}
             elif item == "workerToken":
                 params = {'_initialSupply': 100, '_decimals': 18}
             elif item == "sicx":
                 params = {'_initialSupply': 500000000, '_decimals': 18}
-            elif item == "oToken":
-                params = {"_name": "BridgeUSDInterestToken",
-                          "_symbol": "oUSDs"}
+            elif item == "rewardDistribution":
+                DISTRIBUTION_PERCENTAGE = [
+                    {"recipient": "worker", "percentage": f'{WORKER_DIST_PERCENTAGE}'},
+                    {"recipient": "daoFund", "percentage": f'{DAO_DIST_PERCENTAGE}'},
+                    {"recipient": "lendingBorrow", "percentage": f'{LENDING_BORROW_PERCENTAGE}'},
+                    {"recipient": "liquidityProvider", "percentage": f'{LP_OMM_STAKING_PERCENTAGE}'}
+                ]
+                params = {"_distPercentage": DISTRIBUTION_PERCENTAGE, "_startTimestamp": TIMESTAMP}
+
+            if item not in ['addressProvider', "workerToken"]:
+                params['_addressProvider'] = _addressProvider
 
             deploy_tx = self.build_deploy_tx(
                 from_=self.deployer_wallet,
@@ -179,8 +203,8 @@ class OMMTestBase(TestUtils):
             txns.append(deploy_tx)
 
         otxns = []
-        param1 = {"_name": "OmmUSDsInterestToken", "_symbol": "oUSDs"}
-        param2 = {"_name": "ICXinterestToken", "_symbol": "oICX"}
+        param1 = {"_name": "OmmUSDsInterestToken", "_symbol": "oUSDs","_addressProvider": _addressProvider}
+        param2 = {"_name": "ICXinterestToken", "_symbol": "oICX","_addressProvider": _addressProvider}
         # param3 = {"_name":"IconUSDInterest","_symbol":"oIUSDC","_decimals":6}
         deploy_oUSDs = self.build_deploy_tx(
             from_=self.deployer_wallet,
@@ -205,8 +229,8 @@ class OMMTestBase(TestUtils):
         # otxns.append(deploy_oIUSDc)
 
         dtxns = []
-        param1 = {"_name":"Omm USDS Debt Token","_symbol":"dUSDS"}
-        param2 = {"_name":"Omm ICX Debt Token","_symbol":"dICX"}
+        param1 = {"_name":"Omm USDS Debt Token","_symbol":"dUSDS","_addressProvider": _addressProvider}
+        param2 = {"_name":"Omm ICX Debt Token","_symbol":"dICX","_addressProvider": _addressProvider}
         deploy_dUSDS = self.build_deploy_tx(
             from_=self.deployer_wallet,
             to=self.contracts.get("dUSDS", SCORE_INSTALL_ADDRESS),
@@ -258,6 +282,8 @@ class OMMTestBase(TestUtils):
             self.assertEqual(1, tx_result['status'],
                              f"Failure: {tx_result['failure']}" if tx_result['status'] == 0 else "")
             self.contracts[self.DTOKENS[idx]] = tx_result[SCORE_ADDRESS]
+
+        self.contracts['addressProvider'] = _addressProvider
 
         with open(SCORE_ADDRESS_PATH, "w") as file:
             json.dump(self.contracts, file, indent=4)
@@ -382,7 +408,7 @@ class OMMTestBase(TestUtils):
         self._config_address_provider()
         self._config_general()
         self._config_staking()
-        self._config_rewards()
+        self._add_pools()
         self._add_reserves_to_lendingPoolCore()
         self._add_reserves_constants()
 
@@ -406,14 +432,14 @@ class OMMTestBase(TestUtils):
             {'name': 'rewards', 'address': contracts['rewardDistribution']},
             {'name': 'workerToken', 'address': contracts['workerToken']},
             {'name': 'sICX', 'address': contracts['sicx']},
-            {'name': 'usds', 'address': contracts['usds']},
+            {'name': 'USDS', 'address': contracts['usds']},
             {'name': 'staking', 'address': contracts['staking']},
-            {'name': 'ousds', 'address': contracts['oUSDS']},
-            {'name': 'dusds', 'address': contracts['dUSDS']},
+            {'name': 'oUSDS', 'address': contracts['oUSDS']},
+            {'name': 'dUSDS', 'address': contracts['dUSDS']},
             {'name': 'oICX', 'address': contracts['oICX']},
             {'name': 'dICX', 'address': contracts['dICX']},
-            {'name': 'stakedLp', 'address': contracts['stakedLp']},
-            {'name': 'dex', 'address': contracts['lpToken']}
+            {'name': 'stakedLP', 'address': contracts['stakedLp']},
+            {'name': 'dex', 'address': contracts['lpToken']},
             # {'name': 'diusdc', 'address': contracts['dIUSDC']},
             # {'name': 'oiusdc', 'address': contracts['oIUSDC']},
             # {'name': 'iusdc', 'address': contracts['iusdc']},
@@ -433,7 +459,6 @@ class OMMTestBase(TestUtils):
             {'contract': 'addressProvider', 'method': 'setDelegationAddresses', 'params':{}},
             {'contract': 'addressProvider', 'method': 'setRewardAddresses', 'params':{}},
             {'contract': 'addressProvider', 'method': 'setGovernanceAddresses', 'params':{}},
-            {'contract': 'addressProvider', 'method': 'setGovernanceAddresses', 'params':{}},
             {'contract': 'addressProvider', 'method': 'setStakedLpAddresses', 'params':{}},
             {'contract': 'addressProvider', 'method': 'setPriceOracleAddress', 'params':{}},            
         ]
@@ -450,11 +475,8 @@ class OMMTestBase(TestUtils):
             {'contract': 'priceOracle', 'method': 'setOraclePriceBool', 'params':{'_value': '0x0'}},
             {'contract': 'priceOracle', 'method': 'set_reference_data', 'params':{'_base':'USDS','_quote':'USD','_rate':1*10**18}},
             {'contract': 'priceOracle', 'method': 'set_reference_data', 'params':{'_base':'ICX','_quote':'USD','_rate':10*10**17}},
-            {'contract': 'delegation', 'method': 'addAllContributors','params': {'_preps':PREP_LIST}},
-            {'contract': 'governance', 'method': 'setStartTimestamp','params': {'_timestamp': TIMESTAMP}},     
-            {'contract':  'ommToken', 'method': 'setMinimumStake','params': {'_min':10 * 10**18}},
-            {'contract':  'stakedLp', 'method': 'addPool','params': {'_pool': contracts['sicx'], '_id': f"{OMM_SICX_ID}" }},
-            {'contract':  'stakedLp', 'method': 'addPool','params': {'_pool': contracts['usds'],'_id': f"{OMM_USDS_ID}" }},
+            {'contract': 'delegation', 'method': 'addAllContributors','params': {'_preps':PREP_LIST}},  
+            {'contract':  'ommToken', 'method': 'setMinimumStake','params': {'_min':10 * 10**18}}
             # {'contract': 'lendingPoolDataProvider', 'method': 'setSymbol', 'params':{'_reserve': contracts['iusdc'],'_sym':"USDC"}},
             # {'contract': 'priceOracle', 'method': 'set_reference_data', 'params':{'_base':'IUSDC','_quote':'USD','_rate':10*10**17}},  
             # {'contract':  'stakedLp', 'method': 'addPool','params': {'_pool': contracts['iusdc'] , '_id': OMM_USDC_ID}}
@@ -496,14 +518,14 @@ class OMMTestBase(TestUtils):
                                                          "optimalUtilizationRate": f"8{'0' * 17}",
                                                          "baseBorrowRate": f"2{'0' * 16}",
                                                          "slopeRate1": f"6{'0' * 16}",
-                                                         "slopeRate2": f"1{'0' * 18}"}]}},
+                                                         "slopeRate2": f"2{'0' * 18}"}]}},
                              {'contract': 'governance',
                               'method': 'setReserveConstants',
                               'params': {"_constants": [{"reserve": contracts['sicx'],
                                                          "optimalUtilizationRate": f"8{'0' * 17}",
                                                          "baseBorrowRate": f"0{'0' * 17}",
                                                          "slopeRate1": f"8{'0' * 16}",
-                                                         "slopeRate2": f"2{'0' * 18}"}]}}
+                                                         "slopeRate2": f"4{'0' * 18}"}]}}
                              # {'contract': 'lendingPoolCore',
                              #  'method': 'setReserveConstants',
                              #  'params' :{"_constants": [{"reserve":contracts['iusdc'],
@@ -515,54 +537,36 @@ class OMMTestBase(TestUtils):
 
         self._get_transaction(settings_reserves)
 
-    def _config_rewards(self):
-        print("-------------------------------Configuring REWARDS ----------------------------------------------------")
-
+    def _add_pools(self):
         contracts = self.contracts
-        settings_rewards = [
-            {'contract': 'rewardDistribution', 'method': 'configureAssetEmission',
-                     'params': {
-                        "_assetConfig":
-                            [
-                                {"asset": contracts["oUSDS"], "distPercentage":f"{OUSDS_EMISSION}"},
-                                {"asset": contracts["dUSDS"], "distPercentage":f"{DUSDS_EMISSION}"},
-                                {"asset": contracts["dICX"], "distPercentage":f"{DICX_EMISSION}"},
-                                {"asset": contracts["oICX"], "distPercentage":f"{OICX_EMISSION}"},
-                                # {"asset": contracts["oIUSDC"], "distPercentage":f"{OIUSDC_EMISSION}"},
-                                # {"asset": contracts["dIUSDC"], "distPercentage":f"{DIUSDC_EMISSION}"}
-                            ]
-                        }
-            },
-            {'contract': 'rewardDistribution', 'method': 'configureLPEmission',
-                     'params': {
-                        "_lpConfig":
-                            [
-                                {"_id": f"{OMM_SICX_ID}", "distPercentage": f"{OMM_SICX_DIST_PERCENTAGE}"},
-                                {"_id": f"{OMM_USDS_ID}", "distPercentage": f"{OMM_USDS_DIST_PERCENTAGE}"},
-                                # {"_id": f"{OMM_USDC_ID}", "distPercentage": f"{OMM_USDC_DIST_PERCENTAGE}"}
-                            ]
-                        }
-            },
-            {'contract': 'rewardDistribution', 'method': 'configureOmmEmission',
-                     'params': { "_distPercentage": f"{OMM_DIST_PERCENTAGE}"}
-            },
-            {'contract':'rewardDistribution','method':'setDailyDistributionPercentage',
-                     'params':{"_recipient": "worker" ,"_percentage": f"{WORKER_DIST_PERCENTAGE}"}
-            },
-            {'contract':'rewardDistribution','method':'setDailyDistributionPercentage',
-                     'params':{"_recipient": "daoFund","_percentage":f"{DAO_DIST_PERCENTAGE}"}
-            },
-            {'contract':'lendingPoolDataProvider','method':'setDistPercentages',
-                     'params':{
-                         "_percentages": [
-                             {'recipient': 'worker' ,'distPercentage': f"{WORKER_DIST_PERCENTAGE}"},
-                             {'recipient': 'daoFund' ,'distPercentage': f"{DAO_DIST_PERCENTAGE}" }
-                         ]
-                     }
+        asset_configs = [
+            {
+                'contract': 'governance', 'method': 'addPools',
+                'params': {
+                    "_assetConfigs":
+                        [
+                         #reserves
+                         {"poolID": f'{-1}', "rewardEntity": "lendingBorrow", "asset": contracts["oUSDS"], "assetName": "oUSDS",
+                          "distPercentage": f"{OUSDS_EMISSION}"},
+                         {"poolID": f'{-1}', "rewardEntity": "lendingBorrow", "asset": contracts["dUSDS"], "assetName": "dUSDS",
+                          "distPercentage": f"{DUSDS_EMISSION}"},
+                         {"poolID": f'{-1}', "rewardEntity": "lendingBorrow", "asset": contracts["dICX"], "assetName": "dICX",
+                          "distPercentage": f"{DICX_EMISSION}"},
+                         {"poolID": f'{-1}', "rewardEntity": "lendingBorrow", "asset": contracts["oICX"], "assetName": "oICX",
+                          "distPercentage": f"{OICX_EMISSION}"},
+                         #liquidity providers
+                         {"poolID": f'{OMM_SICX_ID}', "rewardEntity": "liquidityProvider", "asset": contracts["ommToken"],
+                          "assetName": "OMM/sICX", "distPercentage": f"{OMM_SICX_DIST_PERCENTAGE}"},
+                         {"poolID": f'{OMM_USDS_ID}', "rewardEntity": "liquidityProvider", "asset": contracts["ommToken"],
+                          "assetName": "OMM/USDS", "distPercentage": f"{OMM_USDS_DIST_PERCENTAGE}"},
+                         #omm token
+                         {"poolID": f'{-1}', "rewardEntity": "liquidityProvider", "asset": contracts["ommToken"],
+                          "assetName": "OMM", "distPercentage": f"{OMM_DIST_PERCENTAGE}"}
+                    ]
+                }
             }
         ]
-
-        self._get_transaction(settings_rewards)
+        self._get_transaction(asset_configs)
 
     def _config_staking(self):
         print("-------------------------------Configuring STAKING----------------------------------------------------")
@@ -651,7 +655,16 @@ class OMMTestBase(TestUtils):
             {'contract': 'governance',
              'method': 'initializeReserve', 'params': params_usds},
             {'contract': 'governance',
-             'method': 'initializeReserve', 'params': params_icx}
+             'method': 'initializeReserve', 'params': params_icx},
+            {'contract': 'governance',
+             'method': 'updateBorrowThreshold', 'params': {
+                    "_reserve": contracts['sicx'],
+                    "_borrowThreshold": 90*EXA//100}},
+            {'contract': 'governance',
+             'method': 'updateBorrowThreshold', 'params': {
+                    "_reserve": contracts['usds'],
+                    "_borrowThreshold": 90*EXA//100
+             }}
         ]
         self._get_transaction(settings)
 
