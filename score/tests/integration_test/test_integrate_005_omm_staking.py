@@ -1,6 +1,7 @@
 from iconsdk.wallet.wallet import KeyWallet
 from .test_integrate_omm_utils import OmmUtils
 from ..actions.steps import Steps
+import time
 from ..actions.omm_staking_cases import ACTIONS as OMM_STAKING_CASE
     
 EXA = 10 ** 18
@@ -53,7 +54,7 @@ class OMMStakingCases(OmmUtils):
                 self._set_balances("before")
                 tx_res = self._stakeOMM(self._user, self._amount)
                 self._check_tx_result(tx_res, case)
-                if case.get('expectedResult') == 1:
+                if _success == 1:
                     self._stake_test(_success, case.get('addedStake'))
 
             elif _step == Steps.TRANSFER_OMM:
@@ -64,7 +65,8 @@ class OMMStakingCases(OmmUtils):
                 self._set_balances("before")
                 tx_res = self._unstakeOMM(self._user, self._amount)
                 self._check_tx_result(tx_res, case)
-                self._unstake_test(_success)     
+                if _success == 1:
+                    self._unstake_test(_success)     
 
             elif _step == Steps.ADD_TO_LOCKLIST:
                 tx_result = self.send_tx(
@@ -73,7 +75,7 @@ class OMMStakingCases(OmmUtils):
                     method="add_to_lockList",
                     params={'_user': self._user.get_address()}
                     )
-                self.assertEqual(tx_result['status'], case['expectedResult'])
+                self.assertEqual(tx_result['status'], _success)
 
             elif _step == Steps.REMOVE_FROM_LOCKLIST:
                 tx_result = self.send_tx(
@@ -82,7 +84,19 @@ class OMMStakingCases(OmmUtils):
                     method="remove_from_lockList",
                     params={'_user': self._user.get_address()}
                     )
-                self.assertEqual(tx_result['status'], case['expectedResult'])
+                self.assertEqual(tx_result['status'], _success)
+
+            elif _step == Steps.UPDATE_UNSTAKING_PERIOD:
+                tx_result = self.send_tx(
+                    from_=self.deployer_wallet,
+                    to=self.contracts['ommToken'],
+                    method="setUnstakingPeriod",
+                    params={'_timeInSeconds': case.get('time')}
+                    )
+                self.assertEqual(tx_result['status'], _success)
+
+            elif _step == Steps.SLEEP:
+                time.sleep(case.get('time'))
 
             elif _step == Steps.DEPOSIT_USDS:
                 tx_res = self._depositUSDS(self._user, self._amount)
@@ -106,7 +120,16 @@ class OMMStakingCases(OmmUtils):
         self.balance[key]["user1"]["icx"] = self.get_balance(self._user.get_address())
         self.balance[key]["user1"]["totalOmmToken"] = self._omm_total_balance(self._user.get_address())
         self.balance[key]["user1"]["stakedOmmToken"] = self._omm_staked_balance(self._user.get_address())       
-        self.balance[key]["user1"]["ommToken"] = self._omm_available_balance(self._user.get_address()) 
+        self.balance[key]["user1"]["ommToken"] = self._omm_available_balance(self._user.get_address())         
+        self.balance[key]["user1"]["unstakingBalance"] = self._unstaked_balance_of(self._user.get_address())     
+
+    def _unstaked_balance_of(self, _usr):
+        lp_balance = self.call_tx(
+                to = self.contracts['ommToken'],
+                method = "unstaked_balanceOf",
+                params = {'_owner': _usr}
+            )
+        return int(lp_balance,0)
 
     def _omm_available_balance(self, _usr):
         lp_balance = self.call_tx(
@@ -165,8 +188,10 @@ class OMMStakingCases(OmmUtils):
         staked_omm_after_user = self.balance["after"]["user1"]["stakedOmmToken"] 
         omm_before_user = self.balance["before"]["user1"]["ommToken"] 
         omm_after_user = self.balance["after"]["user1"]["ommToken"]
+        omm_unstaking_before_user = self.balance["before"]["user1"]["unstakingBalance"] 
+        omm_unstaking_after_user = self.balance["after"]["user1"]["unstakingBalance"]
 
         if _success == 1:
             self.assertEqual(total_omm_after_user, total_omm_before_user)
             self.assertEqual(staked_omm_before_user - self._amount, staked_omm_after_user)
-            self.assertEqual(omm_before_user, omm_after_user - self._amount)
+            self.assertEqual(omm_before_user, omm_after_user + omm_unstaking_after_user - self._amount)
