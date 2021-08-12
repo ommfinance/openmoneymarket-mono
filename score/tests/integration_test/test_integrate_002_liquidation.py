@@ -37,7 +37,6 @@ def _dec(_value):
 class LiquidationTest(OmmUtils):
     def setUp(self):
         super().setUp()
-        self.return_amount = {}
 
     def _transfer(self, from_, params, loan):
 
@@ -133,7 +132,6 @@ class LiquidationTest(OmmUtils):
                 "borrower": {},
             }
         }
-        self.return_amount = {}
         self.initialize_users()
 
         for case in task["transaction"]:
@@ -219,8 +217,6 @@ class LiquidationTest(OmmUtils):
 
                 if tx.get("status") == 0:
                     print(tx["failure"])
-                else:
-                    self.return_amount["value"] = _int(tx['eventLogs'][7]['data'][0])
 
                 self.assertEqual(tx["status"], case.get("expectedResult"))
 
