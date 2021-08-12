@@ -267,7 +267,7 @@ class IRC2(TokenStandard, Addresses):
 
         self._makeAvailable(_to)
         self._makeAvailable(_from)
-        senderAvailableBalance = self.details_balanceOf(_from)['availableBalance']
+        senderAvailableBalance = self.available_balanceOf(_from)
         if senderAvailableBalance < _value:
             revert(f'{TAG}: '
                    f'available balance of user {senderAvailableBalance}'
