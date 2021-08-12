@@ -1,7 +1,7 @@
 from iconservice import *
 
+
 class Status:
-    AVAILABLE = 0
     STAKED = 1
 
 
@@ -21,6 +21,7 @@ class AssetConfig(TypedDict):
     distPercentage: int
     assetName: str
     rewardEntity: str
+
 
 class RewardInterface(InterfaceScore):
     @interface

@@ -2,7 +2,6 @@ from iconservice import *
 
 
 class Status:
-    AVAILABLE = 0
     STAKED = 1
     UNSTAKING = 2
     UNSTAKING_PERIOD = 3
