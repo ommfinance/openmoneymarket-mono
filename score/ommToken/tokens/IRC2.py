@@ -162,16 +162,16 @@ class IRC2(TokenStandard, Addresses):
     @external(readonly=True)
     def details_balanceOf(self, _owner: Address) -> dict:
         userBalance = self._balances[_owner]
-        stakedBalance = self._staked_balances[_owner][Status.STAKED]
+        stakedBalance = self._staked_balances[_owner][Status.STAKED] 
+        unstaking_amount = self._staked_balances[_owner][Status.UNSTAKING]
+
         if self._staked_balances[_owner][Status.UNSTAKING_PERIOD] < self.now():
-            curr_unstaked = self._staked_balances[_owner][Status.UNSTAKING]
-        else:
-            curr_unstaked = 0
-        unstaking_amount = self._staked_balances[_owner][Status.UNSTAKING] - curr_unstaked
+            unstaking_amount = 0
+
         unstaking_time = 0 if unstaking_amount == 0 else self._staked_balances[_owner][Status.UNSTAKING_PERIOD]
         return {
             "totalBalance": userBalance,
-            "availableBalance": userBalance - stakedBalance + curr_unstaked,
+            "availableBalance": userBalance - stakedBalance - unstaking_amount,
             "stakedBalance": stakedBalance,
             "unstakingBalance": unstaking_amount,
             "unstakingTimeInMills": unstaking_time
