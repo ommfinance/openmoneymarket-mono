@@ -245,3 +245,33 @@ class OmmUtils(OMMTestBase):
             )
 
         return tx_result
+
+    def _transferOUSDS(self, _from, _to, _value):
+        params = {
+            '_to': _to,
+            '_value': _value
+        }
+
+        tx_result = self.send_tx(
+                from_=_from,
+                to=self.contracts["oUSDS"],
+                method="transfer",
+                params=params
+            )
+
+        return tx_result
+
+    def _transferDICX(self, _from, _to, _value):
+        params = {
+            '_to': _to,
+            '_value': _value
+        }
+
+        tx_result = self.send_tx(
+                from_=_from,
+                to=self.contracts["dICX"],
+                method="transfer",
+                params=params
+            )
+
+        return tx_result
