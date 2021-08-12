@@ -1,6 +1,6 @@
 from .utils.checks import *
 from .interfaces import *
-from .addresses import  *
+from .addresses import *
 
 MICROSECONDS = 10 ** 6
 
@@ -14,12 +14,10 @@ class StakedLp(Addresses):
         self._totalStaked = DictDB('totalStaked', db, value_type=int)
         self._addressMap = DictDB('addressMap', db, value_type=Address)
         self._minimumStake = VarDB('minimumStake', db, value_type=int)
-        self._unstakingTime = VarDB('unstakingTime', db, value_type=int)
 
     def on_install(self, _addressProvider: Address) -> None:
         super().on_install(_addressProvider)
         self._minimumStake.set(0)
-        self._unstakingTime.set(0)
 
     def on_update(self) -> None:
         super().on_update()
@@ -45,22 +43,6 @@ class StakedLp(Addresses):
     @external(readonly=True)
     def getTotalStaked(self, _id: int) -> int:
         return self._totalStaked[_id]
-
-    @only_owner
-    @external
-    def setUnstakingPeriod(self, _time: int) -> None:
-        """
-        Set the minimum staking period
-        :param _time: Staking time period in seconds.
-        """
-        StakedLp._require(_time >= 0, "Time cannot be negative.")
-        # total_time = _time * DAY_TO_MICROSECOND  # convert days to microseconds
-        total_time = _time * MICROSECONDS
-        self._unstakingTime.set(total_time)
-
-    @external(readonly=True)
-    def getUnstakingPeriod(self) -> int:
-        return self._unstakingTime.get()
 
     @external(readonly=True)
     def balanceOf(self, _owner: Address, _id: int) -> dict:
@@ -130,21 +112,6 @@ class StakedLp(Addresses):
     def getSupportedPools(self) -> dict:
         return {pool: self._addressMap[pool] for pool in self._supportedPools}
 
-    def _first_time(self, _from: Address, _id: int, _userBalance: int) -> bool:
-        if (
-                self._poolStakeDetails[_from][_id][Status.AVAILABLE] == 0
-                and self._poolStakeDetails[_from][_id][Status.STAKED] == 0
-                and _userBalance != 0
-        ):
-            return True
-        else:
-            return False
-
-    def _check_first_time(self, _from: Address, _id: int, _userBalance: int):
-        # If first time copy the balance to available staked balances
-        if self._first_time(_from, _id, _userBalance):
-            self._poolStakeDetails[_from][_id][Status.AVAILABLE] = _userBalance
-
     def _stake(self, _user: Address, _id: int, _value: int) -> None:
         StakedLp._require(_id in self._supportedPools, f'pool with id:{_id} is not supported')
         StakedLp._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
@@ -158,8 +125,6 @@ class StakedLp(Addresses):
         previousTotalStaked = self._totalStaked[_id]
 
         self._check_first_time(_user, _id, userBalance)
-        self._poolStakeDetails[_user][_id][Status.AVAILABLE] = self._poolStakeDetails[_user][_id][
-                                                                   Status.AVAILABLE] - _value
         self._poolStakeDetails[_user][_id][Status.STAKED] = previousUserStaked + _value
         self._totalStaked[_id] = self._totalStaked[_id] + _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
@@ -178,7 +143,6 @@ class StakedLp(Addresses):
                                                         f'amount to unstake {_value} '
                                                         f'staked balance of user: {_user} is  {previousUserStaked}')
         self._poolStakeDetails[_user][_id][Status.STAKED] -= _value
-        self._poolStakeDetails[_user][_id][Status.AVAILABLE] += _value
         self._totalStaked[_id] = self._totalStaked[_id] - _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         reward.handleLPAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])

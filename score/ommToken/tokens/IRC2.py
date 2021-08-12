@@ -161,22 +161,18 @@ class IRC2(TokenStandard, Addresses):
 
     @external(readonly=True)
     def details_balanceOf(self, _owner: Address) -> dict:
+        userBalance = self._balances[_owner]
+        stakedBalance = self._staked_balances[_owner][Status.STAKED]
         if self._staked_balances[_owner][Status.UNSTAKING_PERIOD] < self.now():
             curr_unstaked = self._staked_balances[_owner][Status.UNSTAKING]
         else:
             curr_unstaked = 0
-
-        if self._first_time(_owner):
-            available_balance = self.balanceOf(_owner)
-        else:
-            available_balance = self._staked_balances[_owner][Status.AVAILABLE]
-
         unstaking_amount = self._staked_balances[_owner][Status.UNSTAKING] - curr_unstaked
         unstaking_time = 0 if unstaking_amount == 0 else self._staked_balances[_owner][Status.UNSTAKING_PERIOD]
         return {
-            "totalBalance": self._balances[_owner],
-            "availableBalance": available_balance + curr_unstaked,
-            "stakedBalance": self._staked_balances[_owner][Status.STAKED],
+            "totalBalance": userBalance,
+            "availableBalance": userBalance - stakedBalance + curr_unstaked,
+            "stakedBalance": stakedBalance,
             "unstakingBalance": unstaking_amount,
             "unstakingTimeInMills": unstaking_time
         }
@@ -207,7 +203,7 @@ class IRC2(TokenStandard, Addresses):
     def add_to_lockList(self, _user: Address):
         if _user not in self._lock_list:
             self._lock_list.put(_user)
-        # Unstake TAP of locklist address
+
         staked_balance = self._staked_balances[_user][Status.STAKED]
         if staked_balance > 0:
             # Check if the unstaking period has already been reached.
@@ -216,8 +212,6 @@ class IRC2(TokenStandard, Addresses):
             self._staked_balances[_user][Status.UNSTAKING] += staked_balance
             self._staked_balances[_user][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
             self._total_staked_balance.set(self._total_staked_balance.get() - staked_balance)
-            # stake_address_changes = self._stake_changes[self._stake_address_update_db.get()]
-            # stake_address_changes.put(_user)
 
     @only_owner
     @external
@@ -238,14 +232,6 @@ class IRC2(TokenStandard, Addresses):
 
     @eventlog(indexed=3)
     def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
-        pass
-
-    @eventlog(indexed=1)
-    def Mint(self, amount: int, _data: bytes):
-        pass
-
-    @eventlog(indexed=1)
-    def Burn(self, account: Address, amount: int):
         pass
 
     @external
@@ -278,20 +264,16 @@ class IRC2(TokenStandard, Addresses):
         if self._balances[_from] < _value:
             revert(f"{TAG}: ""Insufficient balance")
 
-        self._check_first_time(_from)
-        self._check_first_time(_to)
         self._makeAvailable(_to)
         self._makeAvailable(_from)
-        if self._staked_balances[_from][Status.AVAILABLE] < _value:
+        senderAvailableBalance = self.available_balanceOf(_from)
+        if senderAvailableBalance < _value:
             revert(f'{TAG}: '
-                   f'available balance of user {self._staked_balances[_from][Status.AVAILABLE]}'
+                   f'available balance of user {senderAvailableBalance}'
                    f'balance to transfer {_value}')
 
         self._balances[_from] -= _value
         self._balances[_to] += _value
-
-        self._staked_balances[_from][Status.AVAILABLE] = self._staked_balances[_from][Status.AVAILABLE] - _value
-        self._staked_balances[_to][Status.AVAILABLE] = self._staked_balances[_to][Status.AVAILABLE] + _value
 
         if _to.is_contract:
             """
@@ -309,42 +291,25 @@ class IRC2(TokenStandard, Addresses):
         if not _condition:
             revert(f'{TAG}: {_message}')
 
-    def _first_time(self, _from: Address) -> bool:
-        if (
-                self._staked_balances[_from][Status.AVAILABLE] == 0
-                and self._staked_balances[_from][Status.STAKED] == 0
-                and self._staked_balances[_from][Status.UNSTAKING] == 0
-                and self._balances[_from] != 0
-        ):
-            return True
-        else:
-            return False
-
-    def _check_first_time(self, _from: Address):
-        # If first time copy the balance to available staked balances
-        if self._first_time(_from):
-            self._staked_balances[_from][Status.AVAILABLE] = self._balances[_from]
-
     @only_lending_pool
     @external
     def stake(self, _value: int, _user: Address) -> None:
+        userBalance = self._balances[_user]
         IRC2._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
         IRC2._require(_value > self._minimum_stake.get(),
                       f'Amount to stake:{_value} is smaller the minimum stake:{self._minimum_stake.get()}')
-        self._check_first_time(_user)
+
         self._makeAvailable(_user)
-        IRC2._require((self._balances[_user] - self._staked_balances[_user][Status.UNSTAKING]) >= _value,
-                      f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {self._balances[_user]}')
+        IRC2._require((userBalance - self._staked_balances[_user][Status.UNSTAKING]) >= _value,
+                      f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {userBalance}')
         IRC2._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
         old_total_supply = self._total_staked_balance.get()
         old_stake = self._staked_balances[_user][Status.STAKED]
         new_stake = _value
         stake_increment = new_stake - old_stake
         IRC2._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
-        self._staked_balances[_user][Status.AVAILABLE] = self._staked_balances[_user][
-                                                             Status.AVAILABLE] - stake_increment
         self._staked_balances[_user][Status.STAKED] = _value
-        self._total_staked_balance.set(self._total_staked_balance.get() + stake_increment)
+        self._total_staked_balance.set(old_total_supply + stake_increment)
         delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
@@ -368,7 +333,7 @@ class IRC2(TokenStandard, Addresses):
         self._staked_balances[_user][Status.STAKED] -= _value
         self._staked_balances[_user][Status.UNSTAKING] = _value
         self._staked_balances[_user][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
-        self._total_staked_balance.set(self._total_staked_balance.get() - _value)
+        self._total_staked_balance.set(before_total_staked_balance - _value)
 
         # update the prep delegations
         delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
@@ -380,9 +345,7 @@ class IRC2(TokenStandard, Addresses):
     def _makeAvailable(self, _from: Address):
         # Check if the unstaking period has already been reached.
         if self._staked_balances[_from][Status.UNSTAKING_PERIOD] <= self.now():
-            curr_unstaked = self._staked_balances[_from][Status.UNSTAKING]
             self._staked_balances[_from][Status.UNSTAKING] = 0
-            self._staked_balances[_from][Status.AVAILABLE] += curr_unstaked
 
     def _mint(self, _to: Address, _amount: int, _data: bytes = None) -> None:
         """
@@ -405,6 +368,3 @@ class IRC2(TokenStandard, Addresses):
         self._balances[_to] += _amount
 
         self.Transfer(ZERO_SCORE_ADDRESS, _to, _amount, _data)
-
-        # Emits an event log Mint
-        self.Mint(_amount, _data)
