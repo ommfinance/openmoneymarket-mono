@@ -186,7 +186,7 @@ class TestLendingPoolCore(ScoreTestCase):
 
         _user_address = self.test_account2
         try:
-            self.lending_pool_core.updateStateOnDeposit(_reserve_address, _user_address, 100 * EXA, True)
+            self.lending_pool_core.updateStateOnDeposit(_reserve_address, _user_address, 100 * EXA)
         except IconScoreException as err:
             self.assertIn("SenderNotAuthorized", str(err))
         else:
@@ -211,7 +211,7 @@ class TestLendingPoolCore(ScoreTestCase):
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
             _new_deposit = 200 * EXA
-            self.lending_pool_core.updateStateOnDeposit(_reserve_address, _user_address, _new_deposit, True)
+            self.lending_pool_core.updateStateOnDeposit(_reserve_address, _user_address, _new_deposit)
 
             self.lending_pool_core.ReserveUpdated.assert_called_once()
             # self.lending_pool_core.ReserveUpdated.assert_called_with(_reserve=_reserve_address,_liquidityCumulativeIndex=10005*EXA//10000)
@@ -235,7 +235,7 @@ class TestLendingPoolCore(ScoreTestCase):
 
         _user_address = self.test_account2
         try:
-            self.lending_pool_core.updateStateOnRedeem(_reserve_address, _user_address, 100 * EXA, True)
+            self.lending_pool_core.updateStateOnRedeem(_reserve_address, _user_address, 100 * EXA)
         except IconScoreException as err:
             self.assertIn("SenderNotAuthorized", str(err))
         else:
@@ -260,7 +260,7 @@ class TestLendingPoolCore(ScoreTestCase):
         with mock.patch.object(self.lending_pool_core, "now",
                                return_value=time_elapsed):
             redeem_amount = 1450 * EXA
-            self.lending_pool_core.updateStateOnRedeem(_reserve_address, _user_address, redeem_amount, True)
+            self.lending_pool_core.updateStateOnRedeem(_reserve_address, _user_address, redeem_amount)
 
             self.lending_pool_core.ReserveUpdated.assert_called_once()
 

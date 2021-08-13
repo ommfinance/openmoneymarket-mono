@@ -22,7 +22,7 @@ class OTokenInterface(InterfaceScore):
         pass
 
     @interface
-    def redeem(self, _user: Address, _amount: int) -> None:
+    def redeem(self, _user: Address, _amount: int) -> dict:
         pass
 
 
@@ -70,7 +70,7 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
-    def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
+    def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int) -> None:
         pass
 
     @interface
@@ -103,8 +103,7 @@ class CoreInterface(InterfaceScore):
         pass
 
     @interface
-    def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int,
-                            _userRedeemEverything: bool) -> None:
+    def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int) -> None:
         pass
 
 

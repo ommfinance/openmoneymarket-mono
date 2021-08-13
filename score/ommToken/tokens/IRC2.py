@@ -1,8 +1,7 @@
 from .IIRC2 import TokenStandard
-from ..utils.checks import *
-from ..utils.consts import *
 from ..addresses import *
 from ..interfaces import *
+from ..utils.consts import *
 
 TAG = 'Omm Token'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6

@@ -139,10 +139,6 @@ class LendingPoolCore(Addresses):
         prefix = self.userReservePrefix(_reserve, _user)
         self.userReserve[prefix].originationFee.set(_originationFee)
 
-    def updateUserReserveUseAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: int):
-        prefix = self.userReservePrefix(_reserve, _user)
-        self.userReserve[prefix].useAsCollateral.set(_useAsCollateral)
-
     def _check_reserve(self, _reserve: Address):
         return _reserve in self._reserveList
 
@@ -328,23 +324,16 @@ class LendingPoolCore(Addresses):
 
     @only_lending_pool
     @external
-    def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int, _isFirstDeposit: bool) -> None:
+    def updateStateOnDeposit(self, _reserve: Address, _user: Address, _amount: int) -> None:
 
         self.updateCumulativeIndexes(_reserve)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, _amount, 0)
 
-        if _isFirstDeposit:
-            self.setUserUseReserveAsCollateral(_reserve, _user, True)
-
     @only_lending_pool
     @external
-    def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int,
-                            _userRedeemEverything: bool) -> None:
+    def updateStateOnRedeem(self, _reserve: Address, _user: Address, _amountRedeemed: int) -> None:
         self.updateCumulativeIndexes(_reserve)
         self.updateReserveInterestRatesAndTimestampInternal(_reserve, 0, _amountRedeemed)
-
-        if _userRedeemEverything:
-            self.setUserUseReserveAsCollateral(_reserve, _user, False)
 
     @only_lending_pool
     @external
@@ -455,9 +444,6 @@ class LendingPoolCore(Addresses):
 
         self.updateUserLastUpdateTimestamp(_reserve, _user, self.now())
 
-    def setUserUseReserveAsCollateral(self, _reserve: Address, _user: Address, _useAsCollateral: bool) -> None:
-        self.updateUserReserveUseAsCollateral(_reserve, _user, _useAsCollateral)
-
     @external(readonly=True)
     def getUserUnderlyingAssetBalance(self, _reserve: Address, _user: Address) -> int:
         reserveData = self.getReserveData(_reserve)
@@ -486,8 +472,7 @@ class LendingPoolCore(Addresses):
         return {
             'underlyingBalance': underlyingBalance,
             'compoundedBorrowBalance': compoundedBorrowBalance,
-            'originationFee': userReserveData['originationFee'],
-            'useAsCollateral': userReserveData['useAsCollateral']
+            'originationFee': userReserveData['originationFee']
         }
 
     @external(readonly=True)
