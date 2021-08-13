@@ -120,13 +120,8 @@ class StakedLp(Addresses):
         StakedLp._require(_value > self._minimumStake.get(),
                           f'Amount to stake:{_value} is smaller the minimum stake:{self._minimumStake.get()}')
 
-        lp = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
-        _userBalance = lp.balanceOf(_user, _id)
-        userBalance = _userBalance + _value
         previousUserStaked = self._poolStakeDetails[_user][_id][Status.STAKED]
         previousTotalStaked = self._totalStaked[_id]
-
-        self._check_first_time(_user, _id, userBalance)
         self._poolStakeDetails[_user][_id][Status.STAKED] = previousUserStaked + _value
         self._totalStaked[_id] = self._totalStaked[_id] + _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
