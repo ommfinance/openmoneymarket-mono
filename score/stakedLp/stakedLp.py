@@ -42,7 +42,12 @@ class StakedLp(Addresses):
 
     @external(readonly=True)
     def getTotalStaked(self, _id: int) -> int:
-        return self._totalStaked[_id]
+        dex = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
+        _pool_stats = dex.getPoolStats(_id)
+        _quote_decimals = _pool_stats['quote_decimals']
+        _base_decimals = _pool_stats['base_decimals']
+        _average_decimals = (_quote_decimals + _base_decimals) // 2
+        return convertToExa(self._totalStaked[_id], _average_decimals)
 
     @external(readonly=True)
     def balanceOf(self, _owner: Address, _id: int) -> dict:
