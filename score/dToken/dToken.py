@@ -274,4 +274,4 @@ class DToken(TokenStandard, Addresses):
         return total supply for reward distribution
         :return: total supply
         """
-        return self.totalSupply()
+        return convertToExa(self.totalSupply(), self.decimals())

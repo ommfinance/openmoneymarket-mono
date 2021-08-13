@@ -13,12 +13,13 @@ class RewardDistributionController(RewardDistributionManager):
     DIST_COMPLETE = 'distComplete'
     TOKEN_DIST_TRACKER = 'tokenDistTracker'
     IS_INITIALIZED = 'isInitialized'
+    IS_REWARD_CLAIM_ENABLED = 'isRewardClaimEnabled'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._day = VarDB(self.DAY, db, value_type=int)
         self._isInitialized = VarDB(self.IS_INITIALIZED, db, value_type=bool)
-        self._isRewardClaimEnabled = VarDB(self.IS_INITIALIZED, db, value_type=bool)
+        self._isRewardClaimEnabled = VarDB(self.IS_REWARD_CLAIM_ENABLED, db, value_type=bool)
         self._usersUnclaimedRewards = DictDB(self.USERS_UNCLAIMED_REWARDS, db, value_type=int, depth=2)
         self._tokenDistTracker = DictDB(self.TOKEN_DIST_TRACKER, db, value_type=int)
 

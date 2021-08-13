@@ -41,3 +41,8 @@ class LiquidityPoolInterface(InterfaceScore):
     @interface
     def transfer(self, _to: Address, _value: int, _id: int, _data: bytes = None):
         pass
+
+    @interface
+    def getPoolStats(self, _id: int) -> dict:
+        pass
+
