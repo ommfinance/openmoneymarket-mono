@@ -177,9 +177,9 @@ class StakedLp(Addresses):
         }
 
     def _getAverageDecimals(self, _id: int) -> int:
-        dex = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
+        dex = self.create_interface_score(self.getAddress(DEX), LiquidityPoolInterface)
         pool_stats = dex.getPoolStats(_id)
-        quote_decimals = _pool_stats['quote_decimals']
-        base_decimals = _pool_stats['base_decimals']
-        average_decimals = (_quote_decimals + _base_decimals) // 2
+        quote_decimals = pool_stats['quote_decimals']
+        base_decimals = pool_stats['base_decimals']
+        average_decimals = (quote_decimals + base_decimals) // 2
         return average_decimals
