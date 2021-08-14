@@ -96,6 +96,7 @@ class Delegation(Addresses):
 
     def _resetUser(self, _user: Address):
         if self.msg.sender == self._addresses[OMM_TOKEN] or self.msg.sender == _user:
+            prepVotes = 0
             for index in range(5):
 
                 # removing votes
@@ -107,13 +108,31 @@ class Delegation(Addresses):
                 self._userPreps[_user][index] = ZERO_SCORE_ADDRESS
                 self._percentageDelegations[_user][index] = 0
 
-                # adjusting total votes
-                self._totalVotes.set(self._totalVotes.get() - prep_vote)
+                # calculating total user votes
+                prepVotes += prep_vote
+
+            self._totalVotes.set(self._totalVotes.get() - prepVotes)
             self._userVotes[_user] = 0
+
+    def _validatePrep(self, _address):
+        governance = self.create_interface_score(ZERO_SCORE_ADDRESS, GovernanceContractInterface)
+        governance.getPRep(_address)
 
     @external(readonly=True)
     def getPrepList(self) -> List[Address]:
         return [prep for prep in self._preps]
+
+    @only_owner
+    @external
+    def removePrep(self, _prep: Address):
+        if _prep not in self._preps:
+            revert(f"{TAG}: {_prep} is not in prep list")
+        else:
+            topPrep = self._preps.pop()
+            if topPrep != _prep:
+                for i in range(len(self._preps)):
+                    if self._preps[i] == _prep:
+                        self._preps[i] = topPrep
 
     @external
     def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
@@ -135,48 +154,55 @@ class Delegation(Addresses):
                                                   f'delegations provided {_delegations}')
             delegations = _delegations
 
+        if len(delegations) <= 0:
+            return
+        self._handleCalculation(delegations, initialDelegation, total_percentage, user)
+
+    def _handleCalculation(self, delegations, initialDelegation, total_percentage, user):
         omm_token = self.create_interface_score(self._addresses[OMM_TOKEN], OmmTokenInterface)
         user_staked_token = omm_token.details_balanceOf(user)['stakedBalance']
-        if len(delegations) > 0:
-            # resetting previous delegation preferences
-            self._resetUser(user)
+        prepVotes = 0
+        # resetting previous delegation preferences
+        self._resetUser(user)
+        for index, delegation in enumerate(delegations):
+            address: Address = delegation['_address']
+            votes: int = delegation['_votes_in_per']
 
-            for index, delegation in enumerate(delegations):
-                address: Address = delegation['_address']
-                votes: int = delegation['_votes_in_per']
+            # updating prep list
 
-                # adding delegation to new preps
-                prep_vote = exaMul(votes, user_staked_token)
-                self._prepVotes[address] += prep_vote
+            if address not in self._preps:
+                self._validatePrep(address)
+                self._preps.put(address)
 
-                # updating prep list
-                if address not in self._preps:
-                    self._preps.put(address)
+            # adding delegation to new preps
+            prep_vote = exaMul(votes, user_staked_token)
+            self._prepVotes[address] += prep_vote
 
-                # updating the delegation preferences
-                self._userPreps[user][index] = address
-                self._percentageDelegations[user][index] = votes
+            # updating the delegation preferences
+            self._userPreps[user][index] = address
+            self._percentageDelegations[user][index] = votes
 
-                # adjusting total votes
-                self._totalVotes.set(self._totalVotes.get() + prep_vote)
-                total_percentage += votes
+            # adjusting total votes
+            prepVotes += prep_vote
+            total_percentage += votes
+        self._require(total_percentage == EXA,
+                      f'{TAG}: '
+                      f'updating delegation unsuccessful,sum of percentages not equal to 100'
+                      f'sum total of percentages {total_percentage}'
+                      f'delegation preferences {delegations}'
+                      )
 
-            self._require(total_percentage == EXA,
-                          f'{TAG}: '
-                          f'updating delegation unsuccessful,sum of percentages not equal to 100'
-                          f'sum total of percentages {total_percentage}'
-                          f'delegation preferences {delegations}'
-                          )
-            self._userVotes[user] = user_staked_token
+        self._userVotes[user] = user_staked_token
+        self._totalVotes.set(self._totalVotes.get() + prepVotes)
 
-            # get updated prep percentages 
-            updated_delegation = self.computeDelegationPercentages()
+        # get updated prep percentages
+        updated_delegation = self.computeDelegationPercentages()
 
-            # updating the delegation if there is change in previous delegation
-            if updated_delegation != initialDelegation:
-                core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
-                core.updatePrepDelegations(updated_delegation)
-                self.DelegationUpdated(f'{initialDelegation}', f'{updated_delegation}')
+        # updating the delegation if there is change in previous delegation
+        if updated_delegation != initialDelegation:
+            core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
+            core.updatePrepDelegations(updated_delegation)
+            self.DelegationUpdated(f'{initialDelegation}', f'{updated_delegation}')
 
     def _distributeVoteToContributors(self) -> List[PrepDelegations]:
         user_details = []
