@@ -35,7 +35,7 @@ class RewardDistributionInterface(InterfaceScore):
         pass
 
 
-class OTokenInterface(InterfaceScore):
+class LendingPoolInterface(InterfaceScore):
     @interface
-    def balanceOf(self, _owner: Address) -> int:
+    def isFeeSharingEnable(self, _user: Address) -> bool:
         pass

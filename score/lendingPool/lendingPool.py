@@ -79,21 +79,34 @@ class LendingPool(Addresses):
     def getFeeSharingTxnLimit(self) -> int:
         return self._feeSharingTxnLimit.get()
 
-    def _userBridgeDepositStatus(self, _user: Address) -> bool:
+    def _hasUserDepositBridgeOToken(self, _user: Address) -> bool:
         bridgeOtoken = self.create_interface_score(self.getAddress(BRIDGE_OTOKEN), OTokenInterface)
         return bridgeOtoken.balanceOf(_user) > self._bridgeFeeThreshold.get()
 
-    def _enableFeeSharing(self):
-        if not self._feeSharingUsers[self.msg.sender]['startHeight']:
-            self._feeSharingUsers[self.msg.sender]['startHeight'] = self.block_height
-        if self._feeSharingUsers[self.msg.sender]['startHeight'] + TERM_LENGTH > self.block_height:
-            if self._feeSharingUsers[self.msg.sender]['txnCount'] < self._feeSharingTxnLimit.get():
-                self._feeSharingUsers[self.msg.sender]['txnCount'] += 1
-                self.set_fee_sharing_proportion(100)
-        else:
-            self._feeSharingUsers[self.msg.sender]['startHeight'] = self.block_height
-            self._feeSharingUsers[self.msg.sender]['txnCount'] = 1
+    def _isFeeSharingEnable(self, _user: Address) -> bool:
+        if self._hasUserDepositBridgeOToken(_user):
+            if not self._feeSharingUsers[_user]['startHeight']:
+                self._feeSharingUsers[_user]['startHeight'] = self.block_height
+            if self._feeSharingUsers[_user]['startHeight'] + TERM_LENGTH > self.block_height:
+                if self._feeSharingUsers[_user]['txnCount'] < self._feeSharingTxnLimit.get():
+                    self._feeSharingUsers[_user]['txnCount'] += 1
+                    return True
+            else:
+                self._feeSharingUsers[_user]['startHeight'] = self.block_height
+                self._feeSharingUsers[_user]['txnCount'] = 1
+                return True
+
+        return False
+
+    def _checkAndEnableFeeSharing(self):
+        if self._isFeeSharingEnable(self.msg.sender):
             self.set_fee_sharing_proportion(100)
+
+
+    @only_omm_token
+    @external
+    def isFeeSharingEnable(self, _user: Address) -> bool:
+        return self._isFeeSharingEnable(_user)
 
     @payable
     @external
@@ -119,8 +132,7 @@ class LendingPool(Addresses):
         :return:
         """
         # checking for active and unfreezed reserve,deposit is allowed only for active and unfreezed reserve
-        if self._userBridgeDepositStatus(self.msg.sender):
-            self._enableFeeSharing()
+        self._checkAndEnableFeeSharing()
         lendingPoolCoreAddress = self.getAddress(LENDING_POOL_CORE)
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserveData = core.getReserveData(_reserve)
@@ -151,8 +163,7 @@ class LendingPool(Addresses):
 
     @external
     def redeem(self, _oToken: Address, _amount: int, _waitForUnstaking: bool = False) -> None:
-        if self._userBridgeDepositStatus(self.msg.sender):
-            self._enableFeeSharing()
+        self._checkAndEnableFeeSharing()
         oToken = self.create_interface_score(_oToken, OTokenInterface)
         redeemParams = oToken.redeem(self.msg.sender, _amount)
         self.redeemUnderlying(redeemParams['reserve'], self.msg.sender, _oToken, redeemParams['amountToRedeem'],
@@ -160,22 +171,19 @@ class LendingPool(Addresses):
 
     @external
     def claimRewards(self):
-        if self._userBridgeDepositStatus(self.msg.sender):
-            self._enableFeeSharing()
+        self._checkAndEnableFeeSharing()
         rewards = self.create_interface_score(self.getAddress(REWARDS), RewardInterface)
         rewards.claimRewards(self.msg.sender)
 
     @external
     def stake(self, _value: int):
-        if self._userBridgeDepositStatus(self.msg.sender):
-            self._enableFeeSharing()
+        self._checkAndEnableFeeSharing()
         ommToken = self.create_interface_score(self.getAddress(OMM_TOKEN), OmmTokenInterface)
         ommToken.stake(_value, self.msg.sender)
 
     @external
     def unstake(self, _value: int):
-        if self._userBridgeDepositStatus(self.msg.sender):
-            self._enableFeeSharing()
+        self._checkAndEnableFeeSharing()
         ommToken = self.create_interface_score(self.getAddress(OMM_TOKEN), OmmTokenInterface)
         ommToken.unstake(_value, self.msg.sender)
 
@@ -241,8 +249,7 @@ class LendingPool(Addresses):
         self._require(_amount <= reserveData['availableBorrows'],
                       f"Amount requested {_amount} is more than the {reserveData['availableBorrows']}")
 
-        if self._userBridgeDepositStatus(self.msg.sender):
-            self._enableFeeSharing()
+        self._checkAndEnableFeeSharing()
         self._require(reserveData['isActive'], "Reserve is not active,borrow unsuccessful")
         self._require(not reserveData['isFreezed'], "Reserve is frozen,borrow unsuccessful")
 
