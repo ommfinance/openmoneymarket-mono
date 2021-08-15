@@ -35,4 +35,7 @@ class RewardDistributionInterface(InterfaceScore):
         pass
 
 
-
+class OTokenInterface(InterfaceScore):
+    @interface
+    def balanceOf(self, _owner: Address) -> int:
+        pass
