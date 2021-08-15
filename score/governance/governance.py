@@ -1,59 +1,137 @@
-from iconservice import *
-
-TAG = 'Governance'
-
-# An interface to Rewards
-class RewardInterface(InterfaceScore):
-    @interface
-    def setStartTimestamp(self, _timestamp: int):
-        pass
-
-# An interface to Snapshot
-class SnapshotInterface(InterfaceScore):
-    @interface
-    def setStartTimestamp(self, _timestamp: int):
-        pass
+from .utils.checks import *
+from .addresses import *
+from .interfaces import *
 
 
-class Governance(IconScoreBase):
-
-    REWARDS = 'rewards'
-    SNAPSHOT = 'snapshot'
+class Governance(Addresses):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._rewards = VarDB(self.REWARDS, db, value_type = Address)
-        self._snapshot = VarDB(self.SNAPSHOT, db, value_type = Address)
 
-
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
 
     def on_update(self) -> None:
         super().on_update()
 
-    @external
-    def setSnapshot(self, _address: Address):
-        self._snapshot.set(_address)
-
     @external(readonly=True)
-    def getSnapshot(self) -> Address:
-        return self._snapshot.get()
+    def name(self) -> str:
+        return f"Omm {TAG}"
 
+    @only_owner
     @external
-    def setRewards(self, _address: Address):
-        self._rewards.set(_address)
+    def setReserveActiveStatus(self, _reserve: Address, _status: bool):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.updateIsActive(_reserve, _status)
 
-    @external(readonly=True)
-    def getRewards(self) -> Address:
-        return self._rewards.get()
-
-    
+    @only_owner
     @external
-    def setStartTimestamp(self) -> None:
-        snapshot = self.create_interface_score(self._snapshot.get(), SnapshotInterface)
-        rewards = self.create_interface_score(self._rewards.get(), RewardInterface)
-        snapshot.setStartTimestamp(self.now())
-        rewards.setStartTimestamp(self.now())
+    def setReserveFreezeStatus(self, _reserve: Address, _status: bool):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.updateIsFreezed(_reserve, _status)
 
+    @only_owner
+    @external
+    def setReserveConstants(self, _constants: List[Constant]):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.setReserveConstants(_constants)
 
+    @only_owner
+    @external
+    def initializeReserve(self, _reserve: ReserveAttributes):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.addReserveData(_reserve)
+
+    @only_owner
+    @external
+    def updateBaseLTVasCollateral(self, _reserve: Address, _baseLtv: int):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.updateBaseLTVasCollateral(_reserve, _baseLtv)
+
+    @only_owner
+    @external
+    def updateLiquidationThreshold(self, _reserve: Address, _liquidationThreshold: int):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.updateLiquidationThreshold(_reserve, _liquidationThreshold)
+
+    @only_owner
+    @external
+    def updateBorrowThreshold(self, _reserve: Address, _borrowThreshold: int):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.updateBorrowThreshold(_reserve, _borrowThreshold)
+
+    @only_owner
+    @external
+    def updateLiquidationBonus(self, _reserve: Address, _liquidationBonus: int):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.updateLiquidationBonus(_reserve, _liquidationBonus)
+
+    @only_owner
+    @external
+    def updateBorrowingEnabled(self, _reserve: Address, _borrowingEnabled: bool):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.updateBorrowingEnabled(_reserve, _borrowingEnabled)
+
+    @only_owner
+    @external
+    def updateUsageAsCollateralEnabled(self, _reserve: Address, _usageAsCollateralEnabled: bool):
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
+        core.updateUsageAsCollateralEnabled(_reserve, _usageAsCollateralEnabled)
+
+    @only_owner
+    @external
+    def enableRewardClaim(self):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.enableRewardClaim()
+
+    @only_owner
+    @external
+    def disableRewardClaim(self):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.disableRewardClaim()
+
+    @only_owner
+    @external
+    def addPools(self, _assetConfigs: List[AssetConfig]):
+        for assetConfig in _assetConfigs:
+            self.addPool(assetConfig)
+
+    @only_owner
+    @external
+    def addPool(self, _assetConfig: AssetConfig):
+        _poolID = _assetConfig['poolID']
+        if _poolID > 0:
+            asset = _assetConfig['asset']
+            stakedLP = self.create_interface_score(self._addresses[STAKED_LP], StakedLPInterface)
+            stakedLP.addPool(_poolID, asset)
+
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.configureAssetConfig(_assetConfig)
+
+    @only_owner
+    @external
+    def removePool(self, _asset: Address):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        _poolID = rewards.getPoolIDByAsset(_asset)
+        if _poolID > 0:
+            stakedLP = self.create_interface_score(self._addresses[STAKED_LP], StakedLPInterface)
+            stakedLP.removePool(_poolID)
+        rewards.removeAssetConfig(_asset)
+
+    @only_owner
+    @external
+    def transferOmmToDaoFund(self,_value:int):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.transferOmmToDaoFund(_value)
+
+    @only_owner
+    @external
+    def transferOmmFromDaoFund(self,_value:int,_address:Address):
+        daoFund = self.create_interface_score(self._addresses[DAO_FUND],DaoFundInterface)
+        daoFund.transferOmm(_value,_address)
+
+    @only_owner
+    @external
+    def transferFundFromFeeProvider(self,_token:Address,_value:int,_to:Address):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER],FeeProviderInterface)
+        feeProvider.transferFund(_token,_value,_to)

@@ -1,47 +1,29 @@
 from iconservice import *
 
-# ================================================
-#  Exceptions
-# ================================================
-class SenderNotScoreOwnerError(Exception):
-	pass
-
-
-class SenderNotAuthorized(Exception):
-	pass
-
-
-class NotAFunctionError(Exception):
-	pass
-
+TAG = 'Price Oracle Proxy'
 
 def only_owner(func):
-	if not isfunction(func):
-		raise NotAFunctionError
+    if not isfunction(func):
+        revert(f"{TAG}: ""NotAFunctionError")
 
-	@wraps(func)
-	def __wrapper(self: object, *args, **kwargs):
-		if self.msg.sender != self.owner:
-			raise SenderNotScoreOwnerError(self.owner)
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        if self.msg.sender != self.owner:
+            revert(f"{TAG}: SenderNotScoreOwnerError: (sender){self.msg.sender} (owner){self.owner}")
 
-		return func(self, *args, **kwargs)
-	return __wrapper
+        return func(self, *args, **kwargs)
 
-def catch_error(func):
-	if not isfunction(func):
-		raise NotAFunctionError
+    return __wrapper
 
-	@wraps(func)
-	def __wrapper(self: object, *args, **kwargs):
-		try:
-			return func(self, *args, **kwargs)
-		except BaseException as e:
-			Logger.error(repr(e), TAG)
-			try:
-				# readonly methods cannot emit eventlogs
-				self.ShowException(repr(e))
-			except:
-				pass
-			revert(repr(e))
+def only_address_provider(func):
+    if not isfunction(func):
+        revert(f"{TAG}: ""NotAFunctionError")
 
-	return __wrapper
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        addressProvider = self._addressProvider.get()
+        if self.msg.sender != addressProvider:
+            revert(f"{TAG}: "f"SenderNotAddressProviderError: (sender){self.msg.sender} (address provider){addressProvider}")
+        return func(self, *args, **kwargs)
+
+    return __wrapper
