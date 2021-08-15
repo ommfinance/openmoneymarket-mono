@@ -122,18 +122,6 @@ class Delegation(Addresses):
     def getPrepList(self) -> List[Address]:
         return [prep for prep in self._preps]
 
-    @only_owner
-    @external
-    def removePrep(self, _prep: Address):
-        if _prep not in self._preps:
-            revert(f"{TAG}: {_prep} is not in prep list")
-        else:
-            topPrep = self._preps.pop()
-            if topPrep != _prep:
-                for i in range(len(self._preps)):
-                    if self._preps[i] == _prep:
-                        self._preps[i] = topPrep
-
     @external
     def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
         if _user is not None and self.msg.sender == self._addresses[OMM_TOKEN]:
