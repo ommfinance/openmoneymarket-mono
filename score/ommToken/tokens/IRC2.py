@@ -24,6 +24,9 @@ class IRC2(TokenStandard, Addresses):
     _STAKED_BALANCES = 'staked_balances'
     _TOTAL_STAKED_BALANCE = 'total_stake_balance'
     _UNSTAKING_PERIOD = 'unstaking_period'
+    FEE_SHARING_USERS = 'feeSharingUsers'
+    FEE_SHARING_TXN_LIMIT = 'feeSharingTxnLimit'
+    BRIDGE_FEE_THRESHOLD = "bridgeFeeThreshold"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -42,6 +45,10 @@ class IRC2(TokenStandard, Addresses):
         self._staked_balances = DictDB(self._STAKED_BALANCES, db, value_type=int, depth=2)
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
+
+        self._feeSharingUsers = DictDB(self.FEE_SHARING_USERS, db, value_type=int, depth=2)
+        self._feeSharingTxnLimit = VarDB(self.FEE_SHARING_TXN_LIMIT, db, value_type=int)
+        self._bridgeFeeThreshold = VarDB(self.BRIDGE_FEE_THRESHOLD, db, value_type=int)
 
     def on_install(
             self,
@@ -88,6 +95,7 @@ class IRC2(TokenStandard, Addresses):
         self._total_supply.set(total_supply)
         self._decimals.set(_decimals)
         self._balances[self.msg.sender] = total_supply
+        self._bridgeFeeThreshold.set(0)
 
     def on_update(self) -> None:
         super().on_update()
@@ -145,6 +153,24 @@ class IRC2(TokenStandard, Addresses):
 
     @only_owner
     @external
+    def setBridgeFeeThreshold(self, _amount: int) -> None:
+        self._bridgeFeeThreshold.set(_amount)
+
+    @external(readonly=True)
+    def getBridgeFeeThreshold(self) -> int:
+        return self._bridgeFeeThreshold.get()
+
+    @only_owner
+    @external
+    def setFeeSharingTxnLimit(self, _limit: int) -> None:
+        self._feeSharingTxnLimit.set(_limit)
+
+    @external(readonly=True)
+    def getFeeSharingTxnLimit(self) -> int:
+        return self._feeSharingTxnLimit.get()
+
+    @only_owner
+    @external
     def setUnstakingPeriod(self, _timeInSeconds: int) -> None:
         """
         Set the minimum staking period
@@ -155,6 +181,22 @@ class IRC2(TokenStandard, Addresses):
         total_time = _timeInSeconds * MICROSECONDS
         self._unstaking_period.set(total_time)
 
+    def _userBridgeDepositStatus(self, _user: Address) -> bool:
+        bridgeOtoken = self.create_interface_score(self.getAddress(oUSDs), OTokenInterface)
+        return bridgeOtoken.balanceOf(_user) > self._bridgeFeeThreshold.get()
+
+    def _enableFeeSharing(self,_user:Address):
+        if not self._feeSharingUsers[_user]['startHeight']:
+            self._feeSharingUsers[_user]['startHeight'] = self.block_height
+        if self._feeSharingUsers[_user]['startHeight'] + TERM_LENGTH > self.block_height:
+            if self._feeSharingUsers[_user]['txnCount'] < self._feeSharingTxnLimit.get():
+                self._feeSharingUsers[_user]['txnCount'] += 1
+                self.set_fee_sharing_proportion(100)
+        else:
+            self._feeSharingUsers[_user]['startHeight'] = self.block_height
+            self._feeSharingUsers[_user]['txnCount'] = 1
+            self.set_fee_sharing_proportion(100)
+
     @external(readonly=True)
     def getUnstakingPeriod(self) -> int:
         return self._unstaking_period.get()
@@ -162,7 +204,7 @@ class IRC2(TokenStandard, Addresses):
     @external(readonly=True)
     def details_balanceOf(self, _owner: Address) -> dict:
         userBalance = self._balances[_owner]
-        stakedBalance = self._staked_balances[_owner][Status.STAKED] 
+        stakedBalance = self._staked_balances[_owner][Status.STAKED]
         unstaking_amount = self._staked_balances[_owner][Status.UNSTAKING]
 
         if self._staked_balances[_owner][Status.UNSTAKING_PERIOD] < self.now():
@@ -263,6 +305,9 @@ class IRC2(TokenStandard, Addresses):
 
         if self._balances[_from] < _value:
             revert(f"{TAG}: ""Insufficient balance")
+
+        if self._userBridgeDepositStatus(_from):
+            self._enableFeeSharing(_from)
 
         self._makeAvailable(_to)
         self._makeAvailable(_from)
