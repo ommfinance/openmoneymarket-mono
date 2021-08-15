@@ -206,7 +206,9 @@ class AddressProvider(IconScoreBase):
             {"name": self.LENDING_POOL, "address": self._addresses[self.LENDING_POOL]},
             {"name": self.DELEGATION, "address": self._addresses[self.DELEGATION]},
             {"name": self.REWARDS, "address": self._addresses[self.REWARDS]},
-            {"name": self.ADDRESS_PROVIDER, "address": self.address}
+            {"name": self.ADDRESS_PROVIDER, "address": self.address},
+            {"name": self.oUSDs, "address": self.oUSDs}
+
         ]
 
         ommToken = self.create_interface_score(self._addresses[self.OMM_TOKEN], AddressInterface)
