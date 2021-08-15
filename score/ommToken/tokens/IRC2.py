@@ -6,6 +6,7 @@ from ..utils.consts import *
 TAG = 'Omm Token'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6
 MICROSECONDS = 10 ** 6
+TERM_LENGTH = 43120
 
 
 class IRC2(TokenStandard, Addresses):
