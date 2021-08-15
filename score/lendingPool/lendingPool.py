@@ -317,10 +317,8 @@ class LendingPool(Addresses):
             feeProviderAddress = self.getAddress(FEE_PROVIDER)
             reserve.transfer(feeProviderAddress, paybackAmount)
 
-            self.Repay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'],
-                       self.now())
+            self.Repay(_reserve, _sender, 0, paybackAmount, borrowData['borrowBalanceIncrease'])
 
-            # self._updateSnapshot(_reserve, _sender)
             return
 
         paybackAmountMinusFees = paybackAmount - userBasicReserveData['originationFee']
