@@ -96,6 +96,7 @@ class IRC2(TokenStandard, Addresses):
         self._decimals.set(_decimals)
         self._balances[self.msg.sender] = total_supply
         self._bridgeFeeThreshold.set(0)
+        self._feeSharingTxnLimit.set(20)
 
     def on_update(self) -> None:
         super().on_update()
