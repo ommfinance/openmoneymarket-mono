@@ -4,6 +4,8 @@ from .utils.checks import *
 DELEGATION = 'delegation'
 REWARDS = 'rewards'
 LENDING_POOL = 'lendingPool'
+oUSDs = "oUSDS"
+
 
 class Addresses(IconScoreBase):
     _ADDRESSES = 'addresses'

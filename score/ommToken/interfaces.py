@@ -35,4 +35,7 @@ class RewardDistributionInterface(InterfaceScore):
         pass
 
 
-
+class LendingPoolInterface(InterfaceScore):
+    @interface
+    def isFeeSharingEnable(self, _user: Address) -> bool:
+        pass

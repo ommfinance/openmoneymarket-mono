@@ -29,3 +29,17 @@ def only_address_provider(func):
         return func(self, *args, **kwargs)
 
     return __wrapper
+
+def only_omm_token(func):
+    if not isfunction(func):
+        revert(f"{TAG}: NotAFunctionError")
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        _ommToken = self.getAddress('ommToken')
+        if self.msg.sender != _ommToken:
+            revert(f"{TAG}: SenderNotScoreOwnerError: (sender){self.msg.sender} (omm token){_ommToken}")
+
+        return func(self, *args, **kwargs)
+
+    return __wrapper

@@ -162,7 +162,7 @@ class IRC2(TokenStandard, Addresses):
     @external(readonly=True)
     def details_balanceOf(self, _owner: Address) -> dict:
         userBalance = self._balances[_owner]
-        stakedBalance = self._staked_balances[_owner][Status.STAKED] 
+        stakedBalance = self._staked_balances[_owner][Status.STAKED]
         unstaking_amount = self._staked_balances[_owner][Status.UNSTAKING]
 
         if self._staked_balances[_owner][Status.UNSTAKING_PERIOD] < self.now():
@@ -263,6 +263,10 @@ class IRC2(TokenStandard, Addresses):
 
         if self._balances[_from] < _value:
             revert(f"{TAG}: ""Insufficient balance")
+        lending_pool = self.create_interface_score(self.getAddresses()[LENDING_POOL], LendingPoolInterface)
+        isFeeSharingEnabled=lending_pool.isFeeSharingEnable(_from)
+        if isFeeSharingEnabled:
+            self.set_fee_sharing_proportion(100)
 
         self._makeAvailable(_to)
         self._makeAvailable(_from)
