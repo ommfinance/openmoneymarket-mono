@@ -21,6 +21,13 @@ class AddressDetails(TypedDict):
     address: Address
 
 
+class UserDetails(TypedDict):
+    _user: Address
+    _userBalance: int
+    _totalSupply: int
+    _decimals: int
+
+
 class AssetConfig(TypedDict):
     _id: int
     asset: Address
@@ -31,11 +38,7 @@ class AssetConfig(TypedDict):
 
 class RewardInterface(InterfaceScore):
     @interface
-    def handleLPAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
-        pass
-
-    @interface
-    def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
+    def handleLPAction(self, _asset: Address, _userDetails: UserDetails) -> None:
         pass
 
 

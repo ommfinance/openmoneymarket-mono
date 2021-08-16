@@ -16,6 +16,11 @@ class AddressDetails(TypedDict):
     name: str
     address: Address
 
+class UserDetails(TypedDict):
+    _user: Address
+    _userBalance: int
+    _totalSupply: int
+    _decimals: int
 
 class AssetConfig(TypedDict):
     poolID: int

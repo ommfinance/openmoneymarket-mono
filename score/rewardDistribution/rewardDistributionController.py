@@ -66,9 +66,9 @@ class RewardDistributionController(RewardDistributionManager):
         return self._rewardConfig.getRecipients()
 
     @external
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
+    def handleAction(self, _userAssetDetails: UserDetails) -> None:
         _asset = self.msg.sender
-        self._handleAction(_user, _userBalance, _totalSupply, _asset)
+        self._handleAction(_asset, _userAssetDetails)
 
     @only_governance
     @external
@@ -86,11 +86,17 @@ class RewardDistributionController(RewardDistributionManager):
 
     @external
     @only_staked_lp
-    def handleLPAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
-        self._handleAction( _user, _userBalance, _totalSupply, _asset)
+    def handleLPAction(self, _asset: Address, _userDetails: UserDetails) -> None:
+        self._handleAction(_asset, _userDetails)
 
-    def _handleAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
-        RewardDistributionManager._require(self._rewardConfig.is_valid_asset(_asset) , f'Asset Not Authorized: {_asset}')
+    def _handleAction(self, _asset: Address, _userDetails: UserDetails) -> None:
+        _decimals = _userDetails.get("_decimals")
+
+        _user = _userDetails.get("_user")
+        _userBalance = convertToExa(_userDetails.get("_userBalance"), _decimals)
+        _totalSupply = convertToExa(_userDetails.get("_totalSupply"), _decimals)
+
+        RewardDistributionManager._require(self._rewardConfig.is_valid_asset(_asset), f'Asset Not Authorized: {_asset}')
         accruedRewards = self._updateUserReserveInternal(_user, _asset, _userBalance, _totalSupply)
         if accruedRewards != 0:
             self._usersUnclaimedRewards[_user][_asset] += accruedRewards
@@ -156,7 +162,6 @@ class RewardDistributionController(RewardDistributionManager):
             self._mintDailyOMM()
             self.updateEmissionPerSecond()
             self._isInitialized.set(True)
-
 
     @only_lending_pool
     @external
@@ -234,7 +239,7 @@ class RewardDistributionController(RewardDistributionManager):
     @external()
     def transferOmmToDaoFund(self, _value: int):
         ommToken = self.create_interface_score(self._addresses[OMM_TOKEN], TokenInterface)
-        ommToken.transfer(self._addresses[DAO_FUND],_value)
+        ommToken.transfer(self._addresses[DAO_FUND], _value)
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:

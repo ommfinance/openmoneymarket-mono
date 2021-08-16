@@ -129,7 +129,13 @@ class StakedLp(Addresses):
         self._totalStaked[_id] = self._totalStaked[_id] + _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         decimals = self._getAverageDecimals(_id)
-        reward.handleLPAction(_user, convertToExa(previousUserStaked, decimals), convertToExa(previousTotalStaked, decimals), self._addressMap[_id])
+        _userDetails = {
+            "_user": _user,
+            "_userBalance": previousUserStaked,
+            "_totalSupply": previousTotalStaked,
+            "_decimals": decimals,
+        }
+        reward.handleLPAction(self._addressMap[_id], _userDetails)
 
     @external
     def unstake(self, _id: int, _value: int) -> None:
@@ -147,7 +153,14 @@ class StakedLp(Addresses):
         self._totalStaked[_id] = self._totalStaked[_id] - _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         decimals = self._getAverageDecimals(_id)
-        reward.handleLPAction(_user, convertToExa(previousUserStaked, decimals), convertToExa(previousTotalStaked, decimals), self._addressMap[_id])
+        _userDetails = {
+            "_user": _user,
+            "_userBalance": previousUserStaked,
+            "_totalSupply": previousTotalStaked,
+            "_decimals": decimals,
+        }
+        reward.handleLPAction(self._addressMap[_id], _userDetails)
+        
         lpToken = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
         lpToken.transfer(_user, _value, _id, b'transferBackToUser')
 

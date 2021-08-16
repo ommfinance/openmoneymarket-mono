@@ -26,7 +26,14 @@ class SupplyDetails(TypedDict):
 class TotalStaked(TypedDict):
     decimals: int
     totalStaked: int
-    
+
+
+class UserDetails(TypedDict):
+    _user: Address
+    _userBalance: int
+    _totalSupply: int
+    _decimals: int
+
 
 class TokenFallbackInterface(InterfaceScore):
     @interface
@@ -42,7 +49,7 @@ class DelegationInterface(InterfaceScore):
 
 class RewardDistributionInterface(InterfaceScore):
     @interface
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
+    def handleAction(self, _userDetails: UserDetails) -> None:
         pass
 
 

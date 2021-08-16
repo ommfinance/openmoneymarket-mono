@@ -221,12 +221,8 @@ class OToken(Addresses, TokenStandard):
             index = 0
 
         # pool = self.create_interface_score(self.getLendingPool(), LendingPoolInterface)
-        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
-        decimals = self.decimals()
-        rewards.handleAction(
-            _user,
-            convertToExa(cumulated['previousPrincipalBalance'], decimals),
-            convertToExa(beforeTotalSupply, decimals))
+        self._handleAction(_user, cumulated['previousPrincipalBalance'], beforeTotalSupply)
+
         self.Redeem(_user, amountToRedeem, balanceIncrease, index)
         return {
             'reserve': self._addresses[RESERVE],
@@ -235,6 +231,16 @@ class OToken(Addresses, TokenStandard):
         }
         # pool.redeemUnderlying(self.getReserve(), _user, amountToRedeem, currentBalance - amountToRedeem,
         # _waitForUnstaking)
+
+    def _handleAction(self, _user, _userBalance, _totalSupply):
+        rewards = self.create_interface_score(self._addresses['rewards'], DistributionManager)
+        _userDetails = {
+            "_user": _user,
+            "_userBalance": _userBalance,
+            "_totalSupply": _totalSupply,
+            "_decimals": self.decimals(),
+        }
+        rewards.handleAction(_userDetails)
 
     def _resetDataOnZeroBalanceInternal(self, _user: Address) -> None:
         self._userIndexes[_user] = 0
@@ -249,12 +255,7 @@ class OToken(Addresses, TokenStandard):
         index = cumulated['index']
 
         self._mint(_user, _amount)
-        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
-        decimals = self.decimals()
-        rewards.handleAction(
-            _user,
-            convertToExa(cumulated['previousPrincipalBalance'], decimals),
-            convertToExa(beforeTotalSupply, decimals))
+        self._handleAction(_user, cumulated['previousPrincipalBalance'], beforeTotalSupply)
         self.MintOnDeposit(_user, _amount, balanceIncrease, index)
 
     @only_liquidation
@@ -266,12 +267,7 @@ class OToken(Addresses, TokenStandard):
         balanceIncrease = cumulated['balanceIncrease']
         index = cumulated['index']
         self._burn(_user, _value)
-        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
-        decimals = self.decimals()
-        rewards.handleAction(
-            _user,
-            convertToExa(cumulated['previousPrincipalBalance'], decimals),
-            convertToExa(beforeTotalSupply, decimals))
+        self._handleAction(_user, cumulated['previousPrincipalBalance'], beforeTotalSupply)
         if currentBalance - _value == 0:
             self._resetDataOnZeroBalanceInternal(_user)
             index = 0
@@ -298,13 +294,8 @@ class OToken(Addresses, TokenStandard):
         }
 
     def _callRewards(self, _fromPrevious: int, _toPrevious: int, _totalPrevious, _from: Address, _to: Address):
-        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
-        decimals = self.decimals()
-        totalPrevious = convertToExa(_totalPrevious, decimals)
-        fromPrevious = convertToExa(_fromPrevious, decimals)
-        toPrevious = convertToExa(_toPrevious, decimals)
-        rewards.handleAction(_from, fromPrevious, totalPrevious)
-        rewards.handleAction(_to, toPrevious, totalPrevious)
+        self._handleAction(_from, _fromPrevious, _totalPrevious)
+        self._handleAction(_to, _toPrevious, _totalPrevious)
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):

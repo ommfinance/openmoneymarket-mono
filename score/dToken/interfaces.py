@@ -12,6 +12,13 @@ class TotalStaked(TypedDict):
     totalStaked: int
 
 
+class UserDetails(TypedDict):
+    _user: Address
+    _userBalance: int
+    _totalSupply: int
+    _decimals: int
+
+
 class AddressDetails(TypedDict):
     name: str
     address: Address
@@ -29,7 +36,7 @@ class LendingPoolCoreInterface(InterfaceScore):
 
 class DistributionManager(InterfaceScore):
     @interface
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
+    def handleAction(self, _userDetails: UserDetails) -> None:
         pass
 
 
