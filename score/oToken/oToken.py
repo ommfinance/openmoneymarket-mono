@@ -378,8 +378,10 @@ class OToken(Addresses, TokenStandard):
         :param amount: The `amount` of tokens of `account` to be destroyed.
 
         """
+        if amount == 0:
+            return
 
-        if amount <= 0:
+        if amount < 0:
             revert(f'{TAG}: '
                    f'Invalid value: {amount} to burn')
         totalSupply = self._totalSupply.get()

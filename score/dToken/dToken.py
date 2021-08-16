@@ -257,13 +257,19 @@ class DToken(TokenStandard, Addresses):
         """
         if data is None:
             data = b'burn'
-        totalSupply = self._totalSupply.get()
-        userBalance = self._balances[account]
-        if amount <= 0:
+
+        if amount == 0:
+            return
+
+        if amount < 0:
             revert(f'{TAG}: 'f'Invalid value: {amount} to burn')
+        totalSupply = self._totalSupply.get()
+
         if amount > totalSupply:
             revert(f'{TAG}:'
                    f'{amount} is greater than total supply :{totalSupply}')
+
+        userBalance = self._balances[account]
         if amount > userBalance:
             revert(f'{TAG}: Cannot burn more than user balance. Amount to burn: {amount} User Balance: {userBalance}')
 
