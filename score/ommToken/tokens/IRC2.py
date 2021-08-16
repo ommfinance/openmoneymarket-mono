@@ -317,9 +317,9 @@ class IRC2(TokenStandard, Addresses):
         delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
-        self._handleActions(_user, old_stake, old_total_supply)
+        self._handleAction(_user, old_stake, old_total_supply)
 
-    def _handleActions(self, _user, _user_balance, _total_supply):
+    def _handleAction(self, _user, _user_balance, _total_supply):
         _userDetails = {
             "_user": _user,
             "_userBalance": _user_balance,
@@ -352,7 +352,7 @@ class IRC2(TokenStandard, Addresses):
         delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
-        self._handleActions(_user, staked_balance, before_total_staked_balance)
+        self._handleAction(_user, staked_balance, before_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstaking period has already been reached.

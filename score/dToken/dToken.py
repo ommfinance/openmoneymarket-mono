@@ -173,10 +173,10 @@ class DToken(TokenStandard, Addresses):
         beforeUserSupply = self.principalBalanceOf(_user)
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._mint(_user, _amount)
-        self._handleActions(_user, beforeUserSupply, beforeTotalSupply)
+        self._handleAction(_user, beforeUserSupply, beforeTotalSupply)
         self.MintOnBorrow(_user, _amount, _balanceIncrease, self._userIndexes[_user])
 
-    def _handleActions(self, _user, _user_balance, _total_supply):
+    def _handleAction(self, _user, _user_balance, _total_supply):
         _userDetails = {
             "_user": _user,
             "_userBalance": _user_balance,
@@ -194,7 +194,7 @@ class DToken(TokenStandard, Addresses):
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'loanRepaid')
 
-        self._handleActions(_user, beforeUserSupply, beforeTotalSupply)
+        self._handleAction(_user, beforeUserSupply, beforeTotalSupply)
 
         if self.principalBalanceOf(_user) == 0:
             self._resetDataOnZeroBalanceInternal(_user)
@@ -208,7 +208,7 @@ class DToken(TokenStandard, Addresses):
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'userLiquidated')
 
-        self._handleActions(_user, beforeUserSupply, beforeTotalSupply)
+        self._handleAction(_user, beforeUserSupply, beforeTotalSupply)
 
         if self.principalBalanceOf(_user) == 0:
             self._resetDataOnZeroBalanceInternal(_user)
