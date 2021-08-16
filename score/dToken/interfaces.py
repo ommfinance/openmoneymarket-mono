@@ -2,8 +2,14 @@ from iconservice import *
 
 
 class SupplyDetails(TypedDict):
+    decimals: int
     principalUserBalance: int
     principalTotalSupply: int
+
+
+class TotalStaked(TypedDict):
+    decimals: int
+    totalStaked: int
 
 
 class AddressDetails(TypedDict):

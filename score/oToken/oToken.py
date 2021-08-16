@@ -181,13 +181,10 @@ class OToken(Addresses, TokenStandard):
 
     @external(readonly=True)
     def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
-        decimals = self.decimals()
-        principalBalanceOf = convertToExa(self.principalBalanceOf(_user), decimals)
-        principalTotalSupply = convertToExa(self.principalTotalSupply(), decimals)
-
         return {
-            'principalUserBalance': principalBalanceOf,
-            'principalTotalSupply': principalTotalSupply
+            "decimals": self.decimals(),
+            'principalUserBalance': self.principalBalanceOf(_user),
+            'principalTotalSupply': self.principalTotalSupply()
         }
 
     @only_lending_pool
@@ -395,7 +392,7 @@ class OToken(Addresses, TokenStandard):
             revert(f'{TAG}: '
                    f'Invalid value: {amount} to burn')
         totalSupply = self._totalSupply.get()
-        userBalance = self._balances[account] 
+        userBalance = self._balances[account]
         if amount > totalSupply:
             revert(f'{TAG}: {amount} is greater than total supply :{totalSupply}')
         if amount > userBalance:
@@ -408,9 +405,12 @@ class OToken(Addresses, TokenStandard):
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, b'burn')
 
     @external(readonly=True)
-    def getTotalStaked(self) -> int:
+    def getTotalStaked(self) -> TotalStaked:
         """
         return total supply for reward distribution
-        :return: total supply
+        :return: total supply and its precision
         """
-        return convertToExa(self.totalSupply(), self.decimals())
+        return {
+            "decimals": self.decimals(),
+            "totalStaked": self.totalSupply()
+        }

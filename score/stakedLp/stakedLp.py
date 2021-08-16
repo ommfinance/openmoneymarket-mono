@@ -42,9 +42,12 @@ class StakedLp(Addresses):
         return self._minimumStake.get()
 
     @external(readonly=True)
-    def getTotalStaked(self, _id: int) -> int:
+    def getTotalStaked(self, _id: int) -> TotalStaked:
         decimals = self._getAverageDecimals(_id)
-        return convertToExa(self._totalStaked[_id], decimals)
+        return {
+            "decimals": decimals,
+            "totalStaked": self._totalStaked[_id]
+        }
 
     @external(readonly=True)
     def balanceOf(self, _owner: Address, _id: int) -> dict:
@@ -167,6 +170,7 @@ class StakedLp(Addresses):
     def getLPStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
         balance = self.balanceOf(_user, _id)
         return {
+            "decimals": self._getAverageDecimals(_id),
             "principalUserBalance": balance["userStakedBalance"],
             "principalTotalSupply": balance["totalStakedBalance"]
         }

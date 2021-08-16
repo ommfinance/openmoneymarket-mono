@@ -132,13 +132,10 @@ class DToken(TokenStandard, Addresses):
 
     @external(readonly=True)
     def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
-        decimals = self.decimals()
-        principalBalanceOf = convertToExa(self.principalBalanceOf(_user), decimals)
-        principalTotalSupply = convertToExa(self.principalTotalSupply(), decimals)
-
         return {
-            'principalUserBalance': principalBalanceOf,
-            'principalTotalSupply': principalTotalSupply
+            "decimals": self.decimals(),
+            'principalUserBalance': self.principalBalanceOf(_user),
+            'principalTotalSupply': self.principalTotalSupply()
         }
 
     @external(readonly=True)
@@ -269,9 +266,12 @@ class DToken(TokenStandard, Addresses):
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, data)
 
     @external(readonly=True)
-    def getTotalStaked(self) -> int:
+    def getTotalStaked(self) -> TotalStaked:
         """
         return total supply for reward distribution
         :return: total supply
         """
-        return convertToExa(self.totalSupply(), self.decimals())
+        return {
+            "decimals": self.decimals(),
+            "totalStaked": self.totalSupply()
+        }

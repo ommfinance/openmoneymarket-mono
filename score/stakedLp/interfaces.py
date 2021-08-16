@@ -6,8 +6,14 @@ class Status:
 
 
 class SupplyDetails(TypedDict):
+    decimals: int
     principalUserBalance: int
     principalTotalSupply: int
+
+
+class TotalStaked(TypedDict):
+    decimals: int
+    totalStaked: int
 
 
 class AddressDetails(TypedDict):
@@ -45,4 +51,3 @@ class LiquidityPoolInterface(InterfaceScore):
     @interface
     def getPoolStats(self, _id: int) -> dict:
         pass
-

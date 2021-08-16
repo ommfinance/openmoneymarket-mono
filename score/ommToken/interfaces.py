@@ -17,6 +17,17 @@ class PrepDelegationDetails(TypedDict):
     prepPercentage: int
 
 
+class SupplyDetails(TypedDict):
+    decimals: int
+    principalUserBalance: int
+    principalTotalSupply: int
+
+
+class TotalStaked(TypedDict):
+    decimals: int
+    totalStaked: int
+    
+
 class TokenFallbackInterface(InterfaceScore):
     @interface
     def tokenFallback(self, _from: Address, _value: int, _data: bytes):

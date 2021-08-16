@@ -1,15 +1,10 @@
-from .tokens.IRC2mintable import IRC2Mintable
 from iconservice import *
 
-from .utils.checks import only_owner
+from .interfaces import TotalStaked, SupplyDetails
+from .tokens.IRC2mintable import IRC2Mintable
 
 TOKEN_NAME = 'OmmToken'
 SYMBOL_NAME = 'OMM'
-
-
-class SupplyDetails(TypedDict):
-    principalUserBalance: int
-    principalTotalSupply: int
 
 
 class AssetConfig(TypedDict):
@@ -34,14 +29,18 @@ class OmmToken(IRC2Mintable):
     @external(readonly=True)
     def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
         return {
+            "decimals": self.decimals(),
             "principalUserBalance": self.staked_balanceOf(_user),
             "principalTotalSupply": self.total_staked_balance()
         }
 
     @external(readonly=True)
-    def getTotalStaked(self) -> int:
+    def getTotalStaked(self) -> TotalStaked:
         """
         return total staked balance for reward distribution
-        :return: total staked balance
+        :return: total staked balance and its precision
         """
-        return self.total_staked_balance()
+        return {
+            "decimals": self.decimals(),
+            "totalStaked": self.total_staked_balance()
+        }
