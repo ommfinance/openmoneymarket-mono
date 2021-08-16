@@ -3,7 +3,7 @@ from iconservice import *
 from .interfaces import TotalStaked, SupplyDetails
 from .tokens.IRC2mintable import IRC2Mintable
 
-TOKEN_NAME = 'OmmToken'
+TOKEN_NAME = 'Omm Token'
 SYMBOL_NAME = 'OMM'
 
 
