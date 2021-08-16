@@ -19,15 +19,21 @@ class TestStakedLP(ScoreTestCase):
         super().setUp()
         self._owner = self.test_account1
         self._admin = self.test_account2
-        self.score = self.get_score_instance(StakedLp, self._owner)
+        self.mock_address_provider = Address.from_string(f"cx{'1230' * 10}")
+
+        self.score = self.get_score_instance(StakedLp, self._owner, on_install_params={
+            "_addressProvider": self.mock_address_provider
+        })
 
         self.mock_dex = Address.from_string(f"cx{'1231' * 10}")
         self.mock_reward = Address.from_string(f"cx{'1232' * 10}")
+        self.mock_governance = Address.from_string(f"cx{'1233' * 10}")
 
-        self.set_tx(origin=self._owner)
+        self.set_msg(self.mock_address_provider)
         self.score.setAddresses([
             {"name": 'dex', "address": self.mock_dex},
-            {"name": "rewards", "address": self.mock_reward}
+            {"name": "rewards", "address": self.mock_reward},
+            {"name": "governance", "address": self.mock_governance}
         ])
 
         self.test_account3 = create_address()
@@ -36,25 +42,24 @@ class TestStakedLP(ScoreTestCase):
                         self.test_account4: 10 ** 21}
         ScoreTestCase.initialize_accounts(account_info)
 
-    def test_unstaking_period(self):
-        try:
-            self.set_msg(self.test_account3)
-            self.score.setUnstakingPeriod(10)
-        except IconScoreException as err:
-            self.assertIn("SenderNotScoreOwnerError", str(err))
-        else:
-            raise IconScoreException("Unauthorized call")
-
-        self.set_msg(self._owner)
-        self.score.setUnstakingPeriod(10)
-
-        self.assertEqual(10 * 10 ** 6, self.score.getUnstakingPeriod())
+    # def test_unstaking_period(self):
+    #     try:
+    #         self.set_msg(self.test_account3)
+    #         self.score.setUnstakingPeriod(10)
+    #     except IconScoreException as err:
+    #         self.assertIn("SenderNotScoreOwnerError", str(err))
+    #     else:
+    #         raise IconScoreException("Unauthorized call")
+    #
+    #     self.set_msg(self._owner)
+    #     self.score.setUnstakingPeriod(10)
+    #
+    #     self.assertEqual(10 * 10 ** 6, self.score.getUnstakingPeriod())
 
     def test_balance_of(self):
         # GIVEN
         _from = create_address(AddressPrefix.CONTRACT)
         _pool_id = 1
-        self.score._poolStakeDetails[_from][_pool_id][Status.AVAILABLE] = 0 * EXA
         self.score._poolStakeDetails[_from][_pool_id][Status.STAKED] = 0 * EXA
         self.patch_internal_method(self.mock_dex, "balanceOf", lambda _a, _b: 100 * EXA)
         self.score._totalStaked[_pool_id] = 10 * EXA
@@ -149,12 +154,12 @@ class TestStakedLP(ScoreTestCase):
         # GIVEN
         self.score._supportedPools.put(1)
 
-        try:
-            self.score.onIRC31Received(_operator=self._owner, _from=_user, _id=1, _value=-10 * EXA, _data=_data)
-        except IconScoreException as err:
-            self.assertIn("Cannot stake less than zero", str(err))
-        else:
-            raise IconScoreException("Not supported stake value::1")
+        # try:
+        #     self.score.onIRC31Received(_operator=self._owner, _from=_user, _id=1, _value=-10 * EXA, _data=_data)
+        # except IconScoreException as err:
+        #     self.assertIn("Cannot stake less than zero", str(err))
+        # else:
+        #     raise IconScoreException("Not supported stake value::1")
 
         # invalid minimum stake
         try:
@@ -165,13 +170,13 @@ class TestStakedLP(ScoreTestCase):
             raise IconScoreException("Not supported stake value::2")
 
         # new stake value is less that previous staked
-        self.patch_internal_method(self.mock_dex, "balanceOf", lambda _a, _b: 111 * EXA)
-        try:
-            self.score.onIRC31Received(_operator=self._owner, _from=_user, _id=1, _value=101 * EXA, _data=_data)
-        except IconScoreException as err:
-            self.assertIn("Stake amount less than previously staked value", str(err))
-        else:
-            raise IconScoreException("Not supported stake value::3")
+        # self.patch_internal_method(self.mock_dex, "balanceOf", lambda _a, _b: 111 * EXA)
+        # try:
+        #     self.score.onIRC31Received(_operator=self._owner, _from=_user, _id=1, _value=101 * EXA, _data=_data)
+        # except IconScoreException as err:
+        #     self.assertIn("Stake amount less than previously staked value", str(err))
+        # else:
+        #     raise IconScoreException("Not supported stake value::3")
 
     def test_on_IRC31_Received(self):
         # GIVEN
@@ -180,24 +185,35 @@ class TestStakedLP(ScoreTestCase):
         _pool_address = create_address(AddressPrefix.CONTRACT)
         _pool_id = 1
         _user = self.test_account3
-        self.score._poolStakeDetails[_user][_pool_id][Status.AVAILABLE] = 59 * EXA
+        # self.score._poolStakeDetails[_user][_pool_id][Status.AVAILABLE] = 59 * EXA
         self.score._poolStakeDetails[_user][_pool_id][Status.STAKED] = 52 * EXA
         self.score._totalStaked[_pool_id] = 163 * EXA
-        self.patch_internal_method(self.mock_dex, "balanceOf", lambda _a, _b: 111 * EXA)
+        # self.patch_internal_method(self.mock_dex, "balanceOf", lambda _a, _b: 111 * EXA)
         self.register_interface_score(self.mock_reward)
-        self.score.addPool(_pool_address, _pool_id)
+        self.set_msg(self.mock_governance)
+        self.score.addPool(_pool_id, _pool_address)
+
+        self.patch_internal_method(self.mock_dex, "getPoolStats", lambda _a: {
+            "quote_decimals": 18,
+            "base_decimals": 18
+        })
+        self.register_interface_score(self.mock_reward)
         # test
         _data = '{"method": "stake"}'.encode("utf-8")
         self.set_msg(self.mock_dex)
         self.score.onIRC31Received(_operator=self._owner, _from=_user, _id=_pool_id, _value=82 * EXA, _data=_data)
 
         # Validate
-        self.assertEqual(29 * EXA, self.score._poolStakeDetails[_user][_pool_id][Status.AVAILABLE])
-        self.assertEqual(82 * EXA, self.score._poolStakeDetails[_user][_pool_id][Status.STAKED])
-        self.assertEqual((163 + 30) * EXA, self.score._totalStaked[_pool_id])
+        self.assertEqual((82 + 52) * EXA, self.score._poolStakeDetails[_user][_pool_id][Status.STAKED])
+        self.assertEqual((163 + 82) * EXA, self.score._totalStaked[_pool_id])
 
-        self.assert_internal_call(self.mock_dex, "balanceOf", _user, _pool_id)
-        self.assert_internal_call(self.mock_reward, "handleAction", _user, 52 * EXA, 163 * EXA, _pool_address)
+        # self.assert_internal_call(self.mock_dex, "balanceOf", _user, _pool_id)
+        self.assert_internal_call(self.mock_reward, "handleLPAction", _pool_address, {
+            "_user": _user,
+            "_userBalance": 52 * EXA,
+            "_totalSupply": 163 * EXA,
+            "_decimals": 18,
+        })
 
     def test_unstake_validation(self):
         # GIVEN
@@ -206,7 +222,7 @@ class TestStakedLP(ScoreTestCase):
         self.score.setMinimumStake(50 * EXA)
         _pool_address = create_address(AddressPrefix.CONTRACT)
         _pool_id = 1
-        self.score._poolStakeDetails[_user][_pool_id][Status.AVAILABLE] = 59 * EXA
+        # self.score._poolStakeDetails[_user][_pool_id][Status.AVAILABLE] = 59 * EXA
         self.score._poolStakeDetails[_user][_pool_id][Status.STAKED] = 52 * EXA
         self.score._totalStaked[_pool_id] = 163 * EXA
 
@@ -217,8 +233,8 @@ class TestStakedLP(ScoreTestCase):
             self.assertIn(f"{_pool_id} is not supported", str(err))
         else:
             raise IconScoreException("Unsupported pool")
-        self.set_msg(self._owner)
-        self.score.addPool(_pool_address, _pool_id)
+        self.set_msg(self.mock_governance)
+        self.score.addPool(_pool_id, _pool_address)
         self.set_msg(_user)
         try:
             self.score.unstake(_pool_id, 53 * EXA)
@@ -240,23 +256,32 @@ class TestStakedLP(ScoreTestCase):
         _pool_address = create_address(AddressPrefix.CONTRACT)
         _pool_id = 1
         _user = self.test_account3
-        self.score._poolStakeDetails[_user][_pool_id][Status.AVAILABLE] = 23 * EXA
         self.score._poolStakeDetails[_user][_pool_id][Status.STAKED] = 37 * EXA
         self.score._totalStaked[_pool_id] = 173 * EXA
 
         self.register_interface_score(self.mock_reward)
         self.register_interface_score(self.mock_dex)
-        self.score.addPool(_pool_address, _pool_id)
+        self.set_msg(self.mock_governance)
+        self.score.addPool(_pool_id, _pool_address)
+
+        self.patch_internal_method(self.mock_dex, "getPoolStats", lambda _a: {
+            "quote_decimals": 12,
+            "base_decimals": 18
+        })
 
         # test
         self.set_msg(_user)
         self.score.unstake(_pool_id, 29 * EXA)
 
         # Validate
-        self.assertEqual(52 * EXA, self.score._poolStakeDetails[_user][_pool_id][Status.AVAILABLE])
         self.assertEqual(8 * EXA, self.score._poolStakeDetails[_user][_pool_id][Status.STAKED])
         self.assertEqual(144 * EXA, self.score._totalStaked[_pool_id])
 
         self.assert_internal_call(self.mock_dex, "transfer", _user, 29 * EXA, _pool_id, b'transferBackToUser')
 
-        self.assert_internal_call(self.mock_reward, "handleAction", _user, 37 * EXA, 173 * EXA, _pool_address)
+        self.assert_internal_call(self.mock_reward, "handleLPAction",  _pool_address, {
+            "_user": _user,
+            "_userBalance": 37 * EXA,
+            "_totalSupply": 173 * EXA,
+            "_decimals": 15,
+        })

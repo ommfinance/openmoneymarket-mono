@@ -1,10 +1,9 @@
 from unittest import mock
 
-from iconservice import Address, IconScoreException
+from lendingPoolCore.utils.math import SECONDS_PER_YEAR
 from tbears.libs.scoretest.patch.score_patcher import ScorePatcher, get_interface_score
 from tbears.libs.scoretest.score_test_case import ScoreTestCase
 
-from lendingPoolCore.Math import SECONDS_PER_YEAR
 from lendingPoolCore.lendingPoolCore import LendingPoolCore
 from lendingPoolCore.utils.checks import *
 
@@ -18,6 +17,7 @@ https://docs.google.com/spreadsheets/d/18o_RJ4z_zSVwU8yRuzEuG9fhRHSfRoZcOEHONuEB
 class TestLendingPoolCore(ScoreTestCase):
     def setUp(self):
         super().setUp()
+        self.mock_address_provider = Address.from_string(f"cx{'1239' * 10}")
         self.mock_staking = Address.from_string(f"cx{'1231' * 10}")
         self.mock_fee_provider = Address.from_string(f"cx{'1232' * 10}")
         self.mock_governance = Address.from_string(f"cx{'a232' * 10}")
@@ -26,9 +26,11 @@ class TestLendingPoolCore(ScoreTestCase):
         self.mock_liquidation_manager = Address.from_string(f"cx{'1235' * 10}")
         self._owner = self.test_account1
 
-        lending_pool_core = self.get_score_instance(LendingPoolCore, self._owner)
+        lending_pool_core = self.get_score_instance(LendingPoolCore, self._owner, on_install_params={
+            "_addressProvider": self.mock_address_provider
+        })
 
-        self.set_tx(origin=self._owner)
+        self.set_msg(self.mock_address_provider)
         lending_pool_core.setAddresses(
             [{"name": LENDING_POOL, "address": self.mock_lending_pool},
              {"name": LIQUIDATION_MANAGER, "address": self.mock_liquidation_manager},
@@ -115,8 +117,10 @@ class TestLendingPoolCore(ScoreTestCase):
         actual_result = self.lending_pool_core.getReserveData(_reserve_address)
         expected_result = {**_reserve, **{
             "totalLiquidity": 110 * EXA,
+            "borrowThreshold": 0,
             "availableLiquidity": 100 * EXA,
-            "totalBorrows": 10 * EXA
+            "totalBorrows": 10 * EXA,
+            "availableBorrows":0
         }}
         self.assertDictEqual(actual_result, expected_result)
 

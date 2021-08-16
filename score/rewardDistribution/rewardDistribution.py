@@ -254,7 +254,7 @@ class RewardDistributionManager(Addresses):
             token = self.create_interface_score(asset, TokenInterface)
             totalStakedBalance: TotalStaked = token.getTotalStaked()
         _decimals = totalStakedBalance.get("decimals")
-        _total_balance = totalStakedBalance.get('totalBalance')
+        _total_balance = totalStakedBalance.get('totalStaked')
 
         return convertToExa(_total_balance, _decimals)
 
