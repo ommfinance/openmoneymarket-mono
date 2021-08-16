@@ -27,3 +27,9 @@ class LendingPoolCoreInterface(InterfaceScore):
     @interface
     def updatePrepDelegations(self, _delegations: List[PrepDelegations]):
         pass
+
+
+class GovernanceContractInterface(InterfaceScore):
+    @interface
+    def getPRep(self, address: Address) -> dict:
+        pass

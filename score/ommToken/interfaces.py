@@ -17,6 +17,24 @@ class PrepDelegationDetails(TypedDict):
     prepPercentage: int
 
 
+class SupplyDetails(TypedDict):
+    decimals: int
+    principalUserBalance: int
+    principalTotalSupply: int
+
+
+class TotalStaked(TypedDict):
+    decimals: int
+    totalStaked: int
+
+
+class UserDetails(TypedDict):
+    _user: Address
+    _userBalance: int
+    _totalSupply: int
+    _decimals: int
+
+
 class TokenFallbackInterface(InterfaceScore):
     @interface
     def tokenFallback(self, _from: Address, _value: int, _data: bytes):
@@ -31,8 +49,11 @@ class DelegationInterface(InterfaceScore):
 
 class RewardDistributionInterface(InterfaceScore):
     @interface
-    def handleAction(self, _user: Address, _userBalance: int, _totalSupply: int) -> None:
+    def handleAction(self, _userDetails: UserDetails) -> None:
         pass
 
 
-
+class LendingPoolInterface(InterfaceScore):
+    @interface
+    def isFeeSharingEnable(self, _user: Address) -> bool:
+        pass

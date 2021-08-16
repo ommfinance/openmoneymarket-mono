@@ -162,7 +162,7 @@ class IRC2(TokenStandard, Addresses):
     @external(readonly=True)
     def details_balanceOf(self, _owner: Address) -> dict:
         userBalance = self._balances[_owner]
-        stakedBalance = self._staked_balances[_owner][Status.STAKED] 
+        stakedBalance = self._staked_balances[_owner][Status.STAKED]
         unstaking_amount = self._staked_balances[_owner][Status.UNSTAKING]
 
         if self._staked_balances[_owner][Status.UNSTAKING_PERIOD] < self.now():
@@ -263,6 +263,10 @@ class IRC2(TokenStandard, Addresses):
 
         if self._balances[_from] < _value:
             revert(f"{TAG}: ""Insufficient balance")
+        lending_pool = self.create_interface_score(self.getAddresses()[LENDING_POOL], LendingPoolInterface)
+        isFeeSharingEnabled=lending_pool.isFeeSharingEnable(_from)
+        if isFeeSharingEnabled:
+            self.set_fee_sharing_proportion(100)
 
         self._makeAvailable(_to)
         self._makeAvailable(_from)
@@ -313,8 +317,17 @@ class IRC2(TokenStandard, Addresses):
         delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
+        self._handleActions(_user, old_stake, old_total_supply)
+
+    def _handleActions(self, _user, _user_balance, _total_supply):
+        _userDetails = {
+            "_user": _user,
+            "_userBalance": _user_balance,
+            "_totalSupply": _total_supply,
+            "_decimals": self.decimals(),
+        }
         rewardDistribution = self.create_interface_score(self._addresses[REWARDS], RewardDistributionInterface)
-        rewardDistribution.handleAction(_user, old_stake, old_total_supply)
+        rewardDistribution.handleAction(_userDetails)
 
     @only_lending_pool
     @external
@@ -339,8 +352,7 @@ class IRC2(TokenStandard, Addresses):
         delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
 
-        rewardDistribution = self.create_interface_score(self._addresses[REWARDS], RewardDistributionInterface)
-        rewardDistribution.handleAction(_user, staked_balance, before_total_staked_balance)
+        self._handleActions(_user, staked_balance, before_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstaking period has already been reached.

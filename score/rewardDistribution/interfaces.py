@@ -1,5 +1,5 @@
 from iconservice import *
-from .utils.types import SupplyDetails
+from .utils.types import SupplyDetails, TotalStaked
 
 
 class TokenInterface(InterfaceScore):
@@ -12,7 +12,7 @@ class TokenInterface(InterfaceScore):
         pass
 
     @interface
-    def getTotalStaked(self) -> int:
+    def getTotalStaked(self) -> TotalStaked:
         pass
 
     @interface
@@ -23,7 +23,7 @@ class TokenInterface(InterfaceScore):
 class LPInterface(InterfaceScore):
 
     @interface
-    def getTotalStaked(self, _id: int) -> int:
+    def getTotalStaked(self, _id: int) -> TotalStaked:
         pass
 
     @interface

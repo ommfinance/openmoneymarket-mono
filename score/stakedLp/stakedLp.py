@@ -1,4 +1,5 @@
 from .utils.checks import *
+from .utils.math import *
 from .interfaces import *
 from .addresses import *
 
@@ -41,8 +42,12 @@ class StakedLp(Addresses):
         return self._minimumStake.get()
 
     @external(readonly=True)
-    def getTotalStaked(self, _id: int) -> int:
-        return self._totalStaked[_id]
+    def getTotalStaked(self, _id: int) -> TotalStaked:
+        decimals = self._getAverageDecimals(_id)
+        return {
+            "decimals": decimals,
+            "totalStaked": self._totalStaked[_id]
+        }
 
     @external(readonly=True)
     def balanceOf(self, _owner: Address, _id: int) -> dict:
@@ -118,17 +123,19 @@ class StakedLp(Addresses):
         StakedLp._require(_value > self._minimumStake.get(),
                           f'Amount to stake:{_value} is smaller the minimum stake:{self._minimumStake.get()}')
 
-        lp = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
-        _userBalance = lp.balanceOf(_user, _id)
-        userBalance = _userBalance + _value
         previousUserStaked = self._poolStakeDetails[_user][_id][Status.STAKED]
         previousTotalStaked = self._totalStaked[_id]
-
-        self._check_first_time(_user, _id, userBalance)
         self._poolStakeDetails[_user][_id][Status.STAKED] = previousUserStaked + _value
         self._totalStaked[_id] = self._totalStaked[_id] + _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
-        reward.handleLPAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])
+        decimals = self._getAverageDecimals(_id)
+        _userDetails = {
+            "_user": _user,
+            "_userBalance": previousUserStaked,
+            "_totalSupply": previousTotalStaked,
+            "_decimals": decimals,
+        }
+        reward.handleLPAction(self._addressMap[_id], _userDetails)
 
     @external
     def unstake(self, _id: int, _value: int) -> None:
@@ -145,7 +152,15 @@ class StakedLp(Addresses):
         self._poolStakeDetails[_user][_id][Status.STAKED] -= _value
         self._totalStaked[_id] = self._totalStaked[_id] - _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
-        reward.handleLPAction(_user, previousUserStaked, previousTotalStaked, self._addressMap[_id])
+        decimals = self._getAverageDecimals(_id)
+        _userDetails = {
+            "_user": _user,
+            "_userBalance": previousUserStaked,
+            "_totalSupply": previousTotalStaked,
+            "_decimals": decimals,
+        }
+        reward.handleLPAction(self._addressMap[_id], _userDetails)
+        
         lpToken = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
         lpToken.transfer(_user, _value, _id, b'transferBackToUser')
 
@@ -168,6 +183,15 @@ class StakedLp(Addresses):
     def getLPStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
         balance = self.balanceOf(_user, _id)
         return {
+            "decimals": self._getAverageDecimals(_id),
             "principalUserBalance": balance["userStakedBalance"],
             "principalTotalSupply": balance["totalStakedBalance"]
         }
+
+    def _getAverageDecimals(self, _id: int) -> int:
+        dex = self.create_interface_score(self.getAddress(DEX), LiquidityPoolInterface)
+        pool_stats = dex.getPoolStats(_id)
+        quote_decimals = pool_stats['quote_decimals']
+        base_decimals = pool_stats['base_decimals']
+        average_decimals = (quote_decimals + base_decimals) // 2
+        return average_decimals

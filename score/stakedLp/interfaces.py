@@ -6,13 +6,26 @@ class Status:
 
 
 class SupplyDetails(TypedDict):
+    decimals: int
     principalUserBalance: int
     principalTotalSupply: int
+
+
+class TotalStaked(TypedDict):
+    decimals: int
+    totalStaked: int
 
 
 class AddressDetails(TypedDict):
     name: str
     address: Address
+
+
+class UserDetails(TypedDict):
+    _user: Address
+    _userBalance: int
+    _totalSupply: int
+    _decimals: int
 
 
 class AssetConfig(TypedDict):
@@ -25,11 +38,7 @@ class AssetConfig(TypedDict):
 
 class RewardInterface(InterfaceScore):
     @interface
-    def handleLPAction(self, _user: Address, _userBalance: int, _totalSupply: int, _asset: Address) -> None:
-        pass
-
-    @interface
-    def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
+    def handleLPAction(self, _asset: Address, _userDetails: UserDetails) -> None:
         pass
 
 
@@ -40,4 +49,8 @@ class LiquidityPoolInterface(InterfaceScore):
 
     @interface
     def transfer(self, _to: Address, _value: int, _id: int, _data: bytes = None):
+        pass
+
+    @interface
+    def getPoolStats(self, _id: int) -> dict:
         pass

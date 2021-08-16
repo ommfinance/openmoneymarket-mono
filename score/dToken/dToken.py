@@ -132,13 +132,10 @@ class DToken(TokenStandard, Addresses):
 
     @external(readonly=True)
     def getPrincipalSupply(self, _user: Address) -> SupplyDetails:
-        decimals = self.decimals()
-        principalBalanceOf = convertToExa(self.principalBalanceOf(_user), decimals)
-        principalTotalSupply = convertToExa(self.principalTotalSupply(), decimals)
-
         return {
-            'principalUserBalance': principalBalanceOf,
-            'principalTotalSupply': principalTotalSupply
+            "decimals": self.decimals(),
+            'principalUserBalance': self.principalBalanceOf(_user),
+            'principalTotalSupply': self.principalTotalSupply()
         }
 
     @external(readonly=True)
@@ -176,10 +173,18 @@ class DToken(TokenStandard, Addresses):
         beforeUserSupply = self.principalBalanceOf(_user)
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._mint(_user, _amount)
-        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
-        decimals = self.decimals()
-        rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
+        self._handleActions(_user, beforeUserSupply, beforeTotalSupply)
         self.MintOnBorrow(_user, _amount, _balanceIncrease, self._userIndexes[_user])
+
+    def _handleActions(self, _user, _user_balance, _total_supply):
+        _userDetails = {
+            "_user": _user,
+            "_userBalance": _user_balance,
+            "_totalSupply": _total_supply,
+            "_decimals": self.decimals(),
+        }
+        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
+        rewards.handleAction(_userDetails)
 
     @only_lending_pool_core
     @external
@@ -188,9 +193,9 @@ class DToken(TokenStandard, Addresses):
         beforeUserSupply = self.principalBalanceOf(_user)
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'loanRepaid')
-        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
-        decimals = self.decimals()
-        rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
+
+        self._handleActions(_user, beforeUserSupply, beforeTotalSupply)
+
         if self.principalBalanceOf(_user) == 0:
             self._resetDataOnZeroBalanceInternal(_user)
         self.BurnOnRepay(_user, _amount, _balanceIncrease, self._userIndexes[_user])
@@ -202,9 +207,9 @@ class DToken(TokenStandard, Addresses):
         beforeUserSupply = self.principalBalanceOf(_user)
         self._mintInterestAndUpdateIndex(_user, _balanceIncrease)
         self._burn(_user, _amount, b'userLiquidated')
-        rewards = self.create_interface_score(self._addresses[REWARDS], DistributionManager)
-        decimals = self.decimals()
-        rewards.handleAction(_user, convertToExa(beforeUserSupply, decimals), convertToExa(beforeTotalSupply, decimals))
+
+        self._handleActions(_user, beforeUserSupply, beforeTotalSupply)
+
         if self.principalBalanceOf(_user) == 0:
             self._resetDataOnZeroBalanceInternal(_user)
         self.BurnOnLiquidation(_user, _amount, _balanceIncrease, self._userIndexes[_user])
@@ -252,13 +257,19 @@ class DToken(TokenStandard, Addresses):
         """
         if data is None:
             data = b'burn'
-        totalSupply = self._totalSupply.get()
-        userBalance = self._balances[account]
-        if amount <= 0:
+
+        if amount == 0:
+            return
+
+        if amount < 0:
             revert(f'{TAG}: 'f'Invalid value: {amount} to burn')
+        totalSupply = self._totalSupply.get()
+
         if amount > totalSupply:
             revert(f'{TAG}:'
                    f'{amount} is greater than total supply :{totalSupply}')
+
+        userBalance = self._balances[account]
         if amount > userBalance:
             revert(f'{TAG}: Cannot burn more than user balance. Amount to burn: {amount} User Balance: {userBalance}')
 
@@ -269,9 +280,12 @@ class DToken(TokenStandard, Addresses):
         self.Transfer(account, ZERO_SCORE_ADDRESS, amount, data)
 
     @external(readonly=True)
-    def getTotalStaked(self) -> int:
+    def getTotalStaked(self) -> TotalStaked:
         """
         return total supply for reward distribution
         :return: total supply
         """
-        return self.totalSupply()
+        return {
+            "decimals": self.decimals(),
+            "totalStaked": self.totalSupply()
+        }
