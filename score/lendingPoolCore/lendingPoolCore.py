@@ -180,8 +180,10 @@ class LendingPoolCore(Addresses):
             response['totalLiquidity'] = self.getReserveTotalLiquidity(_reserve)
             response['availableLiquidity'] = self.getReserveAvailableLiquidity(_reserve)
             response['totalBorrows'] = self.getReserveTotalBorrows(_reserve)
-            response['availableBorrows'] = exaMul(response['borrowThreshold'], response['totalLiquidity']) - response[
+
+            availableBorrows = exaMul(response['borrowThreshold'], response['totalLiquidity']) - response[
                 'totalBorrows']
+            response['availableBorrows'] = max(availableBorrows, 0)
         else:
             response = {}
         return response
