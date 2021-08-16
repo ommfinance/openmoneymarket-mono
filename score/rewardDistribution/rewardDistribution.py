@@ -249,21 +249,29 @@ class RewardDistributionManager(Addresses):
         poolId = self._rewardConfig.getPoolID(asset)
         if poolId > 0:
             lp = self.create_interface_score(self._addresses[STAKED_LP], LPInterface)
-            return lp.getTotalStaked(poolId)
+            totalStakedBalance: TotalStaked = lp.getTotalStaked(poolId)
         else:
             token = self.create_interface_score(asset, TokenInterface)
-            return token.getTotalStaked()
+            totalStakedBalance: TotalStaked = token.getTotalStaked()
+        _decimals = totalStakedBalance.get("decimals")
+        _total_balance = totalStakedBalance.get('totalStaked')
+
+        return convertToExa(_total_balance, _decimals)
 
     def _getUserAssetDetails(self, asset: Address, user: Address) -> UserAssetInput:
         poolId = self._rewardConfig.getPoolID(asset)
         if poolId > 0:
             lp = self.create_interface_score(self._addresses[STAKED_LP], LPInterface)
-            supply = lp.getLPStakedSupply(poolId, user)
+            supply: SupplyDetails = lp.getLPStakedSupply(poolId, user)
         else:
             token = self.create_interface_score(asset, TokenInterface)
-            supply = token.getPrincipalSupply(user)
+            supply: SupplyDetails = token.getPrincipalSupply(user)
+
+        _decimals = supply.get("decimals")
+        _user_balance = convertToExa(supply.get('principalUserBalance'), _decimals)
+        _total_balance = convertToExa(supply.get('principalTotalSupply'), _decimals)
         return {
             'asset': asset,
-            'userBalance': supply['principalUserBalance'],
-            'totalBalance': supply['principalTotalSupply']
+            'userBalance': _user_balance,
+            'totalBalance': _total_balance,
         }

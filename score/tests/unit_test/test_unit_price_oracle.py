@@ -12,12 +12,15 @@ class TestPriceOracle(ScoreTestCase):
     def setUp(self):
         super().setUp()
         self._owner = self.test_account1
-        self.score = self.get_score_instance(PriceOracle, self._owner)
+        self.mock_address_provider = Address.from_string(f"cx{'1239' * 10}")
+        self.score = self.get_score_instance(PriceOracle, self._owner, on_install_params={
+            "_addressProvider": self.mock_address_provider
+        })
 
         self.mock_band_oracle = Address.from_string(f"cx{'1232' * 10}")
         self.mock_dex = Address.from_string(f"cx{'1235' * 10}")
 
-        self.set_tx(origin=self._owner)
+        self.set_msg(self.mock_address_provider)
 
         self.score.setAddresses([
             {"name": "bandOracle", "address": self.mock_band_oracle},
@@ -45,16 +48,17 @@ class TestPriceOracle(ScoreTestCase):
         :return:
         """
         self.set_msg(self._owner)
-        self.score.setOraclePriceBool(False)
 
-        self.score.set_reference_data("USDS", "USD", 1 * EXA)
-        self.score.set_reference_data("USDC", "USD", 1 * EXA)
-        self.score.set_reference_data("ICX", "USD", 9 * EXA // 10)
+        # self.score.set_reference_data("USDS", "USD", 1 * EXA)
+        # self.score.set_reference_data("USDC", "USD", 1 * EXA)
+        # self.score.set_reference_data("ICX", "USD", 9 * EXA // 10)
         self.set_msg(None)
 
         self.register_interface_score(self.mock_dex)
         self._mock_lookupPid()
         self._mock_poolStats()
+        self.patch_internal_method(self.mock_band_oracle, "get_reference_data",
+                                   lambda _base, _quote: {"rate": 9 * EXA // 10})
 
         def _price_side_effect(_name):
             if _name == 'sICX/ICX':
@@ -71,7 +75,10 @@ class TestPriceOracle(ScoreTestCase):
         self.assertEqual(1, _mock_dex_score.getPriceByName.call_count)
         self.assertEqual(3, _mock_dex_score.lookupPid.call_count)
         self.assertEqual(3, _mock_dex_score.getPoolStats.call_count)
-        self.assertAlmostEqual((1.5 * 13 + 1.7 * 11 + 2.052 * 23) / (13 + 11 + 23), actual_result / EXA, 10)
+        #USDS 1.5*1
+        #IUSDC 1.7*0.9
+        #ICX 2.9*1.2*0.9
+        self.assertAlmostEqual((1.5 * 13 + 1.53 * 11 + 2.052 * 23) / (13 + 11 + 23), actual_result / EXA, 10)
 
     def _mock_lookupPid(self):
         def _lookupPid_side_effect(_name):

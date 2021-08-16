@@ -42,9 +42,12 @@ class StakedLp(Addresses):
         return self._minimumStake.get()
 
     @external(readonly=True)
-    def getTotalStaked(self, _id: int) -> int:
+    def getTotalStaked(self, _id: int) -> TotalStaked:
         decimals = self._getAverageDecimals(_id)
-        return convertToExa(self._totalStaked[_id], decimals)
+        return {
+            "decimals": decimals,
+            "totalStaked": self._totalStaked[_id]
+        }
 
     @external(readonly=True)
     def balanceOf(self, _owner: Address, _id: int) -> dict:
@@ -126,7 +129,13 @@ class StakedLp(Addresses):
         self._totalStaked[_id] = self._totalStaked[_id] + _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         decimals = self._getAverageDecimals(_id)
-        reward.handleLPAction(_user, convertToExa(previousUserStaked, decimals), convertToExa(previousTotalStaked, decimals), self._addressMap[_id])
+        _userDetails = {
+            "_user": _user,
+            "_userBalance": previousUserStaked,
+            "_totalSupply": previousTotalStaked,
+            "_decimals": decimals,
+        }
+        reward.handleLPAction(self._addressMap[_id], _userDetails)
 
     @external
     def unstake(self, _id: int, _value: int) -> None:
@@ -144,7 +153,14 @@ class StakedLp(Addresses):
         self._totalStaked[_id] = self._totalStaked[_id] - _value
         reward = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         decimals = self._getAverageDecimals(_id)
-        reward.handleLPAction(_user, convertToExa(previousUserStaked, decimals), convertToExa(previousTotalStaked, decimals), self._addressMap[_id])
+        _userDetails = {
+            "_user": _user,
+            "_userBalance": previousUserStaked,
+            "_totalSupply": previousTotalStaked,
+            "_decimals": decimals,
+        }
+        reward.handleLPAction(self._addressMap[_id], _userDetails)
+        
         lpToken = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
         lpToken.transfer(_user, _value, _id, b'transferBackToUser')
 
@@ -167,6 +183,7 @@ class StakedLp(Addresses):
     def getLPStakedSupply(self, _id: int, _user: Address) -> SupplyDetails:
         balance = self.balanceOf(_user, _id)
         return {
+            "decimals": self._getAverageDecimals(_id),
             "principalUserBalance": balance["userStakedBalance"],
             "principalTotalSupply": balance["totalStakedBalance"]
         }
