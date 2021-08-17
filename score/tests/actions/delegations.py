@@ -15,19 +15,19 @@ ACTIONS = {
             "user": "user1",
             "_delegations": [
                 {
-                    '_address': 'hxabcde924eba01ec91330e4e996cf7b8c658f4e4c' ,
+                    '_address': 'hx6347279a7f0356a058aa27343ee3fa471b1c042d' ,
                     '_votes_in_per': f'{20 * EXA // 100}'
                 },
                 {
-                    '_address': 'hxbcdef924eba01ec91330e4e996cf7b8c658f4e4c' ,
+                    '_address': 'hx60d55951dd8b6f4577a3fd17ba4040723e5e33c8' ,
                     '_votes_in_per': f'{25 * EXA // 100}'
                 },
                 {
-                    '_address': 'hx12345924eba01ec91330e4e996cf7b8c658f4e4c' ,
+                    '_address': 'hx4037b4d01c5bc40fdbb5217b8ef24fd35295aa37' ,
                     '_votes_in_per': f'{30 * EXA // 100}'
                 },
                 {
-                    '_address': 'hx23456924eba01ec91330e4e996cf7b8c658f4e4c' ,
+                    '_address': 'hx576bc82a94ed9e65828d6642fb3774536d81b348' ,
                     '_votes_in_per': f'{25 * EXA // 100}'
                 }
             ],

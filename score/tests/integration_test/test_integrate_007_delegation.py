@@ -105,19 +105,19 @@ class OMMDelegationTest(OmmUtils):
     def _check_default_delegations(self):
         default = [
             {
-                "_address": "hxec79e9c1c882632688f8c8f9a07832bcabe8be8f",
+                "_address": "hx9eec61296a7010c867ce24c20e69588e2832bc52",
                 "_votes_in_per": "0x3782dace9d90000"
             },
             {
-                "_address": "hxd3be921dfe193cd49ed7494a53743044e3376cd3",
+                "_address": "hx000e0415037ae871184b2c7154e5924ef2bc075e",
                 "_votes_in_per": "0x3782dace9d90000"
             },
             {
-                "_address": "hx9e7509f86ea3ba5c139161d6e92a3982659e9f30",
+                "_address": "hx2fb8fb849cba40bf59a48ebcef899d6ae45382f4",
                 "_votes_in_per": "0x3782dace9d90000"
             },
             {
-                "_address": "hxaad52424d4aec9dac7d9f6796da527f471269d2c",
+                "_address": "hx0d091baf34fb2b8e144f3e878dc73c35e77f912f",
                 "_votes_in_per": "0x3782dace9d90000"
             }
         ]

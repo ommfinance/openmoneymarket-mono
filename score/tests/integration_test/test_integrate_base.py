@@ -36,8 +36,8 @@ LOAN_ORIGINATION_PERCENT = 10 ** 15
 EXA = 10 ** 18
 halfEXA = EXA // 2
 SECONDS_PER_YEAR = 31536000
-PREP_LIST = ["hxec79e9c1c882632688f8c8f9a07832bcabe8be8f","hxd3be921dfe193cd49ed7494a53743044e3376cd3",\
-            "hx9e7509f86ea3ba5c139161d6e92a3982659e9f30", "hxaad52424d4aec9dac7d9f6796da527f471269d2c"]
+PREP_LIST = ["hx9eec61296a7010c867ce24c20e69588e2832bc52","hx000e0415037ae871184b2c7154e5924ef2bc075e",\
+            "hx2fb8fb849cba40bf59a48ebcef899d6ae45382f4", "hx0d091baf34fb2b8e144f3e878dc73c35e77f912f"]
 
 OMM_SICX_ID = 1
 OMM_USDS_ID = 2
@@ -486,7 +486,7 @@ class OMMTestBase(TestUtils):
 
 
     def _deposit_for_fee_sharing(self):
-        contracts = ['usds', 'lendingPool']
+        contracts = ['usds', 'lendingPool', 'ommToken']
         for contract in contracts:
             print(f"-------------------------------Deposit fee sharing amount to {contract}----------------------------------")
             deposit_fee = self.deposit_tx(self.deployer_wallet, self.contracts[contract])
