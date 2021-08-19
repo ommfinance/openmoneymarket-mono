@@ -2,6 +2,7 @@ from .IIRC2 import TokenStandard
 from ..addresses import *
 from ..interfaces import *
 from ..utils.consts import *
+from ..utils.enumerable_set import EnumerableSetDB
 
 TAG = 'Omm Token'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6
@@ -36,7 +37,7 @@ class IRC2(TokenStandard, Addresses):
         self._total_supply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
         self._balances = DictDB(self._BALANCES, db, value_type=int)
         self._admin = VarDB(self._ADMIN, db, value_type=Address)
-        self._lock_list = ArrayDB(self._LOCK_LIST, db, value_type=Address)
+        self._lock_list = EnumerableSetDB(self._LOCK_LIST, db, value_type=Address)
 
         self._minimum_stake = VarDB(self._MINUMUM_STAKE, db, value_type=int)
         self._staked_balances = DictDB(self._STAKED_BALANCES, db, value_type=int, depth=2)
@@ -202,7 +203,7 @@ class IRC2(TokenStandard, Addresses):
     @external
     def add_to_lockList(self, _user: Address):
         if _user not in self._lock_list:
-            self._lock_list.put(_user)
+            self._lock_list.add(_user)
 
         staked_balance = self._staked_balances[_user][Status.STAKED]
         if staked_balance > 0:
@@ -217,18 +218,11 @@ class IRC2(TokenStandard, Addresses):
     @external
     def remove_from_lockList(self, _user: Address):
         IRC2._require(_user in self._lock_list, f'Cannot remove,the user {_user} is not in lock list')
-        top = self._lock_list.pop()
-        if top != _user:
-            for i in range(len(self._lock_list)):
-                if self._lock_list[i] == _user:
-                    self._lock_list[i] = top
+        self._lock_list.remove(_user)
 
     @external(readonly=True)
-    def get_locklist_addresses(self) -> list:
-        lockList = []
-        for user in self._lock_list:
-            lockList.append(user)
-        return lockList
+    def get_locklist_addresses(self, _start: int, _end: int) -> list:
+        return [addr for addr in self._lock_list.range(_start, _end)]
 
     @eventlog(indexed=3)
     def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
@@ -236,7 +230,8 @@ class IRC2(TokenStandard, Addresses):
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        IRC2._require(self.msg.sender not in self._lock_list, f'Cannot transfer,the address {_to} is locked')
+        IRC2._require(self.msg.sender not in self._lock_list, 
+            f'Cannot transfer,the address {self.msg.sender} is locked')
         if _data is None:
             _data = b'None'
         self._transfer(self.msg.sender, _to, _value, _data)
