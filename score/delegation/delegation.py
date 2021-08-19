@@ -1,3 +1,4 @@
+from .utils.enumerable_set import EnumerableSetDB
 from .utils.math import *
 from .addresses import *
 
@@ -15,7 +16,7 @@ class Delegation(Addresses):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._preps = ArrayDB(self._PREPS, db, Address)
+        self._preps = EnumerableSetDB(self._PREPS, db, value_type=Address)
         self._userPreps = DictDB(self._USER_PREPS, db, value_type=Address, depth=2)
         self._percentageDelegations = DictDB(self._PERCENTAGE_DELEGATIONS, db, value_type=int, depth=2)
         self._prepVotes = DictDB(self._PREP_VOTES, db, value_type=int)
@@ -120,7 +121,7 @@ class Delegation(Addresses):
 
     @external(readonly=True)
     def getPrepList(self) -> List[Address]:
-        return [prep for prep in self._preps]
+        return [prep for prep in self._preps.range(0, len(self._preps))]
 
     @external
     def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
@@ -157,10 +158,9 @@ class Delegation(Addresses):
             votes: int = delegation['_votes_in_per']
 
             # updating prep list
-
             if address not in self._preps:
                 self._validatePrep(address)
-                self._preps.put(address)
+                self._preps.add(address)
 
             # adding delegation to new preps
             prep_vote = exaMul(votes, user_staked_token)
