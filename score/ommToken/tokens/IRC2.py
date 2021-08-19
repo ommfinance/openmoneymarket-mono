@@ -300,7 +300,7 @@ class IRC2(TokenStandard, Addresses):
     def stake(self, _value: int, _user: Address) -> None:
         userBalance = self._balances[_user]
         IRC2._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
-        IRC2._require(_value > self._minimum_stake.get(),
+        IRC2._require(_value >= self._minimum_stake.get(),
                       f'Amount to stake:{_value} is smaller the minimum stake:{self._minimum_stake.get()}')
 
         self._makeAvailable(_user)
