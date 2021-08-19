@@ -41,10 +41,6 @@ class Delegation(Addresses):
     def name(self) -> str:
         return f"Omm {TAG}"
 
-    @eventlog(indexed=2)
-    def DelegationUpdated(self, _before: str, _after: str):
-        pass
-
     @only_owner
     @external
     def setVoteThreshold(self, _vote: int):
@@ -147,7 +143,6 @@ class Delegation(Addresses):
     def _handleCalculation(self, delegations, user):
         total_percentage = 0
         _preps=self.getPrepList()
-        initial_delegation = self.computeDelegationPercentages()
         omm_token = self.create_interface_score(self._addresses[OMM_TOKEN], OmmTokenInterface)
         user_staked_token = omm_token.details_balanceOf(user)['stakedBalance']
         prepVotes = 0
@@ -186,11 +181,8 @@ class Delegation(Addresses):
         # get updated prep percentages
         updated_delegation = self.computeDelegationPercentages()
 
-        # updating the delegation if there is change in previous delegation
-        if updated_delegation != initial_delegation:
-            core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
-            core.updatePrepDelegations(updated_delegation)
-            self.DelegationUpdated(f'{initial_delegation}', f'{updated_delegation}')
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
+        core.updatePrepDelegations(updated_delegation)
 
     def _distributeVoteToContributors(self) -> List[PrepDelegations]:
         user_details = []
@@ -243,7 +235,6 @@ class Delegation(Addresses):
 
     @external(readonly=True)
     def computeDelegationPercentages(self) -> List[PrepDelegations]:
-        prep_list = self.getPrepList()
         total_votes = self._totalVotes.get()
         if total_votes == 0:
             default_preference = self._distributeVoteToContributors()
@@ -251,6 +242,7 @@ class Delegation(Addresses):
                 default_preference[index]['_votes_in_per'] = default_preference[index]['_votes_in_per'] * 100
             return default_preference
 
+        prep_list = self.getPrepList()
         prep_delegations = []
         if prep_list:
             total_percentage = 0
