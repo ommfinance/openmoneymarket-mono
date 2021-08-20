@@ -12,6 +12,12 @@ def exaDiv(a: int, b: int) -> int:
     return (half_b + (a * EXA)) // b
 
 
+# if a=8*EXA and b=3*EXA ,it  returns 2666666666666666666
+# if a=100*EXA and b=6*EXA , it returns 16666666666666666666
+def exaDivFloor(a: int, b: int) -> int:
+    return (a * EXA) // b
+
+
 def exaPow(x: int, n: int) -> int:
     z = x if n % 2 != 0 else EXA
 
