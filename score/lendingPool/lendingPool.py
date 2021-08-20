@@ -377,7 +377,7 @@ class LendingPool(Addresses):
             d = json_loads(_data.decode("utf-8"))
             params = d.get("params")
             method = d.get("method")
-        except IconScoreException:
+        except Exception:
             revert(f'{TAG}: Invalid data: {_data}.')
         if method == "deposit":
             self._deposit(self.msg.sender, _value, _from)

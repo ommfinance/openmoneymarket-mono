@@ -170,7 +170,7 @@ class StakedLp(Addresses):
         d = None
         try:
             d = json_loads(_data.decode("utf-8"))
-        except IconScoreException:
+        except Exception:
             revert(f'{TAG}: Invalid data: {_data}.')
         if set(d.keys()) != {"method"}:
             revert(f'{TAG}: Invalid parameters.')
