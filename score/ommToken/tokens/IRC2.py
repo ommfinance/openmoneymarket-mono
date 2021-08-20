@@ -217,11 +217,11 @@ class IRC2(TokenStandard, Addresses):
     @only_owner
     @external
     def remove_from_lockList(self, _user: Address):
-        IRC2._require(_user in self._lock_list, f'Cannot remove,the user {_user} is not in lock list')
+        IRC2._require(_user in self._lock_list, f'Cannot remove, the user {_user} is not in lock list')
         self._lock_list.remove(_user)
 
     @external(readonly=True)
-    def get_locklist_addresses(self, _start: int, _end: int) -> list:
+    def get_locklist_addresses(self, _start: int, _end: int) -> List[Address]:
         return [addr for addr in self._lock_list.range(_start, _end)]
 
     @eventlog(indexed=3)
@@ -231,7 +231,9 @@ class IRC2(TokenStandard, Addresses):
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         IRC2._require(self.msg.sender not in self._lock_list, 
-            f'Cannot transfer,the address {self.msg.sender} is locked')
+            f'Cannot transfer, the sender {self.msg.sender} is locked')
+        IRC2._require(_to not in self._lock_list, 
+            f'Cannot transfer, the receiver {_to} is locked')
         if _data is None:
             _data = b'None'
         self._transfer(self.msg.sender, _to, _value, _data)
