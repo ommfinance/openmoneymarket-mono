@@ -119,7 +119,7 @@ class StakedLp(Addresses):
 
     def _stake(self, _user: Address, _id: int, _value: int) -> None:
         StakedLp._require(_id in self._supportedPools, f'pool with id:{_id} is not supported')
-        StakedLp._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
+        StakedLp._require(_value > 0, f'Cannot stake less than zero ,value to stake {_value}')
         StakedLp._require(_value > self._minimumStake.get(),
                           f'Amount to stake:{_value} is smaller the minimum stake:{self._minimumStake.get()}')
 
@@ -170,8 +170,8 @@ class StakedLp(Addresses):
         d = None
         try:
             d = json_loads(_data.decode("utf-8"))
-        except BaseException as e:
-            revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')
+        except IconScoreException:
+            revert(f'{TAG}: Invalid data: {_data}.')
         if set(d.keys()) != {"method"}:
             revert(f'{TAG}: Invalid parameters.')
         if d["method"] == "stake":

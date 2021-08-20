@@ -102,7 +102,6 @@ class LendingPool(Addresses):
         if self._isFeeSharingEnable(self.msg.sender):
             self.set_fee_sharing_proportion(100)
 
-
     @only_omm_token
     @external
     def isFeeSharingEnable(self, _user: Address) -> bool:
@@ -204,8 +203,6 @@ class LendingPool(Addresses):
         core = self.create_interface_score(lendingPoolCoreAddress, CoreInterface)
         reserveData = core.getReserveData(_reserve)
         self._require(reserveData['isActive'], "Reserve is not active,withdraw unsuccessful")
-        # if self.msg.sender != reserveData['oTokenAddress']:
-        #     revert(f'{TAG}: {self.msg.sender} is unauthorized to call, only otoken can invoke the method')
 
         reserveAvailableLiquidity = reserveData.get('availableLiquidity')
         if reserveAvailableLiquidity < _amount:
@@ -380,8 +377,8 @@ class LendingPool(Addresses):
             d = json_loads(_data.decode("utf-8"))
             params = d.get("params")
             method = d.get("method")
-        except BaseException as e:
-            revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')
+        except IconScoreException:
+            revert(f'{TAG}: Invalid data: {_data}.')
         if method == "deposit":
             self._deposit(self.msg.sender, _value, _from)
         elif method == "repay":
