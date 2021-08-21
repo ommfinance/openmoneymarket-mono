@@ -120,7 +120,7 @@ class Delegation(Addresses):
             isActive = False
 
         if not isActive:
-            revert(f"Invalid prep: {_address}")
+            revert(f"{TAG}: Invalid prep: {_address}")
 
     @external(readonly=True)
     def getPrepList(self) -> List[Address]:
