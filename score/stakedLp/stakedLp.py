@@ -32,8 +32,7 @@ class StakedLp(Addresses):
     @only_owner
     @external
     def setMinimumStake(self, _value: int):
-        if _value < 0:
-            revert(f"Minimum stake value must be positive")
+        StakedLp._require(_value >= 0, f"Minimum stake value must be positive, {_value}")
         self._minimumStake.set(_value)
 
     @external(readonly=True)
