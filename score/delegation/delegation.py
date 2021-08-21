@@ -113,7 +113,14 @@ class Delegation(Addresses):
 
     def _validatePrep(self, _address):
         governance = self.create_interface_score(ZERO_SCORE_ADDRESS, GovernanceContractInterface)
-        governance.getPRep(_address)
+        try:
+            prep = governance.getPRep(_address)
+            isActive = prep["status"] == 0
+        except Exception:
+            isActive = False
+
+        if not isActive:
+            revert(f"Invalid prep: {_address}")
 
     @external(readonly=True)
     def getPrepList(self) -> List[Address]:
