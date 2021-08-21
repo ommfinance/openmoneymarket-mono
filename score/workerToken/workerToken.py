@@ -109,9 +109,9 @@ class WorkerToken(IconScoreBase, TokenStandard):
 
         # Checks the sending value and balance.
         if _value <= 0:
-            revert(f"{TAG}: ""Transferring value should be greater than zero")
+            revert(f"{TAG}: Transferring value should be greater than zero")
         if self._balances[_from] < _value:
-            revert(f"{TAG}: "f"Out of balance: {_value}")
+            revert(f"{TAG}: Out of balance: {_value}")
 
         self._balances[_from] = self._balances[_from] - _value
         self._balances[_to] = self._balances[_to] + _value
