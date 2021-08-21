@@ -116,7 +116,7 @@ class Delegation(Addresses):
         try:
             prep = governance.getPRep(_address)
             isActive = prep["status"] == 0
-        except Exception:
+        except:
             isActive = False
 
         if not isActive:
