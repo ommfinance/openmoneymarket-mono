@@ -1,9 +1,9 @@
 from .utils.math import *
-from .interfaces import *
 from .addresses import *
 from .utils.checks import *
 
 HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 10 ** 18
+
 
 class LendingPoolDataProvider(Addresses):
     _SYMBOL = 'symbol'
@@ -178,15 +178,12 @@ class LendingPoolDataProvider(Addresses):
         currentOTokenBalance = oToken.balanceOf(_user)
         principalOTokenBalance = oToken.principalBalanceOf(_user)
         userLiquidityCumulativeIndex = oToken.getUserLiquidityCumulativeIndex(_user)
-        # principalBorrowBalance = userReserveData['principalBorrowBalance']
         principalBorrowBalance = dToken.principalBalanceOf(_user)
-        # currentBorrowBalance = core.getCompoundedBorrowBalance(_reserve, _user)
         currentBorrowBalance = dToken.balanceOf(_user)
         borrowRate = reserveData['borrowRate']
         reserveDecimals = reserveData['decimals']
         liquidityRate = reserveData['liquidityRate']
         originationFee = userReserveData['originationFee']
-        # userBorrowCumulativeIndex = userReserveData['userBorrowCumulativeIndex']
         userBorrowCumulativeIndex = dToken.getUserBorrowCumulativeIndex(_user)
         lastUpdateTimestamp = userReserveData['lastUpdateTimestamp']
         price_provider = self.create_interface_score(self._addresses[PRICE_ORACLE], OracleInterface)
@@ -232,7 +229,6 @@ class LendingPoolDataProvider(Addresses):
     def balanceDecreaseAllowed(self, _reserve: Address, _user: Address, _amount: int) -> bool:
         core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], CoreInterface)
         reserveConfiguration = core.getReserveConfiguration(_reserve)
-        userReserveData = core.getUserReserveData(_reserve, _user)
         reserveLiquidationThreshold = reserveConfiguration['liquidationThreshold']
         reserveUsageAsCollateralEnabled = reserveConfiguration['usageAsCollateralEnabled']
 
@@ -367,7 +363,7 @@ class LendingPoolDataProvider(Addresses):
         pool = self.create_interface_score(self._addresses[LENDING_POOL], LendingPoolInterface)
         wallets = pool.getBorrowWallets(_index)
         return {
-            wallet: self.getUserLiquidationData(wallet)
+            str(wallet): self.getUserLiquidationData(wallet)
             for wallet in wallets
             if self.getUserAccountData(wallet)['healthFactor'] < 10 ** 18
         }
@@ -456,4 +452,3 @@ class LendingPoolDataProvider(Addresses):
     def getRealTimeDebt(self, _reserve: Address, _user: Address) -> int:
         userReserveData = self.getUserReserveData(_reserve, _user)
         return userReserveData['currentBorrowBalance'] + userReserveData['originationFee']
-
