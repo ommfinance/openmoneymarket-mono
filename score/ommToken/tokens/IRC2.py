@@ -128,7 +128,8 @@ class IRC2(TokenStandard, Addresses):
         :param _owner: The account whose balance is to be checked.
         :return Amount of tokens owned by the `account` with the given address.
         """
-        return self._balances[_owner]
+        detail_balance = self.details_balanceOf(_owner)
+        return detail_balance["availableBalance"]
 
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
@@ -261,7 +262,7 @@ class IRC2(TokenStandard, Addresses):
         if self._balances[_from] < _value:
             revert(f"{TAG}: ""Insufficient balance")
         lending_pool = self.create_interface_score(self.getAddresses()[LENDING_POOL], LendingPoolInterface)
-        isFeeSharingEnabled=lending_pool.isFeeSharingEnable(_from)
+        isFeeSharingEnabled = lending_pool.isFeeSharingEnable(_from)
         if isFeeSharingEnabled:
             self.set_fee_sharing_proportion(100)
 
