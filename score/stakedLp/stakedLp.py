@@ -1,6 +1,3 @@
-from .utils.checks import *
-from .utils.math import *
-from .interfaces import *
 from .addresses import *
 
 MICROSECONDS = 10 ** 6
@@ -35,6 +32,7 @@ class StakedLp(Addresses):
     @only_owner
     @external
     def setMinimumStake(self, _value: int):
+        StakedLp._require(_value >= 0, f"Minimum stake value must be positive, {_value}")
         self._minimumStake.set(_value)
 
     @external(readonly=True)
@@ -119,8 +117,8 @@ class StakedLp(Addresses):
 
     def _stake(self, _user: Address, _id: int, _value: int) -> None:
         StakedLp._require(_id in self._supportedPools, f'pool with id:{_id} is not supported')
-        StakedLp._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
-        StakedLp._require(_value > self._minimumStake.get(),
+        StakedLp._require(_value > 0, f'Cannot stake less than zero ,value to stake {_value}')
+        StakedLp._require(_value >= self._minimumStake.get(),
                           f'Amount to stake:{_value} is smaller the minimum stake:{self._minimumStake.get()}')
 
         previousUserStaked = self._poolStakeDetails[_user][_id][Status.STAKED]
@@ -160,7 +158,7 @@ class StakedLp(Addresses):
             "_decimals": decimals,
         }
         reward.handleLPAction(self._addressMap[_id], _userDetails)
-        
+
         lpToken = self.create_interface_score(self._addresses[DEX], LiquidityPoolInterface)
         lpToken.transfer(_user, _value, _id, b'transferBackToUser')
 
@@ -170,8 +168,8 @@ class StakedLp(Addresses):
         d = None
         try:
             d = json_loads(_data.decode("utf-8"))
-        except BaseException as e:
-            revert(f'{TAG}: Invalid data: {_data}. Exception: {e}')
+        except Exception:
+            revert(f'{TAG}: Invalid data: {_data}.')
         if set(d.keys()) != {"method"}:
             revert(f'{TAG}: Invalid parameters.')
         if d["method"] == "stake":
