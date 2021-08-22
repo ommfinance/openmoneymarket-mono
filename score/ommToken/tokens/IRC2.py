@@ -124,12 +124,12 @@ class IRC2(TokenStandard, Addresses):
     @external(readonly=True)
     def balanceOf(self, _owner: Address) -> int:
         """
-        Returns the amount of tokens owned by the account.
+        Returns the amount of transferable tokens owned by the account excluding staked tokens
         :param _owner: The account whose balance is to be checked.
         :return Amount of tokens owned by the `account` with the given address.
         """
-        detail_balance = self.details_balanceOf(_owner)
-        return detail_balance["availableBalance"]
+
+        return self.available_balanceOf(_owner)
 
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
