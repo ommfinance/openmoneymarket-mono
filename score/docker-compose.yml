@@ -1,0 +1,9 @@
+version: '3.5'
+services:
+  omm-tbears:
+    build:
+      context: .
+    container_name: omm-tbears
+    ports:
+      - '9000:9000'
+    tty: true

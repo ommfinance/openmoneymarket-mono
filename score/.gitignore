@@ -1,0 +1,7 @@
+.vscode
+.ipynb_checkpoints
+keystore**
+**.zip
+__pycache__
+**.pkl
+.env*
