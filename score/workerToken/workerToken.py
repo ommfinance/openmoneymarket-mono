@@ -1,8 +1,7 @@
 from iconservice import *
+from .utils.enumerable_set import EnumerableSetDB
 
 TAG = 'Worker Token'
-
-BATCH_SIZE = 100
 
 
 # An interface of ICON Token Standard, IRC-2
@@ -56,7 +55,7 @@ class WorkerToken(IconScoreBase, TokenStandard):
         self._total_supply = VarDB(self._TOTAL_SUPPLY, db, value_type=int)
         self._decimals = VarDB(self._DECIMALS, db, value_type=int)
         self._balances = DictDB(self._BALANCES, db, value_type=int)
-        self._wallets = ArrayDB(self._WALLETS, db, value_type=Address)
+        self._wallets = EnumerableSetDB(self._WALLETS, db, value_type=Address)
 
     def on_install(self, _initialSupply: int, _decimals: int) -> None:
         super().on_install()
@@ -103,19 +102,23 @@ class WorkerToken(IconScoreBase, TokenStandard):
             _data = b'None'
 
         if _to not in self._wallets:
-            self._wallets.put(_to)
+            self._wallets.add(_to)
         self._transfer(self.msg.sender, _to, _value, _data)
 
     def _transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
 
         # Checks the sending value and balance.
-        if _value < 0:
-            revert(f"{TAG}: ""Transferring value cannot be less than zero")
+        if _value <= 0:
+            revert(f"{TAG}: Transferring value should be greater than zero")
         if self._balances[_from] < _value:
-            revert(f"{TAG}: "f"Out of balance: {_value}")
+            revert(f"{TAG}: Out of balance: {_value}")
 
         self._balances[_from] = self._balances[_from] - _value
         self._balances[_to] = self._balances[_to] + _value
+
+        if self.balanceOf(_from) == 0:
+            self._wallets.remove(_from)
+
         if _to.is_contract:
             # If the recipient is SCORE,
             #   then calls `tokenFallback` to hand over control.
@@ -124,12 +127,7 @@ class WorkerToken(IconScoreBase, TokenStandard):
 
         # Emits an event log `Transfer`
         self.Transfer(_from, _to, _value, _data)
-        Logger.debug(f'Transfer({_from}, {_to}, {_value}, {_data})', TAG)
 
     @external(readonly=True)
-    def getWallets(self) -> list:
-        wallets = []
-        for wallet in self._wallets:
-            wallets.append(wallet)
-
-        return wallets
+    def getWallets(self) -> List[Address]:
+        return [wallet for wallet in self._wallets.range(0, len(self._wallets))]
