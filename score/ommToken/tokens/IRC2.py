@@ -176,7 +176,7 @@ class IRC2(TokenStandard, Addresses):
             "availableBalance": userBalance - stakedBalance - unstaking_amount,
             "stakedBalance": stakedBalance,
             "unstakingBalance": unstaking_amount,
-            "unstakingTimeInMills": unstaking_time
+            "unstakingTimeInMicro": unstaking_time
         }
 
     @external(readonly=True)
@@ -231,10 +231,10 @@ class IRC2(TokenStandard, Addresses):
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        IRC2._require(self.msg.sender not in self._lock_list, 
-            f'Cannot transfer, the sender {self.msg.sender} is locked')
-        IRC2._require(_to not in self._lock_list, 
-            f'Cannot transfer, the receiver {_to} is locked')
+        IRC2._require(self.msg.sender not in self._lock_list,
+                      f'Cannot transfer, the sender {self.msg.sender} is locked')
+        IRC2._require(_to not in self._lock_list,
+                      f'Cannot transfer, the receiver {_to} is locked')
         if _data is None:
             _data = b'None'
         self._transfer(self.msg.sender, _to, _value, _data)
@@ -316,6 +316,29 @@ class IRC2(TokenStandard, Addresses):
         delegation.updateDelegations(_user=_user)
 
         self._handleAction(_user, old_stake, old_total_supply)
+
+    @external
+    def cancelUnstake(self, _value: int):
+        _user = self.msg.sender
+        userBalances = self.details_balanceOf(_user)
+        unstakingBalance = userBalances['unstakingBalance']
+        userPreviousTotalStaked = userBalances['stakedBalance']
+        IRC2._require(_value > 0, f'Cannot cancel negative unstake')
+        IRC2._require(unstakingBalance >= _value, f'Cannot cancel unstake,cancel value is more than the actual unstaking amount')
+        IRC2._require(_user not in self._lock_list, f'Cannot unstake,the address {_user} is locked')
+        beforeTotalStakedBalance = self._total_staked_balance.get()
+
+        lending_pool = self.create_interface_score(self.getAddresses()[LENDING_POOL], LendingPoolInterface)
+        isFeeSharingEnabled = lending_pool.isFeeSharingEnable(_user)
+        if isFeeSharingEnabled:
+            self.set_fee_sharing_proportion(100)
+        self._staked_balances[_user][Status.STAKED] += _value
+        self._staked_balances[_user][Status.UNSTAKING] -= _value
+        self._total_staked_balance.set(beforeTotalStakedBalance + _value)
+        delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
+        delegation.updateDelegations(_user=_user)
+
+        self._handleAction(_user, userPreviousTotalStaked, beforeTotalStakedBalance)
 
     def _handleAction(self, _user, _user_balance, _total_supply):
         _userDetails = {
