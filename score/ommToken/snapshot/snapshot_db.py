@@ -104,16 +104,11 @@ class SnapshotDB(object):
             return _staked
         return self.get_staked_at(self._contract, _timestamp)
 
-    def set_and_get_total_staked(self, _timestamp: int) -> int:
+    def set_total_staked(self, _timestamp: int) -> None:
         """
         Determine the prior number of total staked for an account as of a timestamp number
-        :param _timestamp: The timestamp number to get the vote balance at
-        :return: The total number of staked had as of the given timestamp
+        :param _timestamp: The timestamp number to set the total staked balance at
         """
-        _staked = self._total_staked_checkpoints[_timestamp]
-        if _staked:
-            return _staked
-
-        _total_staked_on_timestamp = self.get_staked_at(self._contract, _timestamp)
-        self._total_staked_checkpoints[_timestamp] = _total_staked_on_timestamp
-        return _total_staked_on_timestamp
+        if not self._total_staked_checkpoints[_timestamp]:
+            _total_staked_on_timestamp = self.get_staked_at(self._contract, _timestamp)
+            self._total_staked_checkpoints[_timestamp] = _total_staked_on_timestamp

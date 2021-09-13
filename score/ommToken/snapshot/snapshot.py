@@ -58,9 +58,9 @@ class Snapshot(IconScoreBase):
         return self._snapshot.get_staked_at(_owner, _timestamp)
 
     @external(readonly=True)
-    def getTotalStakedBalanceOfAt(self, _timestamp: int) -> int:
+    def totalStakedBalanceOfAt(self, _timestamp: int) -> int:
         return self._snapshot.get_total_staked(_timestamp)
 
     @external
-    def totalStakedBalanceOfAt(self, _timestamp: int) -> int:
-        return self._snapshot.set_and_get_total_staked(_timestamp)
+    def updateTotalStakedBalanceOfAt(self, _timestamp: int) -> None:
+        return self._snapshot.set_total_staked(_timestamp)
