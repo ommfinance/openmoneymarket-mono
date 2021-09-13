@@ -238,15 +238,14 @@ class Governance(Addresses):
         if vote_index < 1 or vote_index > ProposalDB.proposal_count(self.db):
             revert(f"There is no proposal with index {vote_index}.")
         if proposal.status.get() != ProposalStatus.STATUS[ProposalStatus.ACTIVE]:
-            revert("Balanced Governance: Proposal can be cancelled only from active status.")
+            revert("Omm Governance: Proposal can be cancelled only from active status.")
 
         self._refund_vote_definition_fee(proposal)
         proposal.active.set(False)
         proposal.status.set(ProposalStatus.STATUS[ProposalStatus.CANCELLED])
 
-    @external
-    def defineVote(self, name: str, description: str, vote_start: int,
-                   snapshot: int, actions: str = "{}") -> None:
+    def _defineVote(self, name: str, description: str, vote_start: int,
+                    snapshot: int, actions: str = "{}") -> None:
         """
         Defines a new vote and which actions are to be executed if it is successful.
         :param name: name of the vote
@@ -275,10 +274,6 @@ class Governance(Addresses):
         omm_criterion = self._omm_vote_definition_criterion.get()
         if (POINTS * user_staked) // omm_total < omm_criterion:
             revert(f'User needs at least {omm_criterion / 100}% of total omm supply staked to define a vote.')
-
-        # Transfer bnUSD fee to daofund.
-        # bnusd = self.create_interface_score(self._addresses['bnUSD'], BnUSDInterface)
-        # bnusd.govTransfer(self.msg.sender, self._addresses['daofund'], self._vote_definition_fee.get())
 
         actions_dict = json_loads(actions)
         if len(actions_dict) > self.maxActions():
@@ -372,7 +367,7 @@ class Governance(Addresses):
         if vote_index < 1 or vote_index > ProposalDB.proposal_count(self.db):
             revert(f"There is no proposal with index {vote_index}.")
         if self.now() < end_snap:
-            revert("Balanced Governance: Voting period has not ended.")
+            revert("Omm Governance: Voting period has not ended.")
         if not proposal.active.get():
             revert("This proposal is not active.")
 
@@ -401,8 +396,8 @@ class Governance(Addresses):
 
     def _refund_vote_definition_fee(self, proposal: ProposalDB) -> None:
         if not proposal.fee_refunded.get():
-            bnusd = self.create_interface_score(self._addresses['bnUSD'], BnUSDInterface)
-            bnusd.govTransfer(self._addresses['daofund'], proposal.proposer.get(), proposal.fee.get())
+            omm = self.create_interface_score(self._addresses['ommToken'], OmmTokenInterface)
+            omm.transfer(proposal.proposer.get(), proposal.fee.get())
             proposal.fee_refunded.set(True)
 
     @external(readonly=True)
@@ -474,3 +469,34 @@ class Governance(Addresses):
             return 0
         day = _timestamp - dex_start // U_SECONDS_DAY
         return day
+
+    @external
+    def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
+        vote_fee = self._vote_definition_fee.get()
+        if self.msg.sender != self._addresses['ommToken']:
+            revert(TAG + "invalid token sent")
+        if _value < vote_fee:
+            revert(TAG + "insufficient fee sent ")
+        try:
+            d = json_loads(_data.decode("utf-8"))
+            params = d.get("params")
+            method = d.get("method")
+        except:
+            revert(f'{TAG}: Invalid data: {_data}.')
+        if method == "defineVote" and params is not None:
+            name = params.get("name")
+            description = params.get("description")
+            vote_start = params.get("vote_start")
+            snapshot = params.get("snapshot")
+            actions = params.get("actions")
+            self._defineVote(name, description, vote_start, snapshot, actions)
+        else:
+            revert(f'{TAG}: No valid method called, data: {_data}')
+
+        # transferring omm to daoFund
+        omm = self.create_interface_score(self._addresses['ommToken'], OmmTokenInterface)
+        omm.transfer(self._addresses['daoFund'], vote_fee)
+
+        # returning extra omm to proposer
+        if _value - vote_fee > 0:
+            omm.transfer(_from, _value - vote_fee)
