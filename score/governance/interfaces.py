@@ -153,6 +153,10 @@ class OmmTokenInterface(InterfaceScore):
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
 
+    @interface
+    def updateTotalStakedBalanceOfAt(self, _timestamp: int):
+        pass
+
 
 class DexInterface(InterfaceScore):
     @interface
