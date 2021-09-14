@@ -158,15 +158,3 @@ class OmmTokenInterface(InterfaceScore):
         pass
 
 
-class DexInterface(InterfaceScore):
-    @interface
-    def getTimeOffset(self):
-        pass
-
-    @interface
-    def balanceOfAt(self, _account: Address, _id: int, _snapshot_id: int, _twa: bool = False) -> int:
-        pass
-
-    @interface
-    def totalSupplyAt(self, _id: int, _snapshot_id: int, _twa: bool = False) -> int:
-        pass
