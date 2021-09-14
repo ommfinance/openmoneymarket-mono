@@ -78,7 +78,7 @@ class ProposalDB:
     @classmethod
     def create_proposal(cls, name: str, description: str, proposer: Address, quorum: int, majority: int, snapshot: int,
                         start: int,
-                        end: int, actions: str, fee: int, db: IconScoreDatabase) -> 'ProposalDB':
+                        end: int, fee: int, db: IconScoreDatabase) -> 'ProposalDB':
         vote_index = cls(0, db).proposals_count.get() + 1
         new_proposal = ProposalDB(vote_index, db)
         new_proposal.proposals_count.set(vote_index)
@@ -90,7 +90,6 @@ class ProposalDB:
         new_proposal.vote_snapshot.set(snapshot)
         new_proposal.start_snapshot.set(start)
         new_proposal.end_snapshot.set(end)
-        new_proposal.actions.set(actions)
         new_proposal.name.set(name)
         new_proposal.description.set(description)
         new_proposal.status.set(ProposalStatus.STATUS[ProposalStatus.ACTIVE])
