@@ -6,7 +6,7 @@ TAG = "SnapshotDB"
 class SnapshotDB(object):
     _PREFIX = "SnapshotDB_"
 
-    def __init__(self, _key: str, _contract: Address, db: IconScoreDatabase):
+    def __init__(self, _key: str, db: IconScoreDatabase):
         # number of checkpoint for each address (address > checkpoint_count)
         self._checkpoint_count = DictDB(f'{self._PREFIX}{_key}_checkpoint_count', db, value_type=int)
         # checkpoints for marking number of timestamp (address > checkpoint_counter > timestamp)
@@ -17,14 +17,17 @@ class SnapshotDB(object):
         # checkpoints for marking number of total staked from a given timestamp (timestamp > total_staked)
         self._total_staked_checkpoints = DictDB(f'{self._PREFIX}{_key}_total_staked_checkpoints', db, value_type=int)
 
-        self._contract = _contract
+        self._contract = VarDB(f'{self._PREFIX}{_key}_total_staked_checkpoints', db, value_type=Address)
+
+    def set_address(self, _address: Address):
+        self._contract.set(_address)
 
     def is_snapshot_exists(self, _owner: Address) -> bool:
         nCheckpoints = self._checkpoint_count[_owner]
         return nCheckpoints > 0
 
     def create_total_checkpoints(self, _timestamp: int, _staked: int):
-        self.create_checkpoints(self._contract, _timestamp, _staked)
+        self.create_checkpoints(self._contract.get(), _timestamp, _staked)
 
     def create_checkpoints(self, _owner: Address, _timestamp: int, _staked: int):
         """
@@ -102,7 +105,7 @@ class SnapshotDB(object):
         _staked = self._total_staked_checkpoints[_timestamp]
         if _staked:
             return _staked
-        return self.get_staked_at(self._contract, _timestamp)
+        return self.get_staked_at(self._contract.get(), _timestamp)
 
     def set_total_staked(self, _timestamp: int) -> None:
         """
@@ -110,5 +113,5 @@ class SnapshotDB(object):
         :param _timestamp: The timestamp number to set the total staked balance at
         """
         if not self._total_staked_checkpoints[_timestamp]:
-            _total_staked_on_timestamp = self.get_staked_at(self._contract, _timestamp)
+            _total_staked_on_timestamp = self.get_staked_at(self._contract.get(), _timestamp)
             self._total_staked_checkpoints[_timestamp] = _total_staked_on_timestamp

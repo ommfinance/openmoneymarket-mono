@@ -17,11 +17,12 @@ class Snapshot(IconScoreBase):
     @abstractmethod
     def on_update(self, **kwargs) -> None:
         super().on_update(**kwargs)
+        self._snapshot.set_address(self.address)
 
     @abstractmethod
     def __init__(self, _name: str, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._snapshot = SnapshotDB(_name, self.address, db)
+        self._snapshot = SnapshotDB(_name, db)
 
     @eventlog
     def SnapshotCreated(self, _owner: Address, _user_staked: int):
