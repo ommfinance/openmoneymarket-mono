@@ -21,13 +21,21 @@ class Governance(Addresses):
     def on_update(self) -> None:
         super().on_update()
         self._vote_duration.set(5 * U_SECONDS_DAY)
-        self._omm_vote_definition_criterion.set(10)
-        self._vote_definition_fee.set(100 * EXA)
-        self._quorum.set(20)
+        self._omm_vote_definition_criterion.set(EXA // 1000)
+        self._vote_definition_fee.set(1000 * EXA)
+        self._quorum.set(20 * EXA // 100)
 
     @external(readonly=True)
     def name(self) -> str:
         return f"Omm {TAG}"
+
+    @eventlog(indexed=2)
+    def VoteCast(self, vote_name: str, vote: bool, voter: Address, stake: int, total_for: int, total_against: int):
+        pass
+
+    @eventlog(indexed=2)
+    def ActionExecuted(self,vote_index:int,vote_status:str):
+        pass
 
     @only_owner
     @external
@@ -176,7 +184,7 @@ class Governance(Addresses):
         for a vote to be valid.
         :param quorum: percentage of the total eligible omm required for a vote to be valid
         """
-        if not 0 < quorum < 100:
+        if not 0 < quorum < EXA:
             revert("Quorum must be between 0 and 100.")
         self._quorum.set(quorum)
 
@@ -211,7 +219,7 @@ class Governance(Addresses):
         in order to define a vote.
         :param percentage: percent represented in basis points
         """
-        if not (0 <= percentage <= 10000):
+        if not (0 <= percentage <= EXA):
             revert("Basis point must be between 0 and 10000.")
         self._omm_vote_definition_criterion.set(percentage)
 
@@ -245,24 +253,28 @@ class Governance(Addresses):
         proposal.status.set(ProposalStatus.STATUS[ProposalStatus.CANCELLED])
 
     def _defineVote(self, name: str, description: str, vote_start: int,
-                    snapshot: int, actions: str = "{}") -> None:
+                    snapshot: int, _proposer: Address) -> None:
         """
         Defines a new vote and which actions are to be executed if it is successful.
         :param name: name of the vote
         :param description: description of the vote
         :param vote_start: timestamp to start the vote
         :param snapshot: which timestamp to use for the omm stake snapshot
-        :param actions: json string on the form: {'<action_1>': {<kwargs for action_1>},
-                                                  '<action_2>': {<kwargs_for_action_2>},..}
+
         """
         if len(description) > 500:
-            revert(f'Description must be less than or equal to 500 characters.')
+            revert(TAG + f'Description must be less than or equal to 500 characters.')
         current_time = self.now()
+        if len(str(current_time)) != len(str(vote_start)):
+            revert(TAG + f'vote start timestamp should be in microseconds {current_time}  {vote_start}')
+        if len(str(current_time)) != len(str(snapshot)):
+            revert(TAG + f'snapshot start timestamp should be in microseconds')
+
         if vote_start <= current_time:
             revert(f'Vote cannot start at or before the current timestamp.')
         if not current_time <= snapshot < vote_start:
             revert(f'The reference snapshot must be in the range: [current_time ({current_time}), '
-                   f'start_time -1 ({vote_start - 1})].')
+                   f'start_time  ({vote_start})].')
         vote_index = ProposalDB.proposal_id(name, self.db)
         if vote_index > 0:
             revert(f'Poll name {name} has already been used.')
@@ -270,20 +282,17 @@ class Governance(Addresses):
         # Test omm staking criterion.
         omm = self.create_interface_score(self._addresses['ommToken'], OmmTokenInterface)
         omm_total = omm.totalSupply()
-        user_staked = omm.stakedBalanceOf(self.msg.sender)
+        user_staked = omm.stakedBalanceOfAt(_proposer, snapshot)
         omm_criterion = self._omm_vote_definition_criterion.get()
-        if (POINTS * user_staked) // omm_total < omm_criterion:
+        if (EXA * user_staked) // omm_total < omm_criterion:
             revert(f'User needs at least {omm_criterion / 100}% of total omm supply staked to define a vote.')
-
-        actions_dict = json_loads(actions)
-        if len(actions_dict) > self.maxActions():
-            revert(f"Omm Governance: Only {self.maxActions()} actions are allowed")
-
-        ProposalDB.create_proposal(name=name, description=description, proposer=self.msg.sender,
-                                   quorum=self._quorum.get() * EXA // 100,
+        # revert(f"{(POINTS * user_staked) // omm_total}  {user_staked}  {omm_total} {omm_criterion}")
+        ProposalDB.create_proposal(name=name, description=description, proposer=_proposer,
+                                   quorum=self._quorum.get(),
                                    majority=MAJORITY, snapshot=snapshot, start=vote_start,
                                    end=vote_start + self._vote_duration.get(),
-                                   actions=actions, fee=self._vote_definition_fee.get(), db=self.db)
+                                   fee=self._vote_definition_fee.get(), db=self.db)
+        omm.updateTotalStakedBalanceOfAt(snapshot)
 
     @external(readonly=True)
     def maxActions(self) -> int:
@@ -352,8 +361,7 @@ class Governance(Addresses):
         proposal.total_against_votes.set(total_against)
         self.VoteCast(proposal.name.get(), vote, sender, stake, total_for, total_against)
 
-    @external
-    def evaluateVote(self, vote_index: int) -> None:
+    def evaluateVote(self, vote_index: int) -> 'ProposalDB':
         """
         Evaluates a vote after the voting period is done. If the vote passed,
         any actions included in the proposal are executed. The vote definition fee
@@ -361,7 +369,6 @@ class Governance(Addresses):
         """
         proposal = ProposalDB(vote_index, self.db)
         end_snap = proposal.end_snapshot.get()
-        actions = proposal.actions.get()
         majority = proposal.majority.get()
 
         if vote_index < 1 or vote_index > ProposalDB.proposal_count(self.db):
@@ -374,30 +381,38 @@ class Governance(Addresses):
         result = self.checkVote(vote_index)
         if result['for'] + result['against'] >= result['quorum']:
             if (EXA - majority) * result['for'] > majority * result['against']:
-                if actions != "{}":
-                    try:
-                        self._execute_vote_actions(actions)
-                        proposal.status.set(ProposalStatus.STATUS[ProposalStatus.EXECUTED])
-                    except Exception:
-                        proposal.status.set(ProposalStatus.STATUS[ProposalStatus.FAILED_EXECUTION])
-                else:
-                    proposal.status.set(ProposalStatus.STATUS[ProposalStatus.SUCCEEDED])
+                proposal.status.set(ProposalStatus.STATUS[ProposalStatus.SUCCEEDED])
                 self._refund_vote_definition_fee(proposal)
             else:
                 proposal.status.set(ProposalStatus.STATUS[ProposalStatus.DEFEATED])
         else:
             proposal.status.set(ProposalStatus.STATUS[ProposalStatus.NO_QUORUM])
         proposal.active.set(False)
+        return proposal
 
-    def _execute_vote_actions(self, _vote_actions: str) -> None:
-        actions = json_loads(_vote_actions)
-        for action in actions:
-            self.vote_execute[action](**actions[action])
+    @external
+    @only_owner
+    def execute_proposal(self, vote_index: int) -> None:
+        proposal = self.evaluateVote(vote_index)
+        status = proposal.status.get()
+        if status == "Succeeded":
+            status =ProposalStatus.STATUS[ProposalStatus.EXECUTED]
+            proposal.status.set(status)
+        self.ActionExecuted(vote_index,status)
+
+    @external
+    @only_owner
+    def setProposalStatus(self, vote_index: int, _status: str):
+        if _status not in ProposalStatus.STATUS:
+            revert(TAG + f"invalid status sent")
+        proposal = ProposalDB(vote_index, self.db)
+        proposal.status.set(_status)
 
     def _refund_vote_definition_fee(self, proposal: ProposalDB) -> None:
         if not proposal.fee_refunded.get():
-            omm = self.create_interface_score(self._addresses['ommToken'], OmmTokenInterface)
-            omm.transfer(proposal.proposer.get(), proposal.fee.get())
+            # omm = self.create_interface_score(self._addresses['ommToken'], OmmTokenInterface)
+            # omm.(proposal.proposer.get(), proposal.fee.get())
+            self.transferOmmFromDaoFund(proposal.fee.get(), proposal.proposer.get())
             proposal.fee_refunded.set(True)
 
     @external(readonly=True)
@@ -430,7 +445,6 @@ class Governance(Addresses):
                        'vote snapshot': vote_data.vote_snapshot.get(),
                        'start day': vote_data.start_snapshot.get(),
                        'end day': vote_data.end_snapshot.get(),
-                       'actions': vote_data.actions.get(),
                        'quorum': vote_data.quorum.get(),
                        'for': _for,
                        'against': _against,
@@ -488,8 +502,7 @@ class Governance(Addresses):
             description = params.get("description")
             vote_start = params.get("vote_start")
             snapshot = params.get("snapshot")
-            actions = params.get("actions")
-            self._defineVote(name, description, vote_start, snapshot, actions)
+            self._defineVote(name, description, vote_start, snapshot, _from)
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
 
