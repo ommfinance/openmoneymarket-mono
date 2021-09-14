@@ -51,7 +51,6 @@ class ProposalDB:
         self.vote_snapshot = VarDB(self._key + "_vote_snapshot", db, value_type=int)
         self.start_snapshot = VarDB(self._key + "_start_snapshot", db, value_type=int)
         self.end_snapshot = VarDB(self._key + "_end_snapshot", db, value_type=int)
-        self.actions = VarDB(self._key + "_actions", db, value_type=str)
         self.name = VarDB(self._key + "_name", db, value_type=str)
         self.description = VarDB(self._key + "_description", db, value_type=str)
         self.active = VarDB(self._key + "_active", db, value_type=bool)
