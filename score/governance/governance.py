@@ -8,7 +8,6 @@ class Governance(Addresses):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self.vote_execute = VoteActions(db, self)
 
         self._vote_duration = VarDB('vote_duration', db, int)
         self._omm_vote_definition_criterion = VarDB('min_omm', db, int)
@@ -34,7 +33,7 @@ class Governance(Addresses):
         pass
 
     @eventlog(indexed=2)
-    def ActionExecuted(self,vote_index:int,vote_status:str):
+    def ActionExecuted(self, vote_index: int, vote_status: str):
         pass
 
     @only_owner
@@ -185,7 +184,7 @@ class Governance(Addresses):
         :param quorum: percentage of the total eligible omm required for a vote to be valid
         """
         if not 0 < quorum < EXA:
-            revert("Quorum must be between 0 and 100.")
+            revert(TAG + f" Quorum must be between 0 and {EXA}.")
         self._quorum.set(quorum)
 
     @external(readonly=True)
@@ -200,14 +199,14 @@ class Governance(Addresses):
     @only_owner
     def setVoteDefinitionFee(self, fee: int) -> None:
         """
-        Sets the fee for defining votes. Fee in bnUSD.
+        Sets the fee for defining votes. Fee in Omm.
         """
         self._vote_definition_fee.set(fee)
 
     @external(readonly=True)
     def getVoteDefinitionFee(self) -> int:
         """
-        Returns the bnusd fee required for defining a vote.
+        Returns the Omm fee required for defining a vote.
         """
         return self._vote_definition_fee.get()
 
@@ -220,7 +219,7 @@ class Governance(Addresses):
         :param percentage: percent represented in basis points
         """
         if not (0 <= percentage <= EXA):
-            revert("Basis point must be between 0 and 10000.")
+            revert(TAG + f" Basis point must be between 0 and {EXA}.")
         self._omm_vote_definition_criterion.set(percentage)
 
     @external(readonly=True)
@@ -396,9 +395,9 @@ class Governance(Addresses):
         proposal = self.evaluateVote(vote_index)
         status = proposal.status.get()
         if status == "Succeeded":
-            status =ProposalStatus.STATUS[ProposalStatus.EXECUTED]
+            status = ProposalStatus.STATUS[ProposalStatus.EXECUTED]
             proposal.status.set(status)
-        self.ActionExecuted(vote_index,status)
+        self.ActionExecuted(vote_index, status)
 
     @external
     @only_owner
@@ -410,10 +409,8 @@ class Governance(Addresses):
 
     def _refund_vote_definition_fee(self, proposal: ProposalDB) -> None:
         if not proposal.fee_refunded.get():
-            # omm = self.create_interface_score(self._addresses['ommToken'], OmmTokenInterface)
-            # omm.(proposal.proposer.get(), proposal.fee.get())
-            self.transferOmmFromDaoFund(proposal.fee.get(), proposal.proposer.get())
             proposal.fee_refunded.set(True)
+            self.transferOmmFromDaoFund(proposal.fee.get(), proposal.proposer.get())
 
     @external(readonly=True)
     def getVoteIndex(self, _name: str) -> int:
