@@ -198,6 +198,22 @@ class AddressProvider(IconScoreBase):
 
     @only_owner
     @external
+    def addAddressToScore(self, _to: str, _names: List[str]):
+        score = self._addresses[_to]
+        if not score:
+            revert(TAG + "score name not matched")
+        addressDetails: List[AddressDetails] = []
+        for name in _names:
+            address = self._addresses[name]
+            if not address:
+                revert(TAG + " wrong score name in the list")
+            addressDetails.append({"name": name, "address": address})
+
+        to = self.create_interface_score(score, AddressInterface)
+        to.setAddresses(addressDetails)
+
+    @only_owner
+    @external
     def setLendingPoolAddresses(self) -> None:
         lendingPoolAddressDetails: List[AddressDetails] = [
             {"name": self.LIQUIDATION_MANAGER, "address": self._addresses[self.LIQUIDATION_MANAGER]},
