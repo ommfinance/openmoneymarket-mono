@@ -70,6 +70,18 @@ class AddressProvider(IconScoreBase):
 
     def on_update(self) -> None:
         super().on_update()
+        # add reserve names
+        self._reserves.add(self.sICX)
+        self._reserves.add(self.USDs)
+        self._reserves.add(self.IUSDC)
+        # add oToken names
+        self._oTokens.add(self.oICX)
+        self._oTokens.add(self.oUSDs)
+        self._oTokens.add(self.oIUSDC)
+        # add dToken names
+        self._dTokens.add(self.dICX)
+        self._dTokens.add(self.dUSDs)
+        self._dTokens.add(self.dIUSDC)
 
     @external(readonly=True)
     def name(self) -> str:
