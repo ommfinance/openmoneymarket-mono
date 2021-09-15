@@ -36,6 +36,10 @@ class Governance(Addresses):
     def ActionExecuted(self, vote_index: int, vote_status: str):
         pass
 
+    @eventlog(indexed=2)
+    def ProposalCreated(self, vote_index: int, name: str, proposer: Address):
+        pass
+
     @only_owner
     @external
     def setReserveActiveStatus(self, _reserve: Address, _status: bool):
@@ -286,11 +290,12 @@ class Governance(Addresses):
         if (EXA * user_staked) // omm_total < omm_criterion:
             revert(f'User needs at least {omm_criterion / 100}% of total omm supply staked to define a vote.')
         # revert(f"{(POINTS * user_staked) // omm_total}  {user_staked}  {omm_total} {omm_criterion}")
-        ProposalDB.create_proposal(name=name, description=description, proposer=_proposer,
-                                   quorum=self._quorum.get(),
-                                   majority=MAJORITY, snapshot=snapshot, start=vote_start,
-                                   end=vote_start + self._vote_duration.get(),
-                                   fee=self._vote_definition_fee.get(), db=self.db)
+        proposal = ProposalDB.create_proposal(name=name, description=description, proposer=_proposer,
+                                              quorum=self._quorum.get(),
+                                              majority=MAJORITY, snapshot=snapshot, start=vote_start,
+                                              end=vote_start + self._vote_duration.get(),
+                                              fee=self._vote_definition_fee.get(), db=self.db)
+        self.ProposalCreated(proposal.id[name], name, _proposer)
         omm.updateTotalStakedBalanceOfAt(snapshot)
 
     @external(readonly=True)
@@ -472,14 +477,6 @@ class Governance(Addresses):
         omm = self.create_interface_score(self._addresses['ommToken'], OmmTokenInterface)
         stake = omm.stakedBalanceOfAt(_address, _day)
         return stake
-
-    def _getDexDayFromTimestamp(self, _timestamp: int) -> int:
-        dex_score = self.create_interface_score(self._addresses['dex'], DexInterface)
-        dex_start = dex_score.getTimeOffset()
-        if _timestamp < dex_start:
-            return 0
-        day = _timestamp - dex_start // U_SECONDS_DAY
-        return day
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
