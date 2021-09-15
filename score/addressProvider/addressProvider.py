@@ -1,9 +1,19 @@
 from .utils.checks import *
+from .utils.enumerable_set import EnumerableSetDB
 
 
 class AddressDetails(TypedDict):
     name: str
     address: Address
+
+
+class ReserveAddressDetails(TypedDict):
+    reserveName: str
+    reserveAddress: Address
+    oTokenName: str
+    oTokenAddress: Address
+    dTokenName: str
+    dTokenAddress: Address
 
 
 # An interface to set address method
@@ -43,9 +53,17 @@ class AddressProvider(IconScoreBase):
     STAKED_LP = "stakedLP"
     DEX = "dex"
 
+    _RESERVES = 'reserves'
+    _O_TOKENS = 'o_tokens'
+    _D_TOKENS = 'd_tokens'
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._addresses = DictDB("address", db, value_type=Address)
+
+        self._reserves = EnumerableSetDB(self._RESERVES, db, value_type=str)
+        self._dTokens = EnumerableSetDB(self._O_TOKENS, db, value_type=str)
+        self._oTokens = EnumerableSetDB(self._D_TOKENS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
@@ -56,6 +74,70 @@ class AddressProvider(IconScoreBase):
     @external(readonly=True)
     def name(self) -> str:
         return f"Omm {TAG}"
+
+    def _addReserve(self, _reserve: dict, _overwrite: bool) -> None:
+        _reserveName = _reserve['name']
+        _is_reserve_exists = self._addresses[_reserveName] is not None or _reserveName in self._reserves
+        if _is_reserve_exists and not _overwrite:
+            revert(f"reserve name ({_reserveName}) already exists.")
+
+        self._addresses[_reserveName] = _reserve['address']
+        self._reserves.add(_reserveName)
+
+    def _addOToken(self, _oToken: dict, _overwrite: bool) -> None:
+        _oTokenName = _oToken['name']
+        _is_oToken_exists = self._addresses[_oTokenName] is not None or _oTokenName in self._oTokens
+        if _is_oToken_exists and not _overwrite:
+            revert(f"oToken name ({_oTokenName}) already exists.")
+
+        self._addresses[_oTokenName] = _oToken['address']
+        self._oTokens.add(_oTokenName)
+
+    def _addDToken(self, _dToken: dict, _overwrite: bool) -> None:
+        _dTokenName = _dToken['name']
+        _is_oToken_exists = self._addresses[_dTokenName] is not None or _dTokenName in self._dTokens
+        if _is_oToken_exists and not _overwrite:
+            revert(f"dToken name ({_dTokenName}) already exists.")
+
+        self._addresses[_dTokenName] = _dToken['address']
+        self._dTokens.add(_dTokenName)
+
+    @only_owner
+    @external
+    def addReserveAddress(self, _reserveAddressDetails: ReserveAddressDetails, _overwrite: bool = False) -> None:
+        _reserve = {"name": _reserveAddressDetails['reserveName'], "address": _reserveAddressDetails['reserveAddress']}
+        self._addReserve(_reserve, _overwrite)
+
+        _oToken = {"name": _reserveAddressDetails['oTokenName'], "address": _reserveAddressDetails['oTokenAddress']}
+        self._addOToken(_oToken, _overwrite)
+
+        _dToken = {"name": _reserveAddressDetails['dTokenName'], "address": _reserveAddressDetails['dTokenAddress']}
+        self._addDToken(_dToken, _overwrite)
+
+    def _getAllReserveAddresses(self) -> dict:
+        reserves = {}
+        for reserve in self._reserves.range(0, len(self._reserves)):
+            _address = self._addresses[reserve]
+            if _address:
+                reserves[reserve] = _address
+
+        return reserves
+
+    def _getAllOTokenAddresses(self) -> dict:
+        oTokens = {}
+        for oToken in self._oTokens.range(0, len(self._oTokens)):
+            _address = self._addresses[oToken]
+            if _address:
+                oTokens[oToken] = _address
+        return oTokens
+
+    def _getAllDTokenAddresses(self) -> dict:
+        dTokens = {}
+        for dToken in self._dTokens.range(0, len(self._dTokens)):
+            _address = self._addresses[dToken]
+            if _address:
+                dTokens[dToken] = _address
+        return dTokens
 
     @only_owner
     @external
@@ -69,30 +151,14 @@ class AddressProvider(IconScoreBase):
 
     @external(readonly=True)
     def getReserveAddresses(self) -> dict:
-        return {
-            "USDS": self.getAddress(self.USDs),
-            "sICX": self.getAddress(self.sICX),
-            "IUSDC": self.getAddress(self.IUSDC),
-        }
+        return self._getAllReserveAddresses()
 
     @external(readonly=True)
     def getAllAddresses(self) -> dict:
         return {
-            "collateral": {
-                "USDS": self.getAddress(self.USDs),
-                "sICX": self.getAddress(self.sICX),
-                "IUSDC": self.getAddress(self.IUSDC),
-            },
-            "oTokens": {
-                "oUSDS": self.getAddress(self.oUSDs),
-                "oICX": self.getAddress(self.oICX),
-                "oIUSDC": self.getAddress(self.oIUSDC),
-            },
-            "dTokens": {
-                "dUSDS": self.getAddress(self.dUSDs),
-                "dICX": self.getAddress(self.dICX),
-                "dIUSDC": self.getAddress(self.dIUSDC),
-            },
+            "collateral": self._getAllReserveAddresses(),
+            "oTokens": self._getAllOTokenAddresses(),
+            "dTokens": self._getAllDTokenAddresses(),
             "systemContract": {
                 "LendingPool": self.getAddress(self.LENDING_POOL),
                 "LendingPoolCore": self.getAddress(self.LENDING_POOL_CORE),
@@ -373,7 +439,7 @@ class AddressProvider(IconScoreBase):
     def setDaoFundAddresses(self) -> None:
         daoFundAddresses: List[AddressDetails] = [
             {"name": self.GOVERNANCE, "address": self._addresses[self.GOVERNANCE]},
-            {"name":self.OMM_TOKEN,"address":self._addresses[self.OMM_TOKEN]}
+            {"name": self.OMM_TOKEN, "address": self._addresses[self.OMM_TOKEN]}
 
         ]
 
