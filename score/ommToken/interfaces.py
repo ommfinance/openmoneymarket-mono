@@ -35,6 +35,14 @@ class UserDetails(TypedDict):
     _decimals: int
 
 
+class OnStakeChangedParams(TypedDict):
+    _user: Address
+    _new_total_staked_balance: int
+    _old_total_staked_balance: int
+    _user_new_staked_balance: int
+    _user_old_staked_balance: int
+
+
 class TokenFallbackInterface(InterfaceScore):
     @interface
     def tokenFallback(self, _from: Address, _value: int, _data: bytes):
