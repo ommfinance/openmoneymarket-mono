@@ -15,12 +15,6 @@ class AssetConfig(TypedDict):
     rewardEntity: str
 
 
-class RewardDistributionInterface(InterfaceScore):
-    @interface
-    def configureLPEmission(self, _assetConfig: List[AssetConfig]) -> None:
-        pass
-
-
 class OmmToken(IRC2Mintable):
 
     def on_install(self, _addressProvider: Address) -> None:
@@ -44,3 +38,9 @@ class OmmToken(IRC2Mintable):
             "decimals": self.decimals(),
             "totalStaked": self.total_staked_balance()
         }
+
+    @external(readonly=True)
+    def stakedBalanceOfAt(self, _owner: Address, _timestamp: int) -> int:
+        if not self._is_snapshot_exists(_owner) and _timestamp >= self._snapshot_started_at.get():
+            return self.staked_balanceOf(_owner)
+        return super().stakedBalanceOfAt(_owner, _timestamp)

@@ -105,14 +105,14 @@ class TestOmmToken(ScoreTestCase):
             self.assertEqual(0, self.score._staked_balances[_user][Status.STAKED])
             self.assertEqual(201 * TIME, self.score._staked_balances[_user][Status.UNSTAKING_PERIOD])
 
-            self.assertEqual([_user], self.score.get_locklist_addresses())
+            self.assertEqual([_user], self.score.get_locklist_addresses(0, 1))
 
     def test_remove_from_lockList(self):
 
         _user = self.test_account3
         # GIVEN
-        self.score._lock_list.put(_user)
-        self.score._lock_list.put(self.test_account4)
+        self.score._lock_list.add(_user)
+        self.score._lock_list.add(self.test_account4)
         self.set_msg(self.test_account4)
         try:
             self.score.remove_from_lockList(self.test_account3)
@@ -124,11 +124,11 @@ class TestOmmToken(ScoreTestCase):
         self.set_msg(self._owner)
         self.score.remove_from_lockList(_user)
 
-        self.assertEqual([self.test_account4], self.score.get_locklist_addresses())
+        self.assertEqual([self.test_account4], self.score.get_locklist_addresses(0, 1))
 
     def test_transfer_should_fail_if_user_in_lock_list(self):
         _user = self.test_account3
-        self.score._lock_list.put(_user)
+        self.score._lock_list.add(_user)
         self.set_msg(_user)
         try:
             self.score.transfer(self.test_account4, 10 * EXA)
@@ -205,7 +205,7 @@ class TestOmmToken(ScoreTestCase):
             with mock.patch.object(self.score, "now", return_value=99 * TIME):
                 self.score.stake(13 * EXA, _user)
         except IconScoreException as err:
-            self.assertIn("user dont have enough balanceamount to stake", str(err))
+            self.assertIn("Omm Token: Cannot stake,user dont have enough balance amount to stake", str(err))
         else:
             raise IconScoreException("Insufficient balance staked")
 
@@ -219,7 +219,7 @@ class TestOmmToken(ScoreTestCase):
 
         # LOCKED user
 
-        self.score._lock_list.put(_user)
+        self.score._lock_list.add(_user)
         try:
             with mock.patch.object(self.score, "now", return_value=99 * TIME):
                 self.score.stake(11 * EXA, _user)
@@ -257,13 +257,18 @@ class TestOmmToken(ScoreTestCase):
             self.assertEqual(30 * EXA, self.score._total_staked_balance.get())
 
             mock_score = get_interface_score(self.mock_delegation)
-            mock_score.updateDelegations(_user=_user)
+            mock_score.updateDelegations.assert_called_with(_user=_user)
             self.assert_internal_call(self.mock_reward_distribution, "handleAction", {
                 "_user": _user,
                 "_userBalance": 20 * EXA,
                 "_totalSupply": 20 * EXA,
                 "_decimals": 18,
             })
+
+
+            self.assertEqual(30 * EXA, self.score.totalStakedBalanceOfAt(15 * seconds_in_day * TIME // 10))
+            self.assertEqual(30 * EXA, self.score.stakedBalanceOfAt(_user, 15 * seconds_in_day * TIME // 10))
+            self.assertEqual(20 * EXA, self.score.stakedBalanceOfAt(_user, 5 * seconds_in_day * TIME // 10))
 
     def test_unstake_not_authorized(self):
         self.set_msg(self._owner)
@@ -311,7 +316,7 @@ class TestOmmToken(ScoreTestCase):
 
         # LOCKED user
 
-        self.score._lock_list.put(_user)
+        self.score._lock_list.add(_user)
         try:
             with mock.patch.object(self.score, "now", return_value=99 * TIME):
                 self.score.unstake(8 * EXA, _user)
@@ -350,7 +355,7 @@ class TestOmmToken(ScoreTestCase):
             self.assertEqual(10 * EXA, self.score._total_staked_balance.get())
 
             mock_score = get_interface_score(self.mock_delegation)
-            mock_score.updateDelegations(_user=_user)
+            mock_score.updateDelegations.assert_called_with(_user=_user)
 
             self.assert_internal_call(self.mock_reward_distribution, "handleAction", {
                 "_user": _user,
@@ -358,3 +363,98 @@ class TestOmmToken(ScoreTestCase):
                 "_totalSupply": 30 * EXA,
                 "_decimals": 18,
             })
+
+            self.assertEqual(10 * EXA, self.score.totalStakedBalanceOfAt(25 * seconds_in_day * TIME // 10))
+            self.assertEqual(0 * EXA, self.score.stakedBalanceOfAt(_user, 25 * seconds_in_day * TIME // 10))
+            self.assertEqual(20 * EXA, self.score.stakedBalanceOfAt(_user, 15 * seconds_in_day * TIME // 10))
+
+    def test_cancel_unstake_validation(self):
+        # GIVEN
+        _user = self.test_account3
+        self.set_msg(self._owner)
+        self.score.setMinimumStake(5 * EXA)
+        self.score._balances[_user] = 18 * EXA
+
+        self.set_msg(_user)
+        try:
+            self.score.cancelUnstake(-1)
+        except IconScoreException as err:
+            self.assertIn("Cannot cancel negative unstake", str(err))
+        else:
+            raise IconScoreException("Invalid value for cacel unstaking")
+        # Insufficient staking
+        self.score._staked_balances[_user][Status.STAKED] = 8 * EXA
+        self.score._staked_balances[_user][Status.UNSTAKING] = 6 * EXA
+        self.score._staked_balances[_user][Status.UNSTAKING_PERIOD] = 100 * TIME
+
+        try:
+            with mock.patch.object(self.score, "now", return_value=99 * TIME):
+                self.score.cancelUnstake(9 * EXA)
+        except IconScoreException as err:
+            self.assertIn("Cannot cancel unstake,cancel value is more than the actual unstaking amount", str(err))
+        else:
+            raise IconScoreException("Invalid staking value")
+
+        try:
+            with mock.patch.object(self.score, "now", return_value=101 * TIME):
+                self.score.cancelUnstake(5 * EXA)
+        except IconScoreException as err:
+            self.assertIn("Cannot cancel unstake,cancel value is more than the actual unstaking amount", str(err))
+        else:
+            raise IconScoreException("Already unstake in progress")
+
+        # LOCKED user
+
+        self.score._lock_list.add(_user)
+        try:
+            with mock.patch.object(self.score, "now", return_value=99 * TIME):
+                self.score.cancelUnstake(8 * EXA)
+        except IconScoreException as err:
+            self.assertIn("is locked", str(err))
+        else:
+            raise IconScoreException("Staked by locked user")
+
+
+    def test_cancel_unstake(self):
+        # GIVEN
+        _user = self.test_account3
+        seconds_in_day = 60 * 60 * 24
+        self.set_msg(self._owner)
+        self.score.setUnstakingPeriod(3 * seconds_in_day)
+        self.score.setMinimumStake(5 * EXA)
+
+        self.register_interface_score(self.mock_delegation)
+        self.register_interface_score(self.mock_reward_distribution)
+
+        self.score._staked_balances[_user][Status.STAKED] = 20 * EXA
+        self.score._staked_balances[_user][Status.UNSTAKING] = 30 * EXA
+        self.score._staked_balances[_user][Status.UNSTAKING_PERIOD] = 3 * seconds_in_day * TIME
+
+        self.score._balances[_user] = 60 * EXA
+        self.score._total_supply.set(60 * EXA)
+        self.score._total_staked_balance.set(30 * EXA)
+        self.patch_internal_method(self.mock_lending_pool, "isFeeSharingEnable", lambda _from: False)
+
+        self.set_msg(_user)
+        with mock.patch.object(self.score, "now", return_value=2 * seconds_in_day * TIME):
+            self.score.cancelUnstake(20 * EXA)
+
+            self.assertEqual(40 * EXA, self.score._staked_balances[_user][Status.STAKED])
+            self.assertEqual(10 * EXA, self.score._staked_balances[_user][Status.UNSTAKING])
+            self.assertEqual(3 * seconds_in_day * TIME,
+                             self.score._staked_balances[_user][Status.UNSTAKING_PERIOD])
+            self.assertEqual(50 * EXA, self.score._total_staked_balance.get())
+
+            mock_score = get_interface_score(self.mock_delegation)
+            mock_score.updateDelegations.assert_called_with(_user=_user)
+
+            self.assert_internal_call(self.mock_reward_distribution, "handleAction", {
+                "_user": _user,
+                "_userBalance": 20 * EXA,
+                "_totalSupply": 30 * EXA,
+                "_decimals": 18,
+            })
+
+            self.assertEqual(50 * EXA, self.score.totalStakedBalanceOfAt(2 * seconds_in_day * TIME))
+            self.assertEqual(40 * EXA, self.score.stakedBalanceOfAt(_user, 2 * seconds_in_day * TIME))
+            self.assertEqual(20 * EXA, self.score.stakedBalanceOfAt(_user, 1 * seconds_in_day * TIME))

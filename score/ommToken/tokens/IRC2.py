@@ -3,13 +3,14 @@ from ..addresses import *
 from ..interfaces import *
 from ..utils.consts import *
 from ..utils.enumerable_set import EnumerableSetDB
+from ..utils.ommSnapshot import OMMSnapshot
 
 TAG = 'Omm Token'
 DAY_TO_MICROSECOND = 86400 * 10 ** 6
 MICROSECONDS = 10 ** 6
 
 
-class IRC2(TokenStandard, Addresses):
+class IRC2(TokenStandard, Addresses, OMMSnapshot):
     """
     Implementation of IRC2
     """
@@ -25,6 +26,7 @@ class IRC2(TokenStandard, Addresses):
     _STAKED_BALANCES = 'staked_balances'
     _TOTAL_STAKED_BALANCE = 'total_stake_balance'
     _UNSTAKING_PERIOD = 'unstaking_period'
+    _SNAPSHOT_STARTED_AT = 'snapshot-started-at'
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -43,6 +45,7 @@ class IRC2(TokenStandard, Addresses):
         self._staked_balances = DictDB(self._STAKED_BALANCES, db, value_type=int, depth=2)
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
+        self._snapshot_started_at = VarDB(self._SNAPSHOT_STARTED_AT, db, value_type=int)
 
     def on_install(
             self,
@@ -92,6 +95,9 @@ class IRC2(TokenStandard, Addresses):
 
     def on_update(self) -> None:
         super().on_update()
+        _now = self.now()
+        self._snapshot_started_at.set(_now)
+        self._snapshot.create_total_checkpoints(_now, self._total_staked_balance.get())
 
     @external(readonly=True)
     def name(self) -> str:
@@ -176,7 +182,7 @@ class IRC2(TokenStandard, Addresses):
             "availableBalance": userBalance - stakedBalance - unstaking_amount,
             "stakedBalance": stakedBalance,
             "unstakingBalance": unstaking_amount,
-            "unstakingTimeInMills": unstaking_time
+            "unstakingTimeInMicro": unstaking_time
         }
 
     @external(readonly=True)
@@ -231,10 +237,10 @@ class IRC2(TokenStandard, Addresses):
 
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
-        IRC2._require(self.msg.sender not in self._lock_list, 
-            f'Cannot transfer, the sender {self.msg.sender} is locked')
-        IRC2._require(_to not in self._lock_list, 
-            f'Cannot transfer, the receiver {_to} is locked')
+        IRC2._require(self.msg.sender not in self._lock_list,
+                      f'Cannot transfer, the sender {self.msg.sender} is locked')
+        IRC2._require(_to not in self._lock_list,
+                      f'Cannot transfer, the receiver {_to} is locked')
         if _data is None:
             _data = b'None'
         self._transfer(self.msg.sender, _to, _value, _data)
@@ -303,19 +309,58 @@ class IRC2(TokenStandard, Addresses):
 
         self._makeAvailable(_user)
         IRC2._require((userBalance - self._staked_balances[_user][Status.UNSTAKING]) >= _value,
-                      f'Cannot stake,user dont have enough balance'f'amount to stake {_value}'f'balance of user:{_user} is  {userBalance}')
+                      f'Cannot stake,user dont have enough balance amount to stake {_value}'f'balance of user:{_user} is  {userBalance}')
         IRC2._require(_user not in self._lock_list, f'Cannot stake,the address {_user} is locked')
         old_total_supply = self._total_staked_balance.get()
-        old_stake = self._staked_balances[_user][Status.STAKED]
+        _user_old_stake = self._staked_balances[_user][Status.STAKED]
         new_stake = _value
-        stake_increment = new_stake - old_stake
+        stake_increment = new_stake - _user_old_stake
         IRC2._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
         self._staked_balances[_user][Status.STAKED] = _value
-        self._total_staked_balance.set(old_total_supply + stake_increment)
-        delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
-        delegation.updateDelegations(_user=_user)
 
-        self._handleAction(_user, old_stake, old_total_supply)
+        _new_total_staked_balance = old_total_supply + stake_increment
+        self.onStakeChanged({
+            "_user": _user,
+            "_new_total_staked_balance": _new_total_staked_balance,
+            "_old_total_staked_balance": old_total_supply,
+            "_user_new_staked_balance": new_stake,
+            "_user_old_staked_balance": _user_old_stake
+        })
+
+    @external
+    def cancelUnstake(self, _value: int):
+        IRC2._require(_value > 0, f'Cannot cancel negative unstake')
+
+        _user = self.msg.sender
+
+        IRC2._require(_user not in self._lock_list, f'Cannot cancel unstake,the address {_user} is locked')
+
+        userBalances = self.details_balanceOf(_user)
+        unstakingBalance = userBalances['unstakingBalance']
+        _user_old_stake = userBalances['stakedBalance']
+
+        IRC2._require(unstakingBalance >= _value,
+                      f'Cannot cancel unstake,cancel value is more than the actual unstaking amount')
+
+        old_total_supply = self._total_staked_balance.get()
+
+        lending_pool = self.create_interface_score(self.getAddresses()[LENDING_POOL], LendingPoolInterface)
+        isFeeSharingEnabled = lending_pool.isFeeSharingEnable(_user)
+        if isFeeSharingEnabled:
+            self.set_fee_sharing_proportion(100)
+        _new_staked_balance = _user_old_stake + _value
+        self._staked_balances[_user][Status.STAKED] = _new_staked_balance
+
+        self._staked_balances[_user][Status.UNSTAKING] = unstakingBalance - _value
+
+        _new_total_staked_balance = old_total_supply + _value
+        self.onStakeChanged({
+            "_user": _user,
+            "_new_total_staked_balance": _new_total_staked_balance,
+            "_old_total_staked_balance": old_total_supply,
+            "_user_new_staked_balance": _new_staked_balance,
+            "_user_old_staked_balance": _user_old_stake
+        })
 
     def _handleAction(self, _user, _user_balance, _total_supply):
         _userDetails = {
@@ -341,19 +386,39 @@ class IRC2(TokenStandard, Addresses):
         IRC2._require(_user not in self._lock_list, f'Cannot unstake,the address {_user} is locked')
         if self._staked_balances[_user][Status.UNSTAKING] > 0:
             revert("you already have a unstaking order,try after the amount is unstaked")
-        self._staked_balances[_user][Status.STAKED] -= _value
+
+        _new_staked_balance = staked_balance - _value
+        self._staked_balances[_user][Status.STAKED] = _new_staked_balance
         self._staked_balances[_user][Status.UNSTAKING] = _value
         self._staked_balances[_user][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
-        self._total_staked_balance.set(before_total_staked_balance - _value)
 
-        # update the prep delegations
+        _new_total_staked_balance = before_total_staked_balance - _value
+
+        self.onStakeChanged({
+            "_user": _user,
+            "_new_total_staked_balance": _new_total_staked_balance,
+            "_old_total_staked_balance": before_total_staked_balance,
+            "_user_new_staked_balance": _new_staked_balance,
+            "_user_old_staked_balance": staked_balance
+        })
+
+    def onStakeChanged(self, params: OnStakeChangedParams):
+        _user = params['_user']
+        _new_total_staked_balance = params['_new_total_staked_balance']
+        _old_total_staked_balance = params['_old_total_staked_balance']
+        _user_new_staked_balance = params['_user_new_staked_balance']
+        _user_old_staked_balance = params['_user_old_staked_balance']
+
+        self._total_staked_balance.set(_new_total_staked_balance)
         delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
         delegation.updateDelegations(_user=_user)
-
-        self._handleAction(_user, staked_balance, before_total_staked_balance)
+        self._handleAction(_user, _user_old_staked_balance, _old_total_staked_balance)
+        _initial_timestamp: int = self._snapshot_started_at.get()
+        self._create_initial_snapshot(_user, _initial_timestamp, _user_old_staked_balance)
+        self._createSnapshot(_user, _user_new_staked_balance, _new_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
-        # Check if the unstaking period has already been reached.
+        # Check if the unstakin g period has already been reached.
         if self._staked_balances[_from][Status.UNSTAKING_PERIOD] <= self.now():
             self._staked_balances[_from][Status.UNSTAKING] = 0
 
