@@ -296,7 +296,7 @@ class Governance(Addresses):
                                               end=vote_start + self._vote_duration.get(),
                                               fee=self._vote_definition_fee.get(), db=self.db)
         self.ProposalCreated(proposal.id[name], name, _proposer)
-        omm.updateTotalStakedBalanceOfAt(snapshot)
+
 
     @external(readonly=True)
     def maxActions(self) -> int:

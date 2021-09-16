@@ -14,10 +14,7 @@ class SnapshotDB(object):
         # checkpoints for marking number of votes (address > checkpoint_counter > staked)
         self._staked_checkpoints = DictDB(f'{self._PREFIX}{_key}_staked_checkpoints', db, value_type=int, depth=2)
 
-        # checkpoints for marking number of total staked from a given timestamp (timestamp > total_staked)
-        self._total_staked_checkpoints = DictDB(f'{self._PREFIX}{_key}_total_staked_checkpoints', db, value_type=int)
-
-        self._contract = VarDB(f'{self._PREFIX}{_key}_total_staked_checkpoints', db, value_type=Address)
+        self._contract = VarDB(f'{self._PREFIX}{_key}_contract_address', db, value_type=Address)
 
     def set_address(self, _address: Address):
         self._contract.set(_address)
@@ -102,16 +99,5 @@ class SnapshotDB(object):
         return self._staked_checkpoints[_owner][_lower]
 
     def get_total_staked(self, _timestamp: int) -> int:
-        _staked = self._total_staked_checkpoints[_timestamp]
-        if _staked:
-            return _staked
         return self.get_staked_at(self._contract.get(), _timestamp)
 
-    def set_total_staked(self, _timestamp: int) -> None:
-        """
-        Determine the prior number of total staked for an account as of a timestamp number
-        :param _timestamp: The timestamp number to set the total staked balance at
-        """
-        if not self._total_staked_checkpoints[_timestamp]:
-            _total_staked_on_timestamp = self.get_staked_at(self._contract.get(), _timestamp)
-            self._total_staked_checkpoints[_timestamp] = _total_staked_on_timestamp
