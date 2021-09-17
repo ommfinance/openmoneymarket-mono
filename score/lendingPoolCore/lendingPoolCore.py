@@ -66,7 +66,7 @@ class LendingPoolCore(Addresses):
     @external
     def updateBorrowThreshold(self, _reserve: Address, _borrowThreshold: int):
         prefix = self.reservePrefix(_reserve)
-        if _borrowThreshold < 0 and _borrowThreshold > EXA:
+        if 0 > _borrowThreshold > EXA:
             revert(f"{TAG} : Invalid borrow threshold value")
 
         self.reserve[prefix].borrowThreshold.set(_borrowThreshold)
@@ -295,11 +295,16 @@ class LendingPoolCore(Addresses):
     @external
     def setReserveConstants(self, _constants: List[Constant]) -> None:
         for constants in _constants:
+            reserve = constants['reserve']
+            if reserve not in self.getReserves():
+                revert(TAG + " invalid reserve ")
+            self.updateCumulativeIndexes(reserve)
             dictDB = self._constants[(constants['reserve'])]
             dictDB['optimalUtilizationRate'] = constants['optimalUtilizationRate']
             dictDB['baseBorrowRate'] = constants['baseBorrowRate']
             dictDB['slopeRate1'] = constants['slopeRate1']
             dictDB['slopeRate2'] = constants['slopeRate2']
+            self.updateReserveInterestRatesAndTimestampInternal(reserve, 0, 0)
 
     @external(readonly=True)
     def getReserveConstants(self, _reserve: Address) -> dict:
@@ -435,11 +440,8 @@ class LendingPoolCore(Addresses):
 
     def updateUserStateOnLiquidationInternal(self, _reserve: Address, _user: Address, _amountToLiquidate: int,
                                              _feeLiquidated: int, _balanceIncrease: int) -> None:
-        # reserveData = self.getReserveData(_reserve)
+
         userData = self.getUserReserveData(_reserve, _user)
-        # self.updateUserPrincipalBorrowBalance(_reserve, _user, userData[
-        #     'principalBorrowBalance'] - _amountToLiquidate + _balanceIncrease)
-        # self.updateUserBorrowCumulativeIndex(_reserve, _user, reserveData['borrowCumulativeIndex'])
 
         if _feeLiquidated > 0:
             self.updateUserOriginationFee(_reserve, _user, userData['originationFee'] - _feeLiquidated)
@@ -470,7 +472,6 @@ class LendingPoolCore(Addresses):
         userReserveData = self.getUserReserveData(_reserve, _user)
         underlyingBalance = self.getUserUnderlyingAssetBalance(_reserve, _user)
         compoundedBorrowBalance = self.getUserUnderlyingBorrowBalance(_reserve, _user)
-        # compoundedBorrowBalance = self.getCompoundedBorrowBalance(_reserve, _user)
         return {
             'underlyingBalance': underlyingBalance,
             'compoundedBorrowBalance': compoundedBorrowBalance,
