@@ -62,8 +62,8 @@ class AddressProvider(IconScoreBase):
         self._addresses = DictDB("address", db, value_type=Address)
 
         self._reserves = EnumerableSetDB(self._RESERVES, db, value_type=str)
-        self._dTokens = EnumerableSetDB(self._O_TOKENS, db, value_type=str)
-        self._oTokens = EnumerableSetDB(self._D_TOKENS, db, value_type=str)
+        self._dTokens = EnumerableSetDB(self._D_TOKENS, db, value_type=str)
+        self._oTokens = EnumerableSetDB(self._O_TOKENS, db, value_type=str)
 
     def on_install(self) -> None:
         super().on_install()
