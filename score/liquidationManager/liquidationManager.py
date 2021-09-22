@@ -1,165 +1,33 @@
-from .Math import *
+from .utils.math import *
 from .utils.checks import *
+from .addresses import *
+from .interfaces import *
 
 
-class DataProviderInterface(InterfaceScore):
-    @interface
-    def getUserAccountData(self, _user: Address) -> dict:
-        pass
-
-    @interface
-    def getReserveData(self, _reserve: Address) -> dict:
-        pass
-
-    @interface
-    def getSymbol(self, _reserveAddress: Address) -> str:
-        pass
-
-    @interface
-    def getReserveConfigurationData(self, _reserve: Address) -> dict:
-        pass
-
-
-class CoreInterface(InterfaceScore):
-    @interface
-    def getUserUnderlyingAssetBalance(self, _reserve: Address, _user: Address) -> int:
-        pass
-
-    @interface
-    def getUserBorrowBalances(self, _reserve: Address, _user: Address):
-        pass
-
-    @interface
-    def getReserveConfiguration(self, _reserve: Address) -> dict:
-        pass
-
-    @interface
-    def getUserOriginationFee(self, _reserve: Address, _user: Address) -> int:
-        pass
-
-    @interface
-    def updateStateOnLiquidation(self, _principalReserve: Address, _collateralReserve: Address, _user: Address,
-                                 _amountToLiquidate: int, _collateralToLiquidate: int, _feeLiquidated: int,
-                                 _liquidatedCollateralForFee: int, _balanceIncrease: int):
-        pass
-
-    @interface
-    def getReserveOTokenAddress(self, _reserve: Address) -> Address:
-        pass
-
-    @interface
-    def transferToUser(self, _reserve: Address, _user: Address, _amount: int) -> None:
-        pass
-
-    @interface
-    def liquidateFee(self, _reserve: Address, _amount: int, _destination: Address) -> None:
-        pass
-
-
-class OtokenInterface(InterfaceScore):
-    @interface
-    def burnOnLiquidation(self, _user: Address, _value: int) -> None:
-        pass
-
-
-class ReserveInterface(InterfaceScore):
-    @interface
-    def transfer(self, _to: Address, _amount: int) -> None:
-        pass
-
-
-class OracleInterface(InterfaceScore):
-    @interface
-    def get_reference_data(self, _base: str, _quote: str) -> int:
-        pass
-
-
-class StakingInterface(InterfaceScore):
-    @interface
-    def getTodayRate(self) -> int:
-        pass
-
-
-class LiquidationManager(IconScoreBase):
-    _LENDING_POOL_DATA_PROVIDER = 'lendingPoolDataProvider'
-    _LENDINGPOOLCORE = 'lendingPoolCore'
-    _PRICE_ORACLE = 'priceOracle'
-    _STAKING = 'staking'
-    _FEE_PROVIDER = 'feeProvider'
+class LiquidationManager(Addresses):
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._lendingPoolDataProvider = VarDB(self._LENDING_POOL_DATA_PROVIDER, db, value_type=Address)
-        self._lendingPoolCore = VarDB(self._LENDINGPOOLCORE, db, value_type=Address)
-        self._priceOracle = VarDB(self._PRICE_ORACLE, db, value_type=Address)
-        self._staking = VarDB(self._STAKING, db, value_type=Address)
-        self._feeProvider = VarDB(self._FEE_PROVIDER, db, value_type=Address)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
 
     def on_update(self) -> None:
         super().on_update()
 
     @eventlog(indexed=3)
     def OriginationFeeLiquidated(self, _collateral: Address, _reserve: Address, _user: Address, _feeLiquidated: int,
-                                 _liquidatedCollateralForFee: int, _timestamp: int):
+                                 _liquidatedCollateralForFee: int):
         pass
 
     @eventlog(indexed=3)
     def LiquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int,
-                        _liquidatedCollateralAmount: int, _accruedBorrowInterest: int, _liquidator: Address,
-                        _timestamp: int):
+                        _liquidatedCollateralAmount: int, _accruedBorrowInterest: int, _liquidator: Address):
         pass
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmLiquidationManager"
-
-    @only_owner
-    @external
-    def setLendingPoolDataProvider(self, _address: Address) -> None:
-        self._lendingPoolDataProvider.set(_address)
-
-    @external(readonly=True)
-    def getLendingPoolDataProvider(self) -> Address:
-        return self._lendingPoolDataProvider.get()
-
-    @only_owner
-    @external
-    def setLendingPoolCore(self, _address: Address):
-        self._lendingPoolCore.set(_address)
-
-    @external(readonly=True)
-    def getLendingPoolCore(self) -> Address:
-        return self._lendingPoolCore.get()
-    
-    @only_owner
-    @external
-    def setFeeProvider(self, _address: Address):
-        self._feeProvider.set(_address)
-
-    @external(readonly=True)
-    def getFeeProvider(self) -> Address:
-        return self._feeProvider.get()
-
-    @only_owner
-    @external
-    def setPriceOracle(self, _address: Address):
-        self._priceOracle.set(_address)
-
-    @external(readonly=True)
-    def getPriceOracle(self) -> Address:
-        return self._priceOracle.get()
-
-    @only_owner
-    @external
-    def setStaking(self, _address: Address):
-        self._staking.set(_address)
-
-    @external(readonly=True)
-    def getStaking(self) -> Address:
-        return self._staking.get()
+        return f"Omm {TAG}"
 
     @external(readonly=True)
     def calculateBadDebt(self, _totalBorrowBalanceUSD: int, _totalFeesUSD: int, _totalCollateralBalanceUSD: int,
@@ -173,9 +41,9 @@ class LiquidationManager(IconScoreBase):
 
     def calculateAvailableCollateralToLiquidate(self, _collateral: Address, _reserve: Address, _purchaseAmount: int,
                                                 _userCollateralBalance: int, _fee: bool) -> dict:
-        priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
-        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
-        core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
+        priceOracle = self.create_interface_score(self.getAddress(PRICE_ORACLE), OracleInterface)
+        dataProvider = self.create_interface_score(self.getAddress(LENDING_POOL_DATA_PROVIDER), DataProviderInterface)
+        core = self.create_interface_score(self.getAddress(LENDING_POOL_CORE), CoreInterface)
 
         if _fee:
             liquidationBonus = 0
@@ -187,12 +55,13 @@ class LiquidationManager(IconScoreBase):
 
         collateralPrice = priceOracle.get_reference_data(collateralBase, 'USD')
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
+        _stakingAddress=self.getAddress(STAKING)
         if collateralBase == 'ICX':
-            staking = self.create_interface_score(self._staking.get(), StakingInterface)
+            staking = self.create_interface_score(_stakingAddress, StakingInterface)
             sicxRate = staking.getTodayRate()
             collateralPrice = exaMul(collateralPrice, sicxRate)
         if principalBase == 'ICX':
-            staking = self.create_interface_score(self._staking.get(), StakingInterface)
+            staking = self.create_interface_score(_stakingAddress, StakingInterface)
             sicxRate = staking.getTodayRate()
             principalPrice = exaMul(principalPrice, sicxRate)
         reserveConfiguration = core.getReserveConfiguration(_reserve)
@@ -225,11 +94,12 @@ class LiquidationManager(IconScoreBase):
             return 0
         return exaDiv(_totalBorrowBalanceUSD, _totalCollateralBalanceUSD - _totalFeesUSD)
 
+    @only_lending_pool
     @external
     def liquidationCall(self, _collateral: Address, _reserve: Address, _user: Address, _purchaseAmount: int) -> dict:
-        core = self.create_interface_score(self.getLendingPoolCore(), CoreInterface)
-        priceOracle = self.create_interface_score(self.getPriceOracle(), OracleInterface)
-        dataProvider = self.create_interface_score(self.getLendingPoolDataProvider(), DataProviderInterface)
+        core = self.create_interface_score(self.getAddress(LENDING_POOL_CORE), CoreInterface)
+        priceOracle = self.create_interface_score(self.getAddress(PRICE_ORACLE), OracleInterface)
+        dataProvider = self.create_interface_score(self.getAddress(LENDING_POOL_DATA_PROVIDER), DataProviderInterface)
         principalBase = dataProvider.getSymbol(_reserve)
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
         userAccountData = dataProvider.getUserAccountData(_user)
@@ -309,11 +179,10 @@ class LiquidationManager(IconScoreBase):
         if feeLiquidated > 0:
             collateralOtoken.burnOnLiquidation(_user, liquidatedCollateralForFee)
             # the liquidated fee is sent to fee provider
-            core.liquidateFee(_collateral, liquidatedCollateralForFee, self.getFeeProvider())
-            self.OriginationFeeLiquidated(_collateral, _reserve, _user, feeLiquidated, liquidatedCollateralForFee,
-                                          self.now())
+            core.liquidateFee(_collateral, liquidatedCollateralForFee, self.getAddress(FEE_PROVIDER))
+            self.OriginationFeeLiquidated(_collateral, _reserve, _user, feeLiquidated, liquidatedCollateralForFee)
         self.LiquidationCall(_collateral, _reserve, _user, actualAmountToLiquidate, maxCollateralToLiquidate,
-                             userBorrowBalances['borrowBalanceIncrease'], self.tx.origin, self.now())
+                             userBorrowBalances['borrowBalanceIncrease'], self.tx.origin)
         return {
             'maxCollateralToLiquidate': maxCollateralToLiquidate,
             'actualAmountToLiquidate': actualAmountToLiquidate

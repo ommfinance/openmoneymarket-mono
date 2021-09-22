@@ -1,65 +1,101 @@
-from .utils.checks import *
+from .addresses import *
+from .utils.math import convertToExa, exaMul
+
+EXA = 10 ** 18
+STABLE_TOKENS = ["USDS", "USDB"]
+BAND_ORACLE = "bandOracle"
+DEX = "dex"
+
+OMM_TOKENS = [
+    {
+        "name": "USDS",
+        "priceOracleKey": "USDS",
+        "convert": lambda _source, _amount, _decimals: convertToExa(_amount, _decimals)
+    },
+    {
+        "name": "sICX",
+        "priceOracleKey": "ICX",
+        "convert": lambda _source, _amount, _decimals: exaMul(convertToExa(_amount, _decimals),
+                                                              _source.getPriceByName("sICX/ICX"))
+    },
+    {
+        "name": "IUSDC",
+        "priceOracleKey": "USDC",
+        "convert": lambda _source, _amount, _decimals: convertToExa(_amount, _decimals)
+    }
+]
 
 
-class OracleInterface(InterfaceScore):
-    @interface
-    def get_reference_data(self, _base: str, _quote: str) -> dict:
-        pass
-
-
-class PriceOracle(IconScoreBase):
-    _PRICE = 'price'
-    _BAND_ORACLE = 'bandOracle'
-    _ORACLE_PRICE_BOOL = 'oraclePriceFeed'
+class PriceOracle(Addresses):
+    _OMM_POOL = "ommPool"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._price = DictDB(self._PRICE, db, value_type=int, depth=2)
-        self._bandOracle = VarDB(self._BAND_ORACLE, db, value_type=Address)
-        self._oraclePriceBool = VarDB(self._ORACLE_PRICE_BOOL, db, value_type=bool)
+        self._ommPool = VarDB(self._OMM_POOL, db, value_type=str)
 
-    def on_install(self) -> None:
-        super().on_install()
+    def on_install(self, _addressProvider: Address) -> None:
+        super().on_install(_addressProvider)
+        self._ommPool.set("OMM")
 
     def on_update(self) -> None:
         super().on_update()
 
     @external(readonly=True)
     def name(self) -> str:
-        return "OmmPriceOracleProxy"
+        return f'Omm {TAG}'
 
-    @external
     @only_owner
-    def toggleOraclePriceBool(self):
-        self._oraclePriceBool.set(not self._oraclePriceBool.get())
+    @external
+    def setOMMPool(self, _value: str):
+        self._ommPool.set(_value)
 
     @external(readonly=True)
-    def getOraclePriceBool(self) -> bool:
-        return self._oraclePriceBool.get()
+    def getOMMPool(self) -> str:
+        return self._ommPool.get()
 
-    @external
-    @only_owner
-    def setBandOracle(self, _address: Address):
-        self._bandOracle.set(_address)
+    def _get_price(self, _base: str, _quote) -> int:
+        if _base in STABLE_TOKENS:
+            return 1 * 10 ** 18
+        else:
+            oracle = self.create_interface_score(self.getAddress(BAND_ORACLE), OracleInterface)
+            price = oracle.get_reference_data(_base, _quote)
+            return price['rate']
 
-    def getBandOracle(self) -> Address:
-        return self._bandOracle.get()
+    def _get_omm_price(self, _quote: str) -> int:
+        dex = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
 
-    @only_owner
-    @external
-    def set_reference_data(self, _base: str, _quote: str, _rate: int) -> None:
-        self._price[_base][_quote] = _rate
+        _total_price = 0
+        _total_omm_supply = 0
+        for token in OMM_TOKENS:
+            name = token["name"]
+            # key in band oracle
+            price_oracle_key = token["priceOracleKey"]
+            _pool_id = dex.lookupPid(f"{self.getOMMPool()}/{name}")
+            if _pool_id == 0:
+                continue
+            _pool_stats = dex.getPoolStats(_pool_id)
+
+            # convert price to 10**18 precision and calculate price in _quote
+            _price = _pool_stats['price']
+            _quote_decimals = _pool_stats['quote_decimals']
+            _base_decimals = _pool_stats['base_decimals']
+            _average_decimals = _quote_decimals * 18 // _base_decimals
+            _adjusted_price = token["convert"](dex, _price, _average_decimals)
+            _converted_price = exaMul(_adjusted_price, self._get_price(price_oracle_key, _quote))
+
+            _total_supply = _pool_stats['base']
+
+            _total_omm_supply += _total_supply
+            _total_price += (_total_supply * _converted_price)
+
+        if _total_omm_supply == 0:
+            return -1
+
+        return _total_price // _total_omm_supply
 
     @external(readonly=True)
     def get_reference_data(self, _base: str, _quote) -> int:
-        if _base == "USDS":
-            _base ="USDB"
-        if self._oraclePriceBool.get():
-            if _base == "USDB":
-                return 10 ** 18
-            else:
-                oracle = self.create_interface_score(self._bandOracle.get(), OracleInterface)
-                price = oracle.get_reference_data(_base, _quote)
-                return price['rate']
+        if _base == 'OMM':
+            return self._get_omm_price(_quote)
         else:
-            return self._price[_base][_quote]
+            return self._get_price(_base, _quote)

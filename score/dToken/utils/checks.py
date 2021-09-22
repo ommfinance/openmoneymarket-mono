@@ -1,19 +1,6 @@
 from iconservice import *
 
-TAG = "DToken"
-
-
-def only_lending_pool(func):
-    if not isfunction(func):
-        revert(f"{TAG}: ""NotAFunctionError")
-
-    @wraps(func)
-    def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self.getLendingPool():
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (liquidation){self.getLendingPool()}")
-        return func(self, *args, **kwargs)
-
-    return __wrapper
+TAG = "Omm dToken"
 
 
 def only_lending_pool_core(func):
@@ -22,34 +9,23 @@ def only_lending_pool_core(func):
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self.getLendingPoolCore():
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (liquidation){self.getLendingPoolCore()}")
+        if self.msg.sender != self._addresses['lendingPoolCore']:
+            revert(
+                f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (lending pool core){self._addresses['lendingPoolCore']}")
         return func(self, *args, **kwargs)
 
     return __wrapper
 
 
-def only_liquidation(func):
+def only_address_provider(func):
     if not isfunction(func):
         revert(f"{TAG}: ""NotAFunctionError")
 
     @wraps(func)
     def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self.getLiquidation():
-            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (liquidation){self.getLiquidation()}")
-        return func(self, *args, **kwargs)
-
-    return __wrapper
-
-
-def only_owner(func):
-    if not isfunction(func):
-        revert(f"{TAG}: ""NotAFunctionError")
-
-    @wraps(func)
-    def __wrapper(self: object, *args, **kwargs):
-        if self.msg.sender != self.owner:
-            revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.msg.sender} (owner){self.owner}")
+        addressProvider = self._addressProvider.get()
+        if self.msg.sender != addressProvider:
+            revert(f"{TAG}: "f"SenderNotAuthorized: (sender){self.msg.sender} (address provider){addressProvider}")
         return func(self, *args, **kwargs)
 
     return __wrapper

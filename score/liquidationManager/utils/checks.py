@@ -1,6 +1,6 @@
 from iconservice import *
 
-TAG = "LiquidationManager"
+TAG = "Liquidation Manager"
 
 
 def only_owner(func):
@@ -12,6 +12,33 @@ def only_owner(func):
         if self.msg.sender != self.owner:
             revert(f"{TAG}: "f"SenderNotScoreOwnerError: (sender){self.msg.sender} (owner){self.owner}")
 
+        return func(self, *args, **kwargs)
+
+    return __wrapper
+
+
+def only_address_provider(func):
+    if not isfunction(func):
+        revert(f"{TAG}: ""NotAFunctionError")
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        addressProvider = self._addressProvider.get()
+        if self.msg.sender != addressProvider:
+            revert(f"{TAG}: "f"SenderNotAddressProviderError: (sender){self.msg.sender} (address provider){addressProvider}")
+        return func(self, *args, **kwargs)
+
+    return __wrapper
+
+def only_lending_pool(func):
+    if not isfunction(func):
+        revert(f"{TAG}: ""NotAFunctionError")
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        lendingPool = self._addresses['lendingPool']
+        if self.msg.sender != lendingPool:
+            revert(f"{TAG}: SenderNotLendingPoolError: (sender){self.msg.sender} (lending pool){lendingPool}")
         return func(self, *args, **kwargs)
 
     return __wrapper

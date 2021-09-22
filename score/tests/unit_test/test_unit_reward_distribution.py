@@ -1,41 +1,63 @@
 import os
 from unittest import mock
-from unittest.mock import Mock, call
+from unittest.mock import call, ANY
 
 from iconservice import Address, IconScoreException, AddressPrefix
 from tbears.libs.scoretest.patch.score_patcher import ScorePatcher, get_interface_score
-from typing import List
+from tbears.libs.scoretest.score_test_case import ScoreTestCase
 from typing_extensions import TypedDict
 
-from rewardDistribution.Math import exaDiv, exaMul
-from rewardDistribution.rewardDistribution import AssetConfig
-from rewardDistribution.rewardDistributionController import RewardDistributionController, BATCH_SIZE, IUSDC_PRECISION
-from tbears.libs.scoretest.score_test_case import ScoreTestCase
+from rewardDistribution.utils.math import exaDiv, exaMul
+from rewardDistribution.rewardDistributionController import RewardDistributionController
 
 EXA = 10 ** 18
 TIME = 10 ** 6
 
-ASSET_ADDRESS = Address.from_string(f"cx{'9841' * 10}")
 
-ASSET_CONFIG = {
-    "asset": ASSET_ADDRESS,
-    "emissionPerSecond": 10 * EXA,
-    "totalBalance": 0
+def create_address(prefix: AddressPrefix = AddressPrefix.EOA) -> 'Address':
+    return Address.from_bytes(prefix.to_bytes(1, 'big') + os.urandom(20))
+
+
+ASSET_ADDRESS_1 = create_address(AddressPrefix.CONTRACT)
+ASSET_ADDRESS_2 = create_address(AddressPrefix.CONTRACT)
+
+REWARD_CONFIG_1 = {
+    "asset": ASSET_ADDRESS_1,
+    "assetName": "assetName_1",
+    "poolID": -1,
+    "rewardEntity": 'lendingBorrow',
+    "distPercentage": 11 * EXA // 100,
+    "totalSupply": {
+        "decimals": 18,
+        "totalStaked": 83 * EXA
+    }
+
+}
+
+REWARD_CONFIG_2 = {
+    "asset": ASSET_ADDRESS_2,
+    "assetName": "assetName_2",
+    "distPercentage": 12 * EXA // 100,
+    "_address": ASSET_ADDRESS_2,
+    "totalSupply": {
+        "totalStaked": 97 * EXA,
+        "decimals": 18
+    }
 }
 
 DISTRIBUTION_CONFIG = {
-    "ommICX": 30,
-    "dex": 30,
-    "worker": 10,
-    "daoFund": 30
+    "worker": 30 * EXA // 100,
+    "daoFund": 40 * EXA // 100,
+    "lendingBorrow": 10 * EXA // 100,
+    "liquidityProvider": 20 * EXA // 100
 }
 
 
 class DistributionPercentage(TypedDict):
-    ommICX: int
-    dex: int
     worker: int
     daoFund: int
+    liquidityProvider: int
+    lendingBorrow: int
 
 
 def create_address(prefix: AddressPrefix = AddressPrefix.EOA) -> 'Address':
@@ -47,21 +69,40 @@ class TestRewardDistributionController(ScoreTestCase):
     def setUp(self):
         super().setUp()
         self._owner = self.test_account1
-        self.score = self.get_score_instance(RewardDistributionController, self._owner)
-        self.mock_lending_pool_data_provider = Address.from_string(f"cx{'1231' * 10}")
-        self.mock_omm_token = Address.from_string(f"cx{'1232' * 10}")
+        _params = [
+            {"recipient": "worker", "percentage": DISTRIBUTION_CONFIG["worker"]},
+            {"recipient": "daoFund", "percentage": DISTRIBUTION_CONFIG["daoFund"]},
+            {"recipient": "liquidityProvider", "percentage": DISTRIBUTION_CONFIG["liquidityProvider"]},
+            {"recipient": "lendingBorrow", "percentage": DISTRIBUTION_CONFIG["lendingBorrow"]},
+        ]
+        self.mock_address_provider = Address.from_string(f"cx{'2239' * 10}")
+
+        self.score = self.get_score_instance(RewardDistributionController, self._owner,
+                                             on_install_params={"_distPercentage": _params, "_startTimestamp": 0,
+                                                                "_addressProvider": self.mock_address_provider})
+        self.mock_lending_pool_core = Address.from_string(f"cx{'1231' * 10}")
+        self.mock_lending_pool = Address.from_string(f"cx{'1212' * 10}")
+        self.mock_omm_token = Address.from_string(f"cx{'1238' * 10}")
         self.mock_worker_token = Address.from_string(f"cx{'1233' * 10}")
         self.mock_lp_token = Address.from_string(f"cx{'1235' * 10}")
-        self.mock_dao_fund = Address.from_string(f"cx{'1235' * 10}")
+        self.mock_dao_fund = Address.from_string(f"cx{'1236' * 10}")
+        self.mock_staked_lp = Address.from_string(f"cx{'1237' * 10}")
+        self.mock_governance = Address.from_string(f"cx{'1239' * 10}")
 
-        self.set_msg(self._owner, 1)
-        self.score.setLendingPoolDataProvider(self.mock_lending_pool_data_provider)
+        self.set_msg(self.mock_address_provider)
+        self.score.setAddresses([
+            {"name": 'lendingPoolDataProvider', "address": self.mock_lending_pool_core},
+            {"name": "ommToken", "address": self.mock_omm_token},
+            {"name": "workerToken", "address": self.mock_worker_token},
+            {"name": "lendingPool", "address": self.mock_lending_pool},
+            {"name": "dex", "address": self.mock_lp_token},
+            {"name": "stakedLP", "address": self.mock_staked_lp},
+            {"name": "daoFund", "address": self.mock_dao_fund},
+            {"name": "governance", "address": self.mock_governance}
+        ])
 
-        self.score.setOmm(self.mock_omm_token)
-        self.score.setWorkerToken(self.mock_worker_token)
+        self.score._timestampAtStart.set(0)
 
-        self.score.setLpToken(self.mock_lp_token)
-        self.score.setDaoFund(self.mock_dao_fund)
         self.set_msg(self.test_account2, 1)
 
         self.test_account3 = create_address()
@@ -70,58 +111,46 @@ class TestRewardDistributionController(ScoreTestCase):
                         self.test_account4: 10 ** 21}
         ScoreTestCase.initialize_accounts(account_info)
 
-    def _setup_asset_emission(self, account: Address, config: List[AssetConfig]):
-        self.set_msg(account, 1)
-        self.score.configureAssetEmission(config)
-        self.set_msg(self.test_account2, 1)
+        self.set_msg(self.mock_governance)
+        self.score.enableRewardClaim()
+        self.set_msg(self._owner)
+
+    def test_token_dist_per_day(self):
+        """
+        Inflation should rise by 3% every year
+        """
+        tokens_yr_5 = self.score.tokenDistributionPerDay(5 * 365)
+        tokens_yr_6 = self.score.tokenDistributionPerDay(6 * 365)
+        inflation_56 = (tokens_yr_6 - tokens_yr_5) / tokens_yr_5
+        self.assertEqual(0.03, inflation_56)
+        tokens_yr_7 = self.score.tokenDistributionPerDay(7 * 365)
+        inflation_67 = (tokens_yr_7 - tokens_yr_6) / tokens_yr_6
+        self.assertEqual(0.03, inflation_67)
+
+    def _setup_asset_emission(self, account: Address, config):
+        self.set_msg(account)
+        self.patch_internal_method(config["asset"], "getTotalStaked", lambda: config["totalSupply"])
+
+        self.score.configureAssetConfig({
+            "asset": config['asset'],
+            "poolID": config['poolID'],
+            "rewardEntity": config['rewardEntity'],
+            "assetName": config['assetName'],
+            "distPercentage": config['distPercentage'],
+        })
+        self.set_msg(self.test_account2)
 
     def _setup_distribution_percentage(self, account: Address, config: DistributionPercentage):
         self.set_msg(account, 1)
 
-        omm_icx = config["ommICX"]
-        dex = config["dex"]
-        worker = config["worker"]
-        dao_fund = config["daoFund"]
-
-        self.score.setDistPercentage(_ommICX=omm_icx, _dex=dex, _worker=worker, _daoFund=dao_fund)
+        _params = [
+            {"recipient": "worker", "percentage": config["worker"]},
+            {"recipient": "daoFund", "percentage": config["daoFund"]},
+            {"recipient": "liquidityProvider", "percentage": config["liquidityProvider"]},
+            {"recipient": "lendingBorrow", "percentage": config["lendingBorrow"]},
+        ]
+        self.score.setDistributionPercentage(_params)
         self.set_msg(self.test_account2, 1)
-
-    def test_configure_asset_emission_not_owner(self):
-        """
-        configureAssetEmission : should throw SenderNotScoreOwnerError if caller is not owner while calling configureAssetEmission
-        """
-        try:
-
-            self._setup_asset_emission(self.test_account2, [ASSET_CONFIG])
-        except IconScoreException as err:
-            self.assertIn("SenderNotScoreOwnerError", str(err))
-        else:
-            raise IconScoreException("Unauthorized method call")
-
-    def test_configure_asset_emission(self):
-        """
-        configureAssetEmission : should able to call configureAssetEmission if caller is owner
-        """
-        _mock_time_elapsed = 20 * TIME
-        ASSET_CONFIG["totalBalance"] = 100 * EXA
-        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
-            self.score.AssetConfigUpdated.assert_called_with(ASSET_ADDRESS, ASSET_CONFIG["emissionPerSecond"])
-
-        _lastUpdateTimestamp = _mock_time_elapsed
-        _mock_time_elapsed = 40 * TIME
-
-        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
-
-            _new_asset_index = exaDiv(
-                ASSET_CONFIG['emissionPerSecond'] * (_mock_time_elapsed - _lastUpdateTimestamp) // TIME,
-                ASSET_CONFIG["totalBalance"]) + 0
-
-            self.assertEqual(_new_asset_index, self.score._assetIndex[ASSET_ADDRESS])
-
-            self.score.AssetConfigUpdated.assert_called_with(ASSET_ADDRESS, ASSET_CONFIG["emissionPerSecond"])
-            self.score.AssetIndexUpdated.assert_called_with(ASSET_ADDRESS, _new_asset_index)
 
     def test_set_distribution_percentage_not_owner(self):
         """
@@ -142,25 +171,77 @@ class TestRewardDistributionController(ScoreTestCase):
 
         self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
 
-        actual_result = self.score.getDistPercentage()
-        self.assertDictEqual(DISTRIBUTION_CONFIG, actual_result)
+        actual_result = self.score.getDistributionPercentage("worker")
+        self.assertEqual(DISTRIBUTION_CONFIG["worker"], actual_result)
+
+        actual_result = self.score.getDistributionPercentage("daoFund")
+        self.assertEqual(DISTRIBUTION_CONFIG["daoFund"], actual_result)
+
+    def test_configure_asset_emission_not_owner(self):
+        """
+        configureAssetEmission : should throw SenderNotScoreOwnerError if caller is not owner while calling configureAssetEmission
+        """
+        try:
+            self._setup_asset_emission(self.test_account2, REWARD_CONFIG_1)
+        except IconScoreException as err:
+            self.assertIn("SenderNotGovernanceError", str(err))
+        else:
+            raise IconScoreException("Unauthorized method call")
+
+    def test_configure_asset_emission(self):
+        """
+        configureAssetEmission : should able to call configureAssetEmission if caller is owner
+        """
+        self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
+        _mock_time_elapsed = 20 * TIME
+        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
+            self._setup_asset_emission(self.mock_governance, REWARD_CONFIG_1)
+            _emissionPerSecond = exaMul(10 ** 24 // 86400, 10 * 11 * EXA // 10000)
+
+            self.assert_internal_call(REWARD_CONFIG_1['asset'], "getTotalStaked")
+            self.score.AssetConfigUpdated.assert_called_with(ASSET_ADDRESS_1, _emissionPerSecond)
+
+        _lastUpdateTimestamp = _mock_time_elapsed
+        # time elapsed 31 day
+        _mock_time_elapsed = 60 * 60 * 24 * 31 * TIME
+
+        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
+            self._setup_asset_emission(self.mock_governance, REWARD_CONFIG_1)
+            _new_asset_index = exaDiv(
+                _emissionPerSecond * (_mock_time_elapsed - _lastUpdateTimestamp) // TIME,
+                REWARD_CONFIG_1["totalSupply"]['totalStaked']) + 0
+
+            self.assertEqual(_new_asset_index, self.score._assetIndex[ASSET_ADDRESS_1])
+
+            self.score.AssetIndexUpdated.assert_called_with(ASSET_ADDRESS_1,0, _new_asset_index)
+
+            # emission after 31st day
+            _emissionPerSecond = exaMul(4 * 10 ** 23 // 86400, 10 * 11 * EXA // 10000)
+            self.score.AssetConfigUpdated.assert_called_with(ASSET_ADDRESS_1, _emissionPerSecond)
 
     def test_handle_action_case(self):
         """
         test case https://docs.google.com/spreadsheets/d/149PP--2YLUHcq9_W4osZPHhuGDWHm1nnIb8tjF2C5u4/edit#gid=659147913
         """
         _asset_config = {
-            "asset": ASSET_ADDRESS,
-            "emissionPerSecond": 10 * EXA,
-            "totalBalance": 0
+            "asset": ASSET_ADDRESS_1,
+            "assetName": "assetName_1",
+            "poolID": -1,
+            "rewardEntity": 'lendingBorrow',
+            "distPercentage": 15 * EXA // 100,
+            "totalSupply": {
+                "decimals": 18,
+                "totalStaked": 0
+            }
         }
+        self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
 
         _user1 = self.test_account3
         _user2 = self.test_account4
 
         _mock_time_elapsed = 0 * TIME
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
+            self._setup_asset_emission(self.mock_governance, _asset_config)
         _last_updated_timestamp = _mock_time_elapsed
 
         _user2_balance = 0
@@ -175,9 +256,9 @@ class TestRewardDistributionController(ScoreTestCase):
         ## time_elapse=>100
         _mock_time_elapsed = 100 * TIME
 
-        self.assertEqual(0, self.score._userIndex[_user1][ASSET_ADDRESS])
-        self.assertEqual(0, self.score._userIndex[_user2][ASSET_ADDRESS])
-        self.assertEqual(0, self.score._assetIndex[ASSET_ADDRESS])
+        self.assertEqual(0, self.score._userIndex[_user1][ASSET_ADDRESS_1])
+        self.assertEqual(0, self.score._userIndex[_user2][ASSET_ADDRESS_1])
+        self.assertEqual(0, self.score._assetIndex[ASSET_ADDRESS_1])
 
         _user = {
             "address": _user1,
@@ -198,9 +279,9 @@ class TestRewardDistributionController(ScoreTestCase):
         _user1_balance += 5
         _total_supply += _user1_balance
 
-        self.assertEqual(0, self.score._userIndex[_user1][ASSET_ADDRESS])
-        self.assertEqual(0, self.score._userIndex[_user2][ASSET_ADDRESS])
-        self.assertEqual(0, self.score._assetIndex[ASSET_ADDRESS])
+        self.assertEqual(0, self.score._userIndex[_user1][ASSET_ADDRESS_1])
+        self.assertEqual(0, self.score._userIndex[_user2][ASSET_ADDRESS_1])
+        self.assertEqual(0, self.score._assetIndex[ASSET_ADDRESS_1])
 
         _last_updated_timestamp = _mock_time_elapsed  ##100
         ## first deposit by user2
@@ -227,10 +308,10 @@ class TestRewardDistributionController(ScoreTestCase):
         _user2_balance += 10
         _total_supply += _user2_balance
 
-        self.assertEqual(0, self.score._userIndex[_user1][ASSET_ADDRESS])
-        self.assertEqual(1200 * EXA, self.score._userIndex[_user2][ASSET_ADDRESS])
-        self.assertEqual(1200 * EXA, self.score._assetIndex[ASSET_ADDRESS])
-        print(self.score._usersUnclaimedRewards[_user2])
+        self.assertEqual(0, self.score._userIndex[_user1][ASSET_ADDRESS_1])
+        self.assertAlmostEqual(20.83333333333, self.score._userIndex[_user2][ASSET_ADDRESS_1] / EXA, 9)
+        self.assertAlmostEqual(20.83333333333, self.score._assetIndex[ASSET_ADDRESS_1] / EXA, 9)
+
         _last_updated_timestamp = _mock_time_elapsed  ##700
 
         ## 2nd deposit by user1
@@ -258,10 +339,11 @@ class TestRewardDistributionController(ScoreTestCase):
         _user1_balance += 15
         _total_supply += _user1_balance
 
-        self.assertEqual(8000 * EXA, self.score._usersUnclaimedRewards[_user1])
-        self.assertEqual(1600 * EXA, self.score._userIndex[_user1][ASSET_ADDRESS])
-        self.assertEqual(1200 * EXA, self.score._userIndex[_user2][ASSET_ADDRESS])
-        self.assertEqual(1600 * EXA, self.score._assetIndex[ASSET_ADDRESS])
+        self.assertAlmostEqual(138.88888888889,
+                               self.score._usersUnclaimedRewards[_user1][ASSET_ADDRESS_1] / EXA, 9)
+        self.assertAlmostEqual(27.77777777778, self.score._userIndex[_user1][ASSET_ADDRESS_1] / EXA, 9)
+        self.assertAlmostEqual(20.83333333333, self.score._userIndex[_user2][ASSET_ADDRESS_1] / EXA, 9)
+        self.assertAlmostEqual(27.77777777778, self.score._assetIndex[ASSET_ADDRESS_1] / EXA, 9)
 
         _last_updated_timestamp = _mock_time_elapsed  ##1300
 
@@ -290,17 +372,19 @@ class TestRewardDistributionController(ScoreTestCase):
         _user2_balance += 20
         _total_supply += _user2_balance
 
-        self.assertEqual(8000 * EXA, self.score._usersUnclaimedRewards[_user1])
-        self.assertEqual(4000 * EXA, self.score._usersUnclaimedRewards[_user2])
-        self.assertEqual(1600 * EXA, self.score._userIndex[_user1][ASSET_ADDRESS])
-        self.assertEqual(1600 * EXA, self.score._userIndex[_user2][ASSET_ADDRESS])
-        self.assertEqual(1600 * EXA, self.score._assetIndex[ASSET_ADDRESS])
+        self.assertAlmostEqual(138.88888888889, self.score._usersUnclaimedRewards[_user1][ASSET_ADDRESS_1] / EXA, 9)
+        self.assertAlmostEqual(69.44444444444, self.score._usersUnclaimedRewards[_user2][ASSET_ADDRESS_1] / EXA, 9)
+
+        self.assertAlmostEqual(27.77777777778, self.score._userIndex[_user1][ASSET_ADDRESS_1] / EXA, 9)
+        self.assertAlmostEqual(27.77777777778, self.score._userIndex[_user2][ASSET_ADDRESS_1] / EXA, 9)
+        self.assertAlmostEqual(27.77777777778, self.score._assetIndex[ASSET_ADDRESS_1] / EXA, 9)
 
         _last_updated_timestamp = _mock_time_elapsed  ##700
 
     def _call_handle_action(self, _user, _asset, _time, _old_index):
         _asset_address = _asset["config"]["asset"]
-        _emission_per_second = _asset["config"]["emissionPerSecond"]
+        _rewardEntity = _asset["config"]["rewardEntity"]
+        _percentage = exaMul(_asset["config"]["distPercentage"], DISTRIBUTION_CONFIG[_rewardEntity])
         _total_supply = _asset["balance"]
 
         _mock_time_elapsed = _time["mock_time_elapsed"]
@@ -308,24 +392,30 @@ class TestRewardDistributionController(ScoreTestCase):
 
         _user_address = _user["address"]
         _user_balance = _user["balance"]
-
+        _emission_per_second = exaMul(10 ** 24 // 86400, _percentage)
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
             self.set_msg(_asset_address, 1)
             _user_old_index = self.score._userIndex[_user_address][_asset_address]
             _user_old_reward = self.score._usersUnclaimedRewards[_user_address]
-            self.score.handleAction(_user_address, _user_balance, _total_supply)
+            self.score.handleAction({
+                "_user": _user_address,
+                "_userBalance": _user_balance,
+                "_totalSupply": _total_supply,
+                "_decimals": 18,
+            })
 
             _time_delta = (_mock_time_elapsed - _last_timestamp) // TIME
+
             _current_index = (exaDiv(_emission_per_second * _time_delta,
                                      _total_supply) + _old_index) if _total_supply else 0
 
             _user_reward = (_current_index - _user_old_index) * _user_balance // EXA
             if _old_index != _current_index:
-                self.score.AssetIndexUpdated.assert_called_with(_asset_address, _current_index)
-                self.score.UserIndexUpdated.assert_called_with(_user_address, _asset_address, _current_index)
+                self.score.AssetIndexUpdated.assert_called_with(_asset_address, _old_index, _current_index)
+                self.score.UserIndexUpdated.assert_called_with(_user_address, _asset_address, _user_old_index, _current_index)
 
             if _user_reward != 0:
-                self.score.RewardsAccrued.assert_called_with(_user_address, _user_reward)
+                self.score.RewardsAccrued.assert_called_with(_user_address, _asset_address, _user_reward)
 
             return _current_index
 
@@ -333,19 +423,16 @@ class TestRewardDistributionController(ScoreTestCase):
         """
         Should return 0 as reward balance if asset emission is not configureAssetEmission
         """
-        self.register_interface_score(self.mock_lending_pool_data_provider)
-
+        self.register_interface_score(self.mock_lending_pool_core)
+        self.patch_internal_method(self.mock_omm_token, "getPrincipalSupply",
+                                   lambda _address: {
+                                       "decimals": 18,
+                                       'principalUserBalance': 0,
+                                       'principalTotalSupply': 0
+                                   })
         actual_result = self.score.getRewards(self.test_account2)
-        expected_result = {'daoFund': 0,
-                           'depositBorrowRewards': 0,
-                           'dex': 0,
-                           'liquidityRewards': 0,
-                           'ommICX': 0,
-                           'ommRewards': 0,
-                           'total': 0,
-                           'worker': 0}
 
-        self.assertDictEqual(expected_result, actual_result)
+        self.assertEqual(0, actual_result["total"])
 
     def test_get_rewards_balance_1(self):
         """
@@ -355,8 +442,15 @@ class TestRewardDistributionController(ScoreTestCase):
         """
 
         _mock_time_elapsed = 0 * TIME
+        _config = REWARD_CONFIG_1;
+        _config["totalSupply"] = {
+            "decimals": 18,
+            "totalStaked": 0
+        }
+        self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
+
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
+            self._setup_asset_emission(self.mock_governance, REWARD_CONFIG_1)
         _last_updated_timestamp = _mock_time_elapsed
 
         _mock_time_elapsed = 400 * TIME
@@ -368,14 +462,10 @@ class TestRewardDistributionController(ScoreTestCase):
         ## given
         _user_1_rewards = {
             "worker": 10 * EXA,
-            "dex": 20 * EXA,
-            "ommICX": 30 * EXA,
             "daoFund": 40 * EXA,
         }
         _user_2_rewards = {
             "worker": 2 * 10 * EXA,
-            "dex": 2 * 20 * EXA,
-            "ommICX": 2 * 30 * EXA,
             "daoFund": 2 * 40 * EXA,
         }
         self.score._tokenValue = {
@@ -387,7 +477,7 @@ class TestRewardDistributionController(ScoreTestCase):
             "balance": _user1_balance * EXA,
         }
         _asset = {
-            "config": ASSET_CONFIG,
+            "config": REWARD_CONFIG_1,
             "balance": _total_supply * EXA
         }
         _time = {
@@ -398,25 +488,25 @@ class TestRewardDistributionController(ScoreTestCase):
         _user1_balance += 100
         _total_supply += _user1_balance
         _last_updated_timestamp = _mock_time_elapsed
-
+        self.patch_internal_method(self.mock_omm_token, "getPrincipalSupply",
+                                   lambda _address: {
+                                       "decimals": 18,
+                                       'principalUserBalance': 0,
+                                       'principalTotalSupply': 0
+                                   })
         _supply = {
+            "decimals": 18,
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
-                                   lambda asset, _address: _supply)
+        self.patch_internal_method(ASSET_ADDRESS_1, "getPrincipalSupply",
+                                   lambda _address: _supply)
 
         _mock_time_elapsed = 600 * TIME
         actual_result = self._call_get_rewards_balance(self.test_account2, _mock_time_elapsed, _supply)
-        _expected_result = {'daoFund': 40 * EXA,
-                            'depositBorrowRewards': 2000 * EXA,
-                            'dex': 20 * EXA,
-                            'liquidityRewards': 50 * EXA,
-                            'ommICX': 30 * EXA,
-                            'ommRewards': 2050 * EXA,
-                            'total': 2100 * EXA,
-                            'worker': 10 * EXA}
-        self.assertDictEqual(_expected_result, actual_result)
+
+        self.assertAlmostEqual(25.46296296296, actual_result["reserve"]["assetName_1"] / EXA, 9)
+        self.assertAlmostEqual(25.46296296296, actual_result["total"] / EXA, 9)
 
         _mock_time_elapsed = 850 * TIME
         _user = {
@@ -424,7 +514,7 @@ class TestRewardDistributionController(ScoreTestCase):
             "balance": _user2_balance * EXA,
         }
         _asset = {
-            "config": ASSET_CONFIG,
+            "config": REWARD_CONFIG_1,
             "balance": _total_supply * EXA
         }
         _time = {
@@ -439,38 +529,29 @@ class TestRewardDistributionController(ScoreTestCase):
 
         _mock_time_elapsed = 1300 * TIME
         _supply = {
+            "decimals": 18,
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
-                                   lambda asset, _address: _supply)
+        self.patch_internal_method(ASSET_ADDRESS_1, "getPrincipalSupply",
+                                   lambda _address: _supply)
 
         actual_result = self._call_get_rewards_balance(_user_1, _mock_time_elapsed, _supply)
-        _expected_result = {'daoFund': 40 * EXA,
-                            'depositBorrowRewards': 6000 * EXA,
-                            'dex': 20 * EXA,
-                            'liquidityRewards': 50 * EXA,
-                            'ommICX': 30 * EXA,
-                            'ommRewards': 6050 * EXA,
-                            'total': 6100 * EXA,
-                            'worker': 10 * EXA}
-        self.assertDictEqual(_expected_result, actual_result)
+        self.assertAlmostEqual(76.38888888889, actual_result["reserve"]["assetName_1"] / EXA, 9)
+        self.assertAlmostEqual(76.38888888889, actual_result["total"] / EXA, 9)
+
         _supply = {
+            "decimals": 18,
             'principalUserBalance': _user2_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
-                                   lambda asset, _address: _supply)
+
+        self.patch_internal_method(ASSET_ADDRESS_1, "getPrincipalSupply",
+                                   lambda _address: _supply)
+
         actual_result = self._call_get_rewards_balance(_user_2, _mock_time_elapsed, _supply)
-        _expected_result = {'daoFund': 80 * EXA,
-                            'depositBorrowRewards': 3000 * EXA,
-                            'dex': 40 * EXA,
-                            'liquidityRewards': 100 * EXA,
-                            'ommICX': 60 * EXA,
-                            'ommRewards': 3100 * EXA,
-                            'total': 3200 * EXA,
-                            'worker': 20 * EXA}
-        self.assertDictEqual(_expected_result, actual_result)
+        self.assertAlmostEqual(38.19444444444, actual_result["reserve"]["assetName_1"] / EXA, 9)
+        self.assertAlmostEqual(38.19444444444, actual_result["total"] / EXA, 9)
 
     def test_get_rewards_balance_2(self):
         """
@@ -481,26 +562,10 @@ class TestRewardDistributionController(ScoreTestCase):
         _user_1 = self.test_account2
         _user_2 = self.test_account3
         ## given
-        _user_1_rewards = {
-            "worker": 5 * EXA,
-            "dex": 15 * EXA,
-            "ommICX": 45 * EXA,
-            "daoFund": 32 * EXA,
-        }
-        _user_2_rewards = {
-            "worker": 10 * EXA,
-            "dex": 6 * EXA,
-            "ommICX": 8 * EXA,
-            "daoFund": 4 * EXA,
-        }
-        self.score._tokenValue = {
-            _user_1: _user_1_rewards,
-            _user_2: _user_2_rewards
-        }
-
+        self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
         _mock_time_elapsed = 0 * TIME
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
+            self._setup_asset_emission(self.mock_governance, REWARD_CONFIG_1)
         _last_updated_timestamp = _mock_time_elapsed
 
         _mock_time_elapsed = 100 * TIME
@@ -513,7 +578,7 @@ class TestRewardDistributionController(ScoreTestCase):
             "balance": _user1_balance * EXA,
         }
         _asset = {
-            "config": ASSET_CONFIG,
+            "config": REWARD_CONFIG_1,
             "balance": _total_supply * EXA
         }
         _time = {
@@ -524,33 +589,32 @@ class TestRewardDistributionController(ScoreTestCase):
         _user1_balance += 100
         _total_supply += _user1_balance
         _last_updated_timestamp = _mock_time_elapsed
-
+        self.patch_internal_method(self.mock_omm_token, "getPrincipalSupply",
+                                   lambda _address: {
+                                       "decimals": 18,
+                                       'principalUserBalance': 0,
+                                       'principalTotalSupply': 0
+                                   })
         _supply = {
+            "decimals": 18,
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
-                                   lambda asset, _address: _supply)
+        self.patch_internal_method(ASSET_ADDRESS_1, "getPrincipalSupply",
+                                   lambda _address: _supply)
 
         _mock_time_elapsed = 500 * TIME
         actual_result = self._call_get_rewards_balance(_user_1, _mock_time_elapsed, _supply)
-        self.assertEqual(4000 * EXA, actual_result.get("depositBorrowRewards"))
-        _expected_result = {'daoFund': 32 * EXA,
-                            'depositBorrowRewards': 4000 * EXA,
-                            'dex': 15 * EXA,
-                            'liquidityRewards': 60 * EXA,
-                            'ommICX': 45 * EXA,
-                            'ommRewards': 4037 * EXA,
-                            'total': 4097 * EXA,
-                            'worker': 5 * EXA}
-        self.assertDictEqual(_expected_result, actual_result)
+        self.assertAlmostEqual(50.92592592593, actual_result["reserve"]["assetName_1"] / EXA, 9)
+        self.assertAlmostEqual(50.92592592593, actual_result["total"] / EXA, 9)
+
         _mock_time_elapsed = 500 * TIME
         _user = {
             "address": _user_2,
             "balance": _user2_balance * EXA,
         }
         _asset = {
-            "config": ASSET_CONFIG,
+            "config": REWARD_CONFIG_1,
             "balance": _total_supply * EXA
         }
         _time = {
@@ -570,7 +634,7 @@ class TestRewardDistributionController(ScoreTestCase):
             "balance": _user1_balance * EXA,
         }
         _asset = {
-            "config": ASSET_CONFIG,
+            "config": REWARD_CONFIG_1,
             "balance": _total_supply * EXA
         }
         _time = {
@@ -579,7 +643,8 @@ class TestRewardDistributionController(ScoreTestCase):
         }
         _current_index = self._call_handle_action(_user, _asset, _time, _current_index)
 
-        self.assertEqual(5500 * EXA, self.score._usersUnclaimedRewards[self.test_account2])
+        self.assertAlmostEqual(70.02314814815,
+                               self.score._usersUnclaimedRewards[self.test_account2][ASSET_ADDRESS_1] / EXA, 9)
 
         _user1_balance -= 50
         _total_supply -= 50
@@ -587,157 +652,35 @@ class TestRewardDistributionController(ScoreTestCase):
 
         _mock_time_elapsed = 1940 * TIME
         _supply = {
+            "decimals": 18,
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
-                                   lambda asset, _address: _supply)
+        self.patch_internal_method(ASSET_ADDRESS_1, "getPrincipalSupply",
+                                   lambda _address: _supply)
 
         actual_result = self._call_get_rewards_balance(_user_1, _mock_time_elapsed, _supply)
-        _expected_result = {'daoFund': 32 * EXA,
-                            'depositBorrowRewards': 9300 * EXA,
-                            'dex': 15 * EXA,
-                            'liquidityRewards': 60 * EXA,
-                            'ommICX': 45 * EXA,
-                            'ommRewards': 9337 * EXA,
-                            'total': 9397 * EXA,
-                            'worker': 5 * EXA}
-        self.assertDictEqual(_expected_result, actual_result)
+
+        self.assertAlmostEqual(118.40277777778, actual_result["reserve"]["assetName_1"] / EXA, 9)
+        self.assertAlmostEqual(118.40277777778, actual_result["total"] / EXA, 9)
 
         _supply = {
+            "decimals": 18,
             'principalUserBalance': _user2_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
-                                   lambda asset, _address: _supply)
+        self.patch_internal_method(ASSET_ADDRESS_1, "getPrincipalSupply",
+                                   lambda _address: _supply)
         actual_result = self._call_get_rewards_balance(_user_2, _mock_time_elapsed, _supply)
-        self.assertEqual(9100 * EXA, actual_result.get("depositBorrowRewards"))
-        _expected_result = {'daoFund': 4 * EXA,
-                            'depositBorrowRewards': 9100 * EXA,
-                            'dex': 6 * EXA,
-                            'liquidityRewards': 14 * EXA,
-                            'ommICX': 8 * EXA,
-                            'ommRewards': 9114 * EXA,
-                            'total': 9128 * EXA,
-                            'worker': 10 * EXA}
-        self.assertDictEqual(_expected_result, actual_result)
+        self.assertAlmostEqual(115.85648148148, actual_result["reserve"]["assetName_1"] / EXA, 9)
+        self.assertAlmostEqual(115.85648148148, actual_result["total"] / EXA, 9)
 
     def _call_get_rewards_balance(self, _user, _mock_time_elapsed, _supply):
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
             actual_result = self.score.getRewards(_user)
 
-            self.assert_internal_call(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
-                                      ASSET_CONFIG["asset"],
-                                      _user)
+            self.assert_internal_call(ASSET_ADDRESS_1, "getPrincipalSupply", _user)
             return actual_result
-
-    def test_claim_rewards(self):
-        ## given
-
-        _user1 = self.test_account2
-
-        _user_1_rewards = {
-            "worker": 0,
-            "dex": 0,
-            "ommICX": 0,
-            "daoFund": 0,
-        }
-
-        self.score._tokenValue = {
-            _user1: _user_1_rewards,
-        }
-        self.register_interface_score(self.mock_omm_token)
-        EMISSION_PER_DAY = 400000
-        SECONDS_PER_DAY = 86400
-
-        OICX_EMISSION = int(EMISSION_PER_DAY * 0.2 * 0.9 * 10 ** 18 // SECONDS_PER_DAY)
-        OUSDS_EMISSION = int(EMISSION_PER_DAY * 0.4 * 0.5 * 10 ** 18 // SECONDS_PER_DAY)
-
-        _mock_time_elapsed = 0 * TIME
-        _oicx_address = create_address(AddressPrefix.CONTRACT);
-        _ousds_address = create_address(AddressPrefix.CONTRACT);
-
-        _oicx_config = {
-            "asset": _oicx_address,
-            "emissionPerSecond": OICX_EMISSION,
-            "totalBalance": 0
-        }
-        _ousds_config = {
-            "asset": _ousds_address,
-            "emissionPerSecond": OUSDS_EMISSION,
-            "totalBalance": 0
-        }
-        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, [_oicx_config, _ousds_config])
-        _last_updated_timestamp = _mock_time_elapsed
-
-        _mock_time_elapsed = 0
-        _oicx_user1_balance = 0
-        _oicx_total_supply = 0
-
-        _user = {
-            "address": _user1,
-            "balance": _oicx_user1_balance * EXA,
-        }
-        _asset = {
-            "config": _oicx_config,
-            "balance": _oicx_total_supply * EXA
-        }
-        _time = {
-            "last_timestamp": _last_updated_timestamp,
-            "mock_time_elapsed": _mock_time_elapsed
-        }
-        _current_index = self._call_handle_action(_user, _asset, _time, 0)
-        _oicx_user1_balance += 10 * EXA
-        _oicx_total_supply += 10 * EXA
-
-        _ousds_user1_balance = 0
-        _ousds_total_supply = 0
-
-        _user = {
-            "address": _user1,
-            "balance": _ousds_user1_balance * EXA,
-        }
-        _asset = {
-            "config": _ousds_config,
-            "balance": _ousds_total_supply * EXA
-        }
-        _time = {
-            "last_timestamp": _last_updated_timestamp,
-            "mock_time_elapsed": _mock_time_elapsed
-        }
-        _current_index = self._call_handle_action(_user, _asset, _time, 0)
-        _ousds_user1_balance += 10 * EXA
-        _ousds_total_supply += 10 * EXA
-
-        _last_updated_timestamp = _mock_time_elapsed
-
-        _mock_time_elapsed = 347 * TIME
-
-        def side_effect(asset, _address):
-            if asset == _oicx_address:
-                return {
-                    'principalUserBalance': _oicx_user1_balance,
-                    'principalTotalSupply': _oicx_total_supply
-                }
-            elif asset == _ousds_address:
-                return {
-                    'principalUserBalance': _ousds_user1_balance,
-                    'principalTotalSupply': _ousds_total_supply
-                }
-
-        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
-                                   side_effect)
-
-        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            actual_result = self.score.getRewards(_user1)
-
-            print(actual_result)
-            ##610462962962962964612
-            print(actual_result["depositBorrowRewards"])
-            print(610462962962962964612)
-            print(actual_result["depositBorrowRewards"] - 610462962962962964612)
-            # self.assertDictEqual(_expected_result, actual_result)
 
     def test_claim_rewards_case1(self):
         """
@@ -746,31 +689,20 @@ class TestRewardDistributionController(ScoreTestCase):
         Should able to claim reward - case 1
         """
         ## given
-
+        self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
         _user1 = self.test_account2
         _user2 = self.test_account3
 
-        _user_1_rewards = {
-            "worker": 4 * EXA,
-            "dex": 5 * EXA,
-            "ommICX": 8 * EXA,
-            "daoFund": 2 * EXA,
-        }
-        _user_2_rewards = {
-            "worker": 32 * EXA,
-            "dex": 3 * EXA,
-            "ommICX": 5 * EXA,
-            "daoFund": 12 * EXA,
-        }
-        self.score._tokenValue = {
-            _user1: _user_1_rewards,
-            _user2: _user_2_rewards
-        }
-        self.register_interface_score(self.mock_omm_token)
+        self.patch_internal_method(self.mock_omm_token, "getPrincipalSupply",
+                                   lambda _address: {
+                                       "decimals": 18,
+                                       'principalUserBalance': 0,
+                                       'principalTotalSupply': 0
+                                   })
 
         _mock_time_elapsed = 0 * TIME
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self._setup_asset_emission(self._owner, [ASSET_CONFIG])
+            self._setup_asset_emission(self.mock_governance, REWARD_CONFIG_1)
         _last_updated_timestamp = _mock_time_elapsed
 
         _mock_time_elapsed = 100 * TIME
@@ -783,7 +715,7 @@ class TestRewardDistributionController(ScoreTestCase):
             "balance": _user1_balance * EXA,
         }
         _asset = {
-            "config": ASSET_CONFIG,
+            "config": REWARD_CONFIG_1,
             "balance": _total_supply * EXA
         }
         _time = {
@@ -794,67 +726,55 @@ class TestRewardDistributionController(ScoreTestCase):
         _user1_balance += 100
         _total_supply += 100
         _last_updated_timestamp = _mock_time_elapsed
-
         _mock_time_elapsed = 500 * TIME
         _supply = {
+            "decimals": 18,
             'principalUserBalance': _user1_balance * EXA,
             'principalTotalSupply': _total_supply * EXA
         }
-        self.patch_internal_method(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply",
-                                   lambda asset, _address: _supply)
+        self.patch_internal_method(ASSET_ADDRESS_1, "getPrincipalSupply",
+                                   lambda _address: _supply)
 
         actual_result = self._call_get_rewards_balance(_user1, _mock_time_elapsed, _supply)
 
-        self.assertEqual(4000 * EXA, actual_result.get("depositBorrowRewards"))
+        self.assertAlmostEqual(50.92592592593, actual_result['reserve']["assetName_1"] / EXA, 9)
+        self.assertAlmostEqual(50.92592592593, actual_result["total"] / EXA, 9)
 
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self.set_msg(_user1, 1)
-            self.score.claimRewards()
-            mock_omm_token_score = get_interface_score(self.mock_omm_token)
-            _calls = [
-                call(_user1, 19 * EXA),
-                call(_user1, 4000 * EXA)
-            ]
-            mock_omm_token_score.transfer.assert_has_calls(_calls)
+            self.set_msg(self.mock_lending_pool, 1)
+            self.score.claimRewards(_user1)
 
             _calls = [
-                call(_user1, 19 * EXA, "liquidityAndWorkerTokenRewards"),
-                call(_user1, 4000 * EXA, "borrowDepositRewards")
+                call(_user1, ANY, "Asset rewards")
             ]
 
             self.score.RewardsClaimed.assert_has_calls(_calls)
-            self.assert_internal_call(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply", ASSET_ADDRESS,
-                                      _user1)
+            self.score.RewardsAccrued.assert_called_with(_user1, self.score.address, ANY)
+            self.assert_internal_call(ASSET_ADDRESS_1, "getPrincipalSupply", _user1)
+            self.assert_internal_call(self.mock_omm_token, "transfer", _user1, ANY)
 
-        mock_omm_token_score.transfer.reset_mock()
-        self.assertEqual(0, self.score._usersUnclaimedRewards[_user1])
-        self.assertEqual(self.score._userIndex[_user1][ASSET_ADDRESS], self.score._assetIndex[ASSET_ADDRESS])
+        self.assertEqual(0, self.score._usersUnclaimedRewards[_user1][ASSET_ADDRESS_1])
+        self.assertEqual(self.score._userIndex[_user1][ASSET_ADDRESS_1], self.score._assetIndex[ASSET_ADDRESS_1])
 
-        _mock_time_elapsed = 900 * TIME
+        _mock_time_elapsed = 999 * TIME
 
         with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
-            self.set_msg(_user1, 1)
-            self.score.claimRewards()
-            self.assert_internal_call(self.mock_omm_token, "transfer", _user1, 4000 * EXA)
-            self.score.RewardsClaimed.assert_called_with(_user1, 4000 * EXA, "borrowDepositRewards")
-            self.assert_internal_call(self.mock_lending_pool_data_provider, "getAssetPrincipalSupply", ASSET_ADDRESS,
-                                      _user1)
+            self.set_msg(self.mock_lending_pool, 1)
+            self.score.claimRewards(_user1)
+            self.score.RewardsClaimed.assert_called_with(_user1, ANY, "Asset rewards")
+            self.score.RewardsAccrued.assert_called_with(_user1, self.score.address, ANY)
+            self.assert_internal_call(ASSET_ADDRESS_1, "getPrincipalSupply", _user1)
+            self.assert_internal_call(self.mock_omm_token, "transfer", _user1, ANY)
 
-        self.assertEqual(0, self.score._usersUnclaimedRewards[_user1])
-        self.assertEqual(self.score._userIndex[_user1][ASSET_ADDRESS], self.score._assetIndex[ASSET_ADDRESS])
+        self.assertEqual(0, self.score._usersUnclaimedRewards[_user1][ASSET_ADDRESS_1])
+        self.assertEqual(self.score._userIndex[_user1][ASSET_ADDRESS_1], self.score._assetIndex[ASSET_ADDRESS_1])
+        self.assertAlmostEqual(1.14456018519, self.score._assetIndex[ASSET_ADDRESS_1] / EXA, 9)
 
-        _mock_time_elapsed = 1300 * TIME
+        _mock_time_elapsed = 1354 * TIME
 
         actual_result = self._call_get_rewards_balance(_user1, _mock_time_elapsed, _supply)
-        _expected_result = {'daoFund': 0,
-                            'depositBorrowRewards': 4000 * EXA,
-                            'dex': 0,
-                            'liquidityRewards': 0,
-                            'ommICX': 0,
-                            'ommRewards': 4000 * EXA,
-                            'total': 4000 * EXA,
-                            'worker': 0}
-        self.assertEqual(4000 * EXA, actual_result.get("depositBorrowRewards"))
+        self.assertAlmostEqual(45.19675925926, actual_result["reserve"]["assetName_1"] / EXA, 9)
+        self.assertAlmostEqual(45.19675925926, actual_result["total"] / EXA, 9)
 
     def test_initial_distribute(self):
 
@@ -865,137 +785,178 @@ class TestRewardDistributionController(ScoreTestCase):
 
         ## initialized
         self.score._day.set(0)
+        with mock.patch.object(self.score, "getDay", return_value=0):
+            self.set_msg(self._owner)
+            self.score.startDistribution()
         with mock.patch.object(self.score, "getDay", return_value=1):
-            ## initialized and precompute ommICX
-            self.patch_internal_method(self.mock_lp_token, "getTotalValue", lambda _name, _snapshot_id: 0 * EXA)
-
-            self.score.distribute()
-
-            self.assertEqual(0 * EXA, self.score._totalAmount["ommICX"])
-            self.assertEqual(30 * 10 ** 6, self.score._tokenDistTracker["ommICX"])
-            self.assertTrue(self.score._precompute["ommICX"])
-
-            self.assert_internal_call(self.mock_lp_token, "getTotalValue", "OMM/sICX", 0)
-
-            ##distribute ommICX skipped and precompute dex
-            self.score.Distribution.reset_mock()
-            self.patch_internal_method(self.mock_lp_token, "getTotalValue", lambda _name,
-                                                                                   _snapshot_id: 0)
-
-            self.score.distribute()
-
-            self.assert_internal_call(self.mock_omm_token, "transfer", self.mock_dao_fund, 30 * 10 ** 6)
-            self.score.Distribution.assert_called_with("daoFund", self.mock_dao_fund, 30 * 10 ** 6)
-
-            self.assertTrue(self.score._distComplete["ommICX"])
-            self.assertEqual(0, self.score._tokenDistTracker["ommICX"])
-
-            self.assertEqual(0 * EXA, self.score._totalAmount["dex"])
-
-            self.assertEqual(30 * 10 ** 6, self.score._tokenDistTracker["dex"])
-            self.assertTrue(self.score._precompute["dex"])
-
             ##distribute dex skipped and distribute worker
-            self.score.Distribution.reset_mock()
             _wallets = self._mock_worker_token_score()
 
             self.score.distribute()
-
-            self.assert_internal_call(self.mock_omm_token, "transfer", self.mock_dao_fund, 30 * 10 ** 6)
-            self.assertTrue(self.score._distComplete["dex"])
-            self.assertEqual(0, self.score._tokenDistTracker["dex"])
-
-            self.assertEqual(10 * 10 ** 5, self.score._tokenValue[_wallets[0]]["worker"])
-            self.assertEqual(20 * 10 ** 5, self.score._tokenValue[_wallets[1]]["worker"])
-            self.assertEqual(30 * 10 ** 5, self.score._tokenValue[_wallets[2]]["worker"])
-            self.assertEqual(40 * 10 ** 5, self.score._tokenValue[_wallets[3]]["worker"])
-
-            _calls = [
-                call("daoFund", self.mock_dao_fund, 30 * 10 ** 6),
-                call("worker", _wallets[0], 10 * 10 ** 5),
-                call("worker", _wallets[1], 20 * 10 ** 5),
-                call("worker", _wallets[2], 30 * 10 ** 5),
-                call("worker", _wallets[3], 40 * 10 ** 5),
-            ]
-            self.score.Distribution.assert_has_calls(_calls)
-            self.assertTrue(self.score._distComplete["dex"])
-
-            ##distribute daoFund
-            self.score.Distribution.reset_mock()
-
-            self.score.distribute()
-            self.assert_internal_call(self.mock_omm_token, "transfer", self.mock_dao_fund, 30 * 10 ** 6)
-            self.assertTrue(self.score._distComplete["daoFund"])
-            self.score.Distribution.assert_called_with("daoFund", self.mock_dao_fund, 30 * 10 ** 6)
-            self.assertEqual(1, self.score._day.get())
-
-    def test_distribute_worker(self):
-        self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
-
-        self.register_interface_score(self.mock_worker_token)
-        self.register_interface_score(self.mock_omm_token)
-
-        ## initialized
-        self.score._day.set(31)
-        self.score._initialize()
-        self.score._precompute["dex"] = True
-        self.score._precompute["ommICX"] = True
-        self.score._distComplete["dex"] = True
-        self.score._distComplete["ommICX"] = True
-
-        with mock.patch.object(self.score, "getDay", return_value=32):
-            _wallets = self._mock_worker_token_score()
-            total_token = self.score._tokenDistTracker["worker"]
-            self.score.distribute()
+            _worker_token = DISTRIBUTION_CONFIG['worker']
+            _dao_fund_percentage = DISTRIBUTION_CONFIG['daoFund']
 
             mock_omm_token_score = get_interface_score(self.mock_omm_token)
-            self.assertFalse(mock_omm_token_score.transfer.called);
-
-            self.assertEqual(TestRewardDistributionController._calculate_amount(total_token, 10 * EXA, 100 * EXA),
-                             self.score._tokenValue[_wallets[0]]["worker"])
-            self.assertEqual(TestRewardDistributionController._calculate_amount(total_token, 20 * EXA, 100 * EXA),
-                             self.score._tokenValue[_wallets[1]]["worker"])
-            self.assertEqual(TestRewardDistributionController._calculate_amount(total_token, 30 * EXA, 100 * EXA),
-                             self.score._tokenValue[_wallets[2]]["worker"])
-            self.assertEqual(TestRewardDistributionController._calculate_amount(total_token, 40 * EXA, 100 * EXA),
-                             self.score._tokenValue[_wallets[3]]["worker"])
+            _calls = [
+                call(_wallets[0], exaMul(1 * 10 ** 6 * 10 ** 18, _worker_token)),
+                call(_wallets[1], exaMul(2 * 10 ** 6 * 10 ** 18, _worker_token)),
+                call(_wallets[2], exaMul(3 * 10 ** 6 * 10 ** 18, _worker_token)),
+                call(_wallets[3], exaMul(4 * 10 ** 6 * 10 ** 18, _worker_token)),
+                call(self.mock_dao_fund, exaMul(100 ** 6 * 10 ** 18, _dao_fund_percentage)),
+            ]
+            mock_omm_token_score.transfer.assert_has_calls(_calls)
 
             _calls = [
-                call("worker", _wallets[0],
-                     TestRewardDistributionController._calculate_amount(total_token, 10 * EXA, 100 * EXA)),
-                call("worker", _wallets[1],
-                     TestRewardDistributionController._calculate_amount(total_token, 20 * EXA, 100 * EXA)),
-                call("worker", _wallets[2],
-                     TestRewardDistributionController._calculate_amount(total_token, 30 * EXA, 100 * EXA)),
-                call("worker", _wallets[3],
-                     TestRewardDistributionController._calculate_amount(total_token, 40 * EXA, 100 * EXA)),
+                call("worker", _wallets[0], exaMul(1 * 10 ** 6 * 10 ** 18, _worker_token)),
+                call("worker", _wallets[1], exaMul(2 * 10 ** 6 * 10 ** 18, _worker_token)),
+                call("worker", _wallets[2], exaMul(3 * 10 ** 6 * 10 ** 18, _worker_token)),
+                call("worker", _wallets[3], exaMul(4 * 10 ** 6 * 10 ** 18, _worker_token)),
+                call("daoFund", self.mock_dao_fund, exaMul(1 * 10 ** 6 * 10 ** 18, _worker_token)),
             ]
             self.score.Distribution.assert_has_calls(_calls)
-            self.assertTrue(self.score._distComplete["worker"])
 
-    def test_distribute_dao_fund(self):
+
+            self.assertEqual(1, self.score._day.get())
+
+    def test_all_dist_percentage(self):
         self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
+        _mock_time_elapsed = 0
+        reserve_config = {
+            "asset": ASSET_ADDRESS_1,
+            "assetName": "assetName_1",
+            "poolID": -1,
+            "rewardEntity": 'lendingBorrow',
+            "distPercentage": 19 * EXA // 100,
+        }
+        omm_config = {
+            "asset": create_address(AddressPrefix.CONTRACT),
+            "assetName": "OMM",
+            "poolID": -1,
+            "rewardEntity": 'liquidityProvider',
+            "distPercentage": 25 * EXA // 100,
+        }
+        lp_config = {
+            "asset": create_address(AddressPrefix.CONTRACT),
+            "assetName": "lpName",
+            "poolID": 17,
+            "rewardEntity": 'liquidityProvider',
+            "distPercentage": 33 * EXA // 100,
+        }
+        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
+            self.patch_internal_method(reserve_config["asset"], "getTotalStaked", lambda: {
+                "decimals": 18,
+                "totalStaked": 0
+            })
+            self.set_msg(self.mock_governance)
+            config = {
+                "asset": reserve_config['asset'],
+                "poolID": reserve_config['poolID'],
+                "rewardEntity": reserve_config['rewardEntity'],
+                "assetName": reserve_config['assetName'],
+                "distPercentage": reserve_config['distPercentage'],
+            }
+            self.set_msg(self.mock_governance)
+            self.score.configureAssetConfig(config)
+            self.patch_internal_method(omm_config["asset"], "getTotalStaked", lambda: {
+                "decimals": 18,
+                "totalStaked": 0
+            })
+            config = {
+                "asset": omm_config['asset'],
+                "poolID": omm_config['poolID'],
+                "rewardEntity": omm_config['rewardEntity'],
+                "assetName": omm_config['assetName'],
+                "distPercentage": omm_config['distPercentage'],
+            }
+            self.score.configureAssetConfig(config)
+            self.patch_internal_method(self.mock_staked_lp, "getTotalStaked", lambda _pool: {
+                "decimals": 18,
+                "totalStaked": 0
+            })
+            config = {
+                "asset": lp_config['asset'],
+                "poolID": lp_config['poolID'],
+                "rewardEntity": lp_config['rewardEntity'],
+                "assetName": lp_config['assetName'],
+                "distPercentage": lp_config['distPercentage'],
+            }
+            self.score.configureAssetConfig(config)
 
-        self.register_interface_score(self.mock_worker_token)
-        self.register_interface_score(self.mock_omm_token)
+        allPercentage = self.score.allAssetDistPercentage()
 
-        ## initialized
-        self.score._day.set(31)
-        self.score._initialize()
-        self.score._precompute["dex"] = True
-        self.score._precompute["ommICX"] = True
-        self.score._distComplete["dex"] = True
-        self.score._distComplete["ommICX"] = True
-        self.score._distComplete["worker"] = True
+        self.assertEqual(10 * 19 * EXA // (100 * 100), allPercentage["reserve"]["assetName_1"])
+        self.assertEqual(20 * 25 * EXA // (100 * 100), allPercentage["staking"]["OMM"])
+        self.assertEqual(20 * 33 * EXA // (100 * 100), allPercentage["liquidity"]["lpName"])
 
-        with mock.patch.object(self.score, "getDay", return_value=32):
-            total_token = self.score._tokenDistTracker["daoFund"]
-            self.score.distribute()
+        lpPercentage = self.score.distPercentageOfAllLP()
+        self.assertDictEqual({"liquidity": {17: 20 * 33 * EXA // (100 * 100)}}, lpPercentage)
 
-            self.assert_internal_call(self.mock_omm_token, "transfer", self.mock_dao_fund, total_token)
-            self.assertTrue(self.score._distComplete["daoFund"])
-            self.score.Distribution.assert_called_with("daoFund", self.mock_dao_fund, total_token)
-            self.assertEqual(32, self.score._day.get())
+    def test_all_dist_percentage_exception(self):
+        self._setup_distribution_percentage(self._owner, DISTRIBUTION_CONFIG)
+        _mock_time_elapsed = 0
+        omm_config = {
+            "asset": create_address(AddressPrefix.CONTRACT),
+            "assetName": "OMM",
+            "poolID": -1,
+            "rewardEntity": 'liquidityProvider',
+            "distPercentage": 25 * EXA // 100,
+        }
+        lp_config = {
+            "asset": create_address(AddressPrefix.CONTRACT),
+            "assetName": "lpName",
+            "poolID": 17,
+            "rewardEntity": 'liquidityProvider',
+            "distPercentage": 33 * EXA // 100,
+        }
+        lp_config_exception = {
+            "asset": create_address(AddressPrefix.CONTRACT),
+            "assetName": "lpNameException",
+            "poolID": 18,
+            "rewardEntity": 'liquidityProvider',
+            "distPercentage": 43 * EXA // 100,
+        }
+        with mock.patch.object(self.score, "now", return_value=_mock_time_elapsed):
+            self.set_msg(self.mock_governance)
+            self.patch_internal_method(omm_config["asset"], "getTotalStaked", lambda: {
+                "decimals": 18,
+                "totalStaked": 0
+            })
+            config = {
+                "asset": omm_config['asset'],
+                "poolID": omm_config['poolID'],
+                "rewardEntity": omm_config['rewardEntity'],
+                "assetName": omm_config['assetName'],
+                "distPercentage": omm_config['distPercentage'],
+            }
+            self.set_msg(self.mock_governance)
+            self.score.configureAssetConfig(config)
+            self.patch_internal_method(self.mock_staked_lp, "getTotalStaked", lambda _pool: {
+                "decimals": 18,
+                "totalStaked": 0
+            })
+            config = {
+                "asset": lp_config['asset'],
+                "poolID": lp_config['poolID'],
+                "rewardEntity": lp_config['rewardEntity'],
+                "assetName": lp_config['assetName'],
+                "distPercentage": lp_config['distPercentage'],
+            }
+            self.score.configureAssetConfig(config)
+            try:
+                config = {
+                    "asset": lp_config_exception['asset'],
+                    "poolID": lp_config_exception['poolID'],
+                    "rewardEntity": lp_config_exception['rewardEntity'],
+                    "assetName": lp_config_exception['assetName'],
+                    "distPercentage": lp_config_exception['distPercentage'],
+                }
+                self.score.configureAssetConfig(config)
+            except IconScoreException as err:
+                self.assertIn(
+                    "Reward Distribution Storage 1010000000000000000 should be less than or equals to 1000000000000000000",
+                    str(err))
+            else:
+                raise IconScoreException("dist percentage is more than 100 percent")
 
     @staticmethod
     def _calculate_amount(total_token, user_balance, total_balance):
@@ -1023,4 +984,4 @@ class TestRewardDistributionController(ScoreTestCase):
         ScorePatcher.patch_internal_method(self.mock_worker_token, "totalSupply", lambda: 100 * EXA)
         ScorePatcher.patch_internal_method(self.mock_worker_token, "balanceOf", side_effect)
         ScorePatcher.patch_internal_method(self.mock_worker_token, "getWallets", lambda: _wallets)
-        return _wallets;
+        return _wallets

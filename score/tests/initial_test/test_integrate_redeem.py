@@ -97,7 +97,6 @@ class TestTest(OMMTestBase):
 			_int(self.user_reserve_data_before['principalOTokenBalance']),
 			_int(self.user_reserve_data_after['principalOTokenBalance']+self._redeemAmount)
 			)
-		self.assertEqual(self.user_reserve_data_after['useAsCollateral'], '0x1')
 
 	def test_redeem_reserve_data(self):
 
