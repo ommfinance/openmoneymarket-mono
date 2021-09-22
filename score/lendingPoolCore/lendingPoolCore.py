@@ -299,7 +299,7 @@ class LendingPoolCore(Addresses):
             if reserve not in self.getReserves():
                 revert(TAG + " invalid reserve ")
             self.updateCumulativeIndexes(reserve)
-            dictDB = self._constants[(constants['reserve'])]
+            dictDB = self._constants[reserve]
             dictDB['optimalUtilizationRate'] = constants['optimalUtilizationRate']
             dictDB['baseBorrowRate'] = constants['baseBorrowRate']
             dictDB['slopeRate1'] = constants['slopeRate1']
