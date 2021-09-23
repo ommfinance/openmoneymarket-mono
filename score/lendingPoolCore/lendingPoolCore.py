@@ -294,7 +294,7 @@ class LendingPoolCore(Addresses):
     @only_governance
     @external
     def setReserveConstants(self, _constants: List[Constant]) -> None:
-        reserveList = self.self.getReserves()
+        reserveList = self.getReserves()
         for constants in _constants:
             reserve = constants['reserve']
             if reserve not in reserveList:
