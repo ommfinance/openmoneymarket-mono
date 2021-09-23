@@ -294,9 +294,10 @@ class LendingPoolCore(Addresses):
     @only_governance
     @external
     def setReserveConstants(self, _constants: List[Constant]) -> None:
+        reserveList = self.self.getReserves()
         for constants in _constants:
             reserve = constants['reserve']
-            if reserve not in self.getReserves():
+            if reserve not in reserveList:
                 revert(TAG + " invalid reserve ")
             self.updateCumulativeIndexes(reserve)
             dictDB = self._constants[reserve]
