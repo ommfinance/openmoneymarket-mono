@@ -66,9 +66,8 @@ class LendingPoolCore(Addresses):
     @external
     def updateBorrowThreshold(self, _reserve: Address, _borrowThreshold: int):
         prefix = self.reservePrefix(_reserve)
-        if 0 > _borrowThreshold > EXA:
+        if _borrowThreshold < 0 or _borrowThreshold > EXA:
             revert(f"{TAG} : Invalid borrow threshold value")
-
         self.reserve[prefix].borrowThreshold.set(_borrowThreshold)
 
     def updateBorrowCumulativeIndex(self, _reserve: Address, _borrowCumulativeIndex: int):
@@ -294,9 +293,10 @@ class LendingPoolCore(Addresses):
     @only_governance
     @external
     def setReserveConstants(self, _constants: List[Constant]) -> None:
+        reserveList = self.getReserves()
         for constants in _constants:
             reserve = constants['reserve']
-            if reserve not in self.getReserves():
+            if reserve not in reserveList:
                 revert(TAG + " invalid reserve ")
             self.updateCumulativeIndexes(reserve)
             dictDB = self._constants[reserve]
