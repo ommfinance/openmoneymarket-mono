@@ -169,7 +169,7 @@ class RewardConfigurationDB(object):
         for asset in self._assets:
             _poolID = self._poolIDMapping[asset]
             if _poolID > 0:
-                configs[_poolID] = self.getAssetPercentage(asset)
+                configs[str(_poolID)] = self.getAssetPercentage(asset)
 
         return {'liquidity': configs}
 
