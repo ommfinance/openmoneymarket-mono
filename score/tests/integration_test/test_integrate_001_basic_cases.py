@@ -72,7 +72,8 @@ class OMMBaseTestCases(OmmUtils):
 		if case.get('remarks') != None:
 			print("Remarks => ", case['remarks'])
 
-		if (tx_result['status'] == 0): 
+		if (tx_result['status'] == 0):
+			print(tx_result)
 			print("SCORE MESSAGE: ", tx_result['failure']['message'])
 			if case.get('revertMessage') != None:
 				print("EXPECTED MESSAGE: ", case['revertMessage'])

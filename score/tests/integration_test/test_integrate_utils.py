@@ -5,7 +5,8 @@ from checkscore.repeater import retry
 from iconsdk.builder.call_builder import CallBuilder
 from iconsdk.builder.transaction_builder import TransactionBuilder, DeployTransactionBuilder, CallTransactionBuilder
 from iconsdk.exception import JSONRPCException
-from iconsdk.builder.transaction_builder import TransactionBuilder, DeployTransactionBuilder, CallTransactionBuilder, DepositTransactionBuilder
+from iconsdk.builder.transaction_builder import TransactionBuilder, DeployTransactionBuilder, CallTransactionBuilder, \
+    DepositTransactionBuilder
 from iconsdk.icon_service import IconService
 from iconsdk.libs.in_memory_zip import gen_deploy_data_content
 from iconsdk.signed_transaction import SignedTransaction
@@ -125,6 +126,7 @@ class TestUtils(IconIntegrateTestBase):
             signed_transaction, self.icon_service, self.tx_result_wait)
 
         self.assertTrue('status' in tx_result)
+        print(tx_result['txHash'])
         # self.assertEqual(
         #     1, tx_result['status'], f"Failure: {tx_result['failure']}" if tx_result['status'] == 0 else "")
         return tx_result
@@ -136,7 +138,7 @@ class TestUtils(IconIntegrateTestBase):
             from_=from_.get_address(),
             to=to,
             value=value,
-            step_limit=3_000_000_000,
+            step_limit=300_000_000,
             nid=self.nid,
             nonce=5,
             method=method,
@@ -147,14 +149,14 @@ class TestUtils(IconIntegrateTestBase):
 
     def deposit_tx(self, from_: KeyWallet, to: str, value: int = 5000000000000000000000) -> SignedTransaction:
         tx = DepositTransactionBuilder(
-                from_ = from_.get_address(),
-                to = to,
-                nid =3,
-                value =value,
-                step_limit=1000000000,
-                nonce=100,
-                action="add"
-            ).build()
+            from_=from_.get_address(),
+            to=to,
+            nid=3,
+            value=value,
+            step_limit=1000000000,
+            nonce=100,
+            action="add"
+        ).build()
         signed_transaction = SignedTransaction(tx, from_)
         return signed_transaction
 
@@ -172,6 +174,7 @@ class TestUtils(IconIntegrateTestBase):
         # pprint(response)
         return response
 
+
     def process_transaction(self, request: SignedTransaction,
                             network: IconService = None,
                             block_confirm_interval: int = -1) -> dict:
@@ -183,13 +186,12 @@ class TestUtils(IconIntegrateTestBase):
         # Get transaction result
         tx_result: dict = self.get_tx_result(tx_hash)
 
-
         return tx_result
 
     @retry(JSONRPCException, tries=10, delay=2, back_off=2)
     def get_tx_result(self, _tx_hash):
         try:
-            print("_tx_hash",_tx_hash)
+            print("_tx_hash", _tx_hash)
             tx_result = self.icon_service.get_transaction_result(_tx_hash)
             return tx_result
         except JSONRPCException as err:
