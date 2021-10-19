@@ -29,9 +29,9 @@ class OMMStakingCases(OmmUtils):
             "admin": self.deployer_wallet
         }
         user = KeyWallet.create()
-        self.send_icx(self.deployer_wallet, user.get_address(), 1500 * EXA)
-        self._transferUSDS(self.deployer_wallet, user.get_address(), 1500 * EXA)        
-        self._transferOMM(self.deployer_wallet, user.get_address(), 100 * EXA)
+        self.send_icx(self.deployer_wallet, user.get_address(), 1500 * 10 ** 16)
+        self._transferUSDS(self.deployer_wallet, user.get_address(), 1500 * 10 ** 16)        
+        self._transferOMM(self.deployer_wallet, user.get_address(), 1000 * 10 ** 16)
         self.users[name] = user
 
     def _execute(self, task):
@@ -48,12 +48,6 @@ class OMMStakingCases(OmmUtils):
         }
 
         self.initialize_user("user1")
-        self.send_tx(
-                from_=self.deployer_wallet,
-                to=self.contracts['ommToken'],
-                method="mintTo",
-                params={"_to": self.users["user1"].get_address(), "_amount": 1000 * EXA}
-            )
         for case in task.get("transaction"):
             _step = case.get("_step")
             self.user = case.get("user")
@@ -162,9 +156,9 @@ class OMMStakingCases(OmmUtils):
     def _omm_total_balance(self, _usr):
         lp_balance = self.call_tx(
                 to = self.contracts['ommToken'],
-                method = "balanceOf",
+                method = "details_balanceOf",
                 params = {'_owner': _usr}
-            )
+            )['totalBalance']
         return (int(lp_balance,0))
 
     def _test_fee_sharing(self, feeShared):
