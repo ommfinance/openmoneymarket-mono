@@ -219,8 +219,8 @@ class LiquidationTest(OmmUtils):
 
                 if tx.get("status") == 0:
                     print(tx["failure"])
-                else:
-                    self.return_amount["value"] = _int(tx['eventLogs'][7]['data'][0])
+                # else:
+                #     self.return_amount["value"] = _int(tx['eventLogs'][7]['data'][0])
 
                 self.assertEqual(tx["status"], case.get("expectedResult"))
 
@@ -337,7 +337,7 @@ class LiquidationTest(OmmUtils):
 
         self.assertAlmostEqual(
             _dec(borrower_before["account_data"]['totalBorrowBalanceUSD']) - amount_to_liquidate / EXA,
-            _dec(borrower_after["account_data"]['totalBorrowBalanceUSD']), 4)
+            _dec(borrower_after["account_data"]['totalBorrowBalanceUSD']), 2)
 
         self.assertAlmostEqual(
             _dec(liquidator_before["account_data"]['totalCollateralBalanceUSD']),
@@ -436,8 +436,7 @@ class LiquidationTest(OmmUtils):
         self._price = case["rate"]
         params = {
             '_base': 'ICX',
-            '_quote': 'USD',
-            '_rate': case["rate"]
+            '_price': case["rate"]
         }
         tx = self.send_tx(
             from_=self.deployer_wallet,
@@ -450,6 +449,6 @@ class LiquidationTest(OmmUtils):
             to=self.contracts[case["contract"]],
             method="get_reference_data",
             params={'_base': 'ICX', '_quote': 'USD'}
-        )
+        ).get('rate')
         print(f"1 icx = {_dec(icx_usd)} usd")
         self.assertEqual(_int(icx_usd), self._price)
