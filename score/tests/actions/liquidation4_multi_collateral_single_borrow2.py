@@ -8,7 +8,7 @@ ACTIONS = {
         {
             "_step": Steps.UPDATE_PRICE,
             "action": "set_reference_data",
-            "contract": "priceOracle",
+            "contract": "bandOracle",
             "user": "admin",
             "rate": 1 * EXA,
             "expectedResult": 1,
@@ -41,13 +41,13 @@ ACTIONS = {
         {
            "_step": Steps.BORROW_ICX,
             "user": "borrower",
-            "amount": 5 * EXA,
+            "amount": 48 * EXA // 10,
             "expectedResult": 1
         },
         {
             "_step": Steps.UPDATE_PRICE,
             "action": "set_reference_data",
-            "contract": "priceOracle",
+            "contract": "bandOracle",
             "user": "admin", 
             "rate": 15 * EXA // 10, 
             "expectedResult": 1,

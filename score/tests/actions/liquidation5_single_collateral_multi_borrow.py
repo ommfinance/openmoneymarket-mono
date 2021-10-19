@@ -8,7 +8,7 @@ ACTIONS = {
         {
             "_step": Steps.UPDATE_PRICE,
             "action": "set_reference_data",
-            "contract": "priceOracle",
+            "contract": "bandOracle",
             "user": "admin", 
             "rate": 1 * EXA,
             "expectedResult": 1,
@@ -35,7 +35,7 @@ ACTIONS = {
         {
             "_step": Steps.UPDATE_PRICE,
             "action": "set_reference_data",
-            "contract": "priceOracle",
+            "contract": "bandOracle",
             "user": "admin",
             "rate": 6 * EXA // 10,
             "expectedResult": 1,
