@@ -40,7 +40,6 @@ class OMMFeeSharingCases(OmmUtils):
 
     def initialize_user(self, name: str, share_fee: bool = False):
         user = KeyWallet.create()
-        print(user.get_private_key())
         self.send_icx(self.deployer_wallet, user.get_address(), 10 * EXA)
         if share_fee:
             tx = self._mintUSDS(self.deployer_wallet, user.get_address())
@@ -51,7 +50,7 @@ class OMMFeeSharingCases(OmmUtils):
             tx = self._depositUSDS(user, 100 * EXA)
             self.assertEqual(tx['status'], 1)
         else:
-            tx = self._transferUSDS(self.deployer_wallet, user.get_address(), 10 * EXA)
+            tx = self._transferUSDS(self.deployer_wallet, user.get_address(), 1000 * EXA)
             self.assertEqual(tx['status'], 1)
         self.users[name] = user
 
