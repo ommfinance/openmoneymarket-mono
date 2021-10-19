@@ -8,28 +8,28 @@ ACTIONS = {
         {
             "_step": Steps.DEPOSIT_ICX,
             "user": "user1",
-            "amount": 550 * EXA,
+            "amount": 550 * EXA // 1000,
             "expectedResult": 1,
             "feeShared": 1
         },
         {
             "_step": Steps.BORROW_ICX,
             "user": "user1",
-            "amount": 200 * EXA,
+            "amount": 200 * EXA // 1000,
             "expectedResult": 1,
             "feeShared": 1
         },
         {
             "_step": Steps.REDEEM_ICX,
             "user": "user1",
-            "amount": 100 * EXA,
+            "amount": 100 * EXA // 1000,
             "expectedResult": 1,
             "feeShared": 1
         },
         {
             "_step": Steps.REPAY_ICX,
             "user": "user1",
-            "amount": 100 * EXA,
+            "amount": 100 * EXA // 1000,
             "expectedResult": 1,
             "remarks":"3 free transaction limit exceeded. So user needs to pay.",
             "feeShared": 0

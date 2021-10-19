@@ -1,5 +1,5 @@
 from .steps import Steps
-EXA = 10 ** 18
+EXA = 10 ** 15
 
 ACTIONS = {
     "description": "7. User1 has deposits USDS and withdraws all.",
@@ -8,7 +8,7 @@ ACTIONS = {
         {
             "_step": Steps.DEPOSIT_USDS,
             "user": "user1",
-            "amount": 500 * EXA,
+            "amount": 500 * EXA // 1000,
             "expectedResult": 1,
             "remarks":"This transaction is is initiated by bridge token transfer, not on OMM lending pool. So, user needs to pay fee.",
             "feeShared": 0
@@ -16,7 +16,7 @@ ACTIONS = {
         {
             "_step": Steps.DEPOSIT_ICX,
             "user": "user1",
-            "amount": 300 * EXA,
+            "amount": 300 * EXA // 1000,
             "expectedResult": 1,
             "feeShared": 1
         },
@@ -31,14 +31,14 @@ ACTIONS = {
         {
             "_step": Steps.BORROW_USDS,
             "user": "user1",
-            "amount": 50 * EXA,
+            "amount": 50 * EXA // 1000,
             "expectedResult": 1,
             "feeShared": 0
         },
         {
             "_step": Steps.DEPOSIT_ICX,
             "user": "user1",
-            "amount": 50 * EXA,
+            "amount": 50 * EXA // 1000,
             "expectedResult": 1,
             "feeShared": 0,
             "remarks": "User has dUSDS but not oUSDS. So, fee not shared.",
