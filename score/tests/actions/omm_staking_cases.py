@@ -21,7 +21,7 @@ ACTIONS = {
         {
             "_step": Steps.STAKE_OMM,
             "user": "user1",
-            "amount": 120 * EXA,
+            "amount": 120 * EXA // 100,
             "expectedResult": 0,
             "feeShared": 0
         },
@@ -34,7 +34,7 @@ ACTIONS = {
         {
             "_step": Steps.STAKE_OMM,
             "user": "user1",
-            "amount": 100 * EXA // 100,
+            "amount": 100 * EXA // 100, #900 #100 #0
             "expectedResult": 1,
             "feeShared": 0
         },
@@ -69,7 +69,7 @@ ACTIONS = {
         {
             "_step": Steps.UNSTAKE_OMM,
             "user": "user1",
-            "amount": 10 * EXA // 100,
+            "amount": 10 * EXA // 100, #910 #10 #10
             "expectedResult": 1,
             "feeShared": 0
         },
@@ -98,7 +98,7 @@ ACTIONS = {
             "amount": 120 * EXA // 100,
             "expectedResult": 1,
             "feeShared": 1,
-            "addedStake": 30 * EXA // 100
+            "addedStake": 40 * EXA // 100
         },
         {
             "_step": Steps.UPDATE_UNSTAKING_PERIOD,
