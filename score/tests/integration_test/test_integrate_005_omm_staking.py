@@ -11,7 +11,18 @@ class OMMStakingCases(OmmUtils):
         super().setUp()
 
     def test_01_omm_staking_cases(self):
+        self.change_minimum_stake(0.01)
         self._execute(OMM_STAKING_CASE)
+        self.change_minimum_stake(1)
+
+    def change_minimum_stake(self, amount):
+        amt = int(amount * 10**18)
+        self.send_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts['ommToken'],
+            method="setMinimumStake",
+            params={'_min': amt}
+            )
 
     def initialize_user(self, name: str):
         self.users = {
