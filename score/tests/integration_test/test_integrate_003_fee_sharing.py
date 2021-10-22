@@ -12,12 +12,12 @@ from ..actions.steps import Steps
 EXA = 10 ** 18
 halfEXA = EXA // 2
 
-
 class OMMFeeSharingCases(OmmUtils):
     def setUp(self):
         super().setUp()
 
     def test_01_bridge_whitelisted_wallets(self):
+        self.set_fee_sharing_limit(3)
         self._execute(FEE_SHARING_CASE1)
 
     def test_02_bridge_depositors_not_whitelisted(self):
@@ -37,6 +37,15 @@ class OMMFeeSharingCases(OmmUtils):
 
     def test_07_user_withdraws_all_usds_cases(self):
         self._execute(FEE_SHARING_CASE7)
+        self.set_fee_sharing_limit(50)
+
+    def set_fee_sharing_limit(self, value: int):
+        self.send_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts['lendingPool'],
+            method="setFeeSharingTxnLimit",
+            params={'_limit': value}
+        )
 
     def initialize_user(self, name: str, share_fee: bool = False):
         user = KeyWallet.create()
