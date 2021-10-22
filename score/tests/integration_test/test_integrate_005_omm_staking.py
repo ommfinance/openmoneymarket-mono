@@ -29,7 +29,7 @@ class OMMStakingCases(OmmUtils):
             "admin": self.deployer_wallet
         }
         user = KeyWallet.create()
-        self.send_icx(self.deployer_wallet, user.get_address(), 1500 * 10 ** 16)
+        self.send_icx(self.deployer_wallet, user.get_address(), 15 * 10 ** 16)
         self._transferUSDS(self.deployer_wallet, user.get_address(), 1500 * 10 ** 16)        
         self._transferOMM(self.deployer_wallet, user.get_address(), 1000 * 10 ** 16)
         self.users[name] = user

@@ -20,7 +20,7 @@ class OMMLPStakingCases(OmmUtils):
             "admin": self.deployer_wallet
         }
         user = KeyWallet.create()
-        self.send_icx(self.deployer_wallet, user.get_address(), 50 * EXA)
+        self.send_icx(self.deployer_wallet, user.get_address(), 3 * EXA)
         self._transferLPTokens(self.deployer_wallet, user.get_address(), OMM_USDS_ID)
 
         self.users[name] = user

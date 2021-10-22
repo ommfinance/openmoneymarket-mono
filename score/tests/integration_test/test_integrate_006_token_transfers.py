@@ -18,7 +18,7 @@ class TokenTransfer(OmmUtils):
 
     def _initialize_user(self, name: str):
         user = KeyWallet.create()
-        self.send_icx(self.deployer_wallet, user.get_address(), 1000 * EXA)
+        self.send_icx(self.deployer_wallet, user.get_address(), 10 * EXA)
         tx = self._transferUSDS(self.deployer_wallet,
                                 user.get_address(), 1000 * EXA)
         self.assertEqual(tx['status'], 1)

@@ -18,7 +18,7 @@ class OMMDelegationTest(OmmUtils):
             "admin": self.deployer_wallet
         }
         user = KeyWallet.create()
-        self.send_icx(self.deployer_wallet, user.get_address(), 50 * EXA)
+        self.send_icx(self.deployer_wallet, user.get_address(), 5 * EXA)
         self.transfer_omm(user.get_address())
         self.users[name] = user
 
