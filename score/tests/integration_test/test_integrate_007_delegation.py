@@ -104,15 +104,21 @@ class OMMDelegationTest(OmmUtils):
         )
 
     def _check_default_delegations(self):
-        default = [
-            {
-                "_address": "hxfe98328ee9f2535d086487026a48122b308612b5",
-                "_votes_in_per": "0x6f05b59d3b20000"
-            },
-            {
-                "_address": "hxfb63e3da56b00a9ed3881857b4a04c37e4c9cdb5",
-                "_votes_in_per": "0x6f05b59d3b20000"
-            }
-        ]
+        default = []
+        contributors = self.call_tx(self.contracts['delegation'],'getContributors',{})
+        total = len(contributors)
+        prep_percent = EXA // total
+        total_percent = 0
+        for i in contributors:
+            default.append(
+                {
+                    '_address': i,
+                    '_votes_in_per': hex(prep_percent)
+                })
+            total_percent += prep_percent
 
+        dust_votes = EXA - total_percent
+        if dust_votes >=0 and len(default) > 0:
+            a = int(default[0]['_votes_in_per'],16) + dust_votes
+            default[0]['_votes_in_per'] = hex(a)
         self.assertEqual(default, self.delegations['after'])
