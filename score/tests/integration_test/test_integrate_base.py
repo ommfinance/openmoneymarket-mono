@@ -36,6 +36,7 @@ class OMMTestBase(TestUtils):
         # self._deploy_contracts()
         with open(CONTRACT_ADDRESSES, "r") as file:
             self.contracts = json.load(file)
+            self.contracts['bandOracle'] = BAND_ORACLE # dummy oracle for liquidation test 
         for contract in RE_DEPLOY_CONTRACT:
             self._update_contract(contract)
 

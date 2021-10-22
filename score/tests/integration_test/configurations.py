@@ -20,6 +20,11 @@ keystore_private_key = settings['KEYSTORE_PRIVATE_KEY']
 NETWORK = settings["NETWORK"]
 CONTRACT_ADDRESSES = settings["CONTRACT_ADDRESSES"]
 
+if NETWORK == "sejong":
+    BAND_ORACLE = "cx35efe400b5c0efe70dff20f3c96ce24a1a98dbba" # dummy oracle for liquidation test
+elif NETWORK == "goloop":
+    BAND_ORACLE = "cx4a83ec08f64e2888c71eb9a995e67191abfc64fd"
+    
 PREP_LIST =[
 	"hxfe98328ee9f2535d086487026a48122b308612b5",
 	"hxfb63e3da56b00a9ed3881857b4a04c37e4c9cdb5"
