@@ -210,6 +210,16 @@ class AddressProvider(IconScoreBase):
 
     @only_owner
     @external
+    def addAddress(self, _to: str, _key: str, _value: Address):
+        score = self._addresses[_to]
+        if not score:
+            revert(TAG + "score name not matched")
+        addressDetails: List[AddressDetails] = [{"name": _key, "address": _value}]
+        to = self.create_interface_score(score, AddressInterface)
+        to.setAddresses(addressDetails)
+
+    @only_owner
+    @external
     def addAddressToScore(self, _to: str, _names: List[str]):
         score = self._addresses[_to]
         if not score:
