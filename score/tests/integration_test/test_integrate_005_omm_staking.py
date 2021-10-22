@@ -11,9 +11,18 @@ class OMMStakingCases(OmmUtils):
         super().setUp()
 
     def test_01_omm_staking_cases(self):
+        self.claim_omm()
         self.change_minimum_stake(0.01)
         self._execute(OMM_STAKING_CASE)
         self.change_minimum_stake(1)
+
+    def claim_omm(self):
+        self.send_tx(
+            from_=self.deployer_wallet,
+            to=self.contracts['lendingPool'],
+            method="claimRewards",
+            params={}
+            )
 
     def change_minimum_stake(self, amount):
         amt = int(amount * 10**18)
