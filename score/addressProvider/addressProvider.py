@@ -70,18 +70,6 @@ class AddressProvider(IconScoreBase):
 
     def on_update(self) -> None:
         super().on_update()
-        # add reserve names
-        self._reserves.add(self.sICX)
-        self._reserves.add(self.USDs)
-        self._reserves.add(self.IUSDC)
-        # add oToken names
-        self._oTokens.add(self.oICX)
-        self._oTokens.add(self.oUSDs)
-        self._oTokens.add(self.oIUSDC)
-        # add dToken names
-        self._dTokens.add(self.dICX)
-        self._dTokens.add(self.dUSDs)
-        self._dTokens.add(self.dIUSDC)
 
     @external(readonly=True)
     def name(self) -> str:
@@ -210,15 +198,25 @@ class AddressProvider(IconScoreBase):
 
     @only_owner
     @external
+    def addAddress(self, _to: str, _key: str, _value: Address):
+        score = self._addresses[_to]
+        if not score:
+            revert(f"{TAG}: score name {_to} not matched")
+        addressDetails: List[AddressDetails] = [{"name": _key, "address": _value}]
+        to = self.create_interface_score(score, AddressInterface)
+        to.setAddresses(addressDetails)
+
+    @only_owner
+    @external
     def addAddressToScore(self, _to: str, _names: List[str]):
         score = self._addresses[_to]
         if not score:
-            revert(TAG + "score name not matched")
+            revert(f"{TAG}: score name {_to} not matched")
         addressDetails: List[AddressDetails] = []
         for name in _names:
             address = self._addresses[name]
             if not address:
-                revert(TAG + " wrong score name in the list")
+                revert("{TAG}: wrong score name in the list")
             addressDetails.append({"name": name, "address": address})
 
         to = self.create_interface_score(score, AddressInterface)
