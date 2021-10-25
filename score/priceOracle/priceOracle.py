@@ -2,7 +2,7 @@ from .addresses import *
 from .utils.math import convertToExa, exaMul
 
 EXA = 10 ** 18
-STABLE_TOKENS = ["USDS", "USDB"]
+STABLE_TOKENS = ["USDS", "USDB","bnUSD"]
 BAND_ORACLE = "bandOracle"
 DEX = "dex"
 
