@@ -256,7 +256,7 @@ class Governance(Addresses):
         proposal.status.set(ProposalStatus.STATUS[ProposalStatus.CANCELLED])
 
     def _defineVote(self, name: str, description: str, vote_start: int,
-                    snapshot: int, _proposer: Address) -> None:
+                    snapshot: int, _proposer: Address, _forum: str) -> None:
         """
         Defines a new vote and which actions are to be executed if it is successful.
         :param name: name of the vote
@@ -288,15 +288,13 @@ class Governance(Addresses):
         user_staked = omm.stakedBalanceOfAt(_proposer, snapshot)
         omm_criterion = self._omm_vote_definition_criterion.get()
         if (EXA * user_staked) // omm_total < omm_criterion:
-            revert(f'User needs at least {omm_criterion / 100}% of total omm supply staked to define a vote.')
-        # revert(f"{(POINTS * user_staked) // omm_total}  {user_staked}  {omm_total} {omm_criterion}")
+            revert(f'User needs at least {100 * omm_criterion / EXA}% of total omm supply staked to define a vote.')
         proposal = ProposalDB.create_proposal(name=name, description=description, proposer=_proposer,
                                               quorum=self._quorum.get(),
                                               majority=MAJORITY, snapshot=snapshot, start=vote_start,
                                               end=vote_start + self._vote_duration.get(),
-                                              fee=self._vote_definition_fee.get(), db=self.db)
+                                              fee=self._vote_definition_fee.get(), forum=_forum, db=self.db)
         self.ProposalCreated(proposal.id[name], name, _proposer)
-
 
     @external(readonly=True)
     def maxActions(self) -> int:
@@ -315,6 +313,12 @@ class Governance(Addresses):
             proposal = self.checkVote(proposal_id)
             proposal_list.append(proposal)
         return proposal_list
+
+    @only_owner
+    @external
+    def updateVoteForum(self, vote_index: int, forum: str):
+        proposal = ProposalDB(var_key=vote_index, db=self.db)
+        proposal.forum_link.set(forum)
 
     @external
     def castVote(self, vote_index: int, vote: bool) -> None:
@@ -452,6 +456,7 @@ class Governance(Addresses):
                        'against': _against,
                        'for_voter_count': vote_data.for_voters_count.get(),
                        'against_voter_count': vote_data.against_voters_count.get(),
+                       'forum': vote_data.forum_link.get()
                        }
         status = vote_data.status.get()
         majority = vote_status['majority']
@@ -496,7 +501,8 @@ class Governance(Addresses):
             description = params.get("description")
             vote_start = params.get("vote_start")
             snapshot = params.get("snapshot")
-            self._defineVote(name, description, vote_start, snapshot, _from)
+            forum = params.get("forum")
+            self._defineVote(name, description, vote_start, snapshot, _from, forum)
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
 
