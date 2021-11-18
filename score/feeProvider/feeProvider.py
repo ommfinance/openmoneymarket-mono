@@ -61,6 +61,7 @@ class FeeProvider(Addresses):
     @external
     @only_governance
     def updateDaoFundPercentage(self, _reserve: Address, _daoFundPercentage: int):
+        self._require(self.is_reserve_valid(_reserve), "Invalid reserve")
         prefix = self.feeBurnDataPrefix(_reserve)
         self._require(0 <= _daoFundPercentage <= EXA,
                       "Percentage to DAO fund should be between 0 and 100%")
@@ -70,6 +71,7 @@ class FeeProvider(Addresses):
     @external
     @only_governance
     def updateBlockHeightLimit(self, _reserve: Address, _blockHeightLimit: int):
+        self._require(self.is_reserve_valid(_reserve), "Invalid reserve")
         prefix = self.feeBurnDataPrefix(_reserve)
         self._require(_blockHeightLimit > 0,
                       f"Block Height Limit should be greater than zero")
@@ -78,27 +80,26 @@ class FeeProvider(Addresses):
     @external
     @only_governance
     def updateRoute(self, _reserve: Address, _route: List[Address]):
+        self._require(self.is_reserve_valid(_reserve), "Invalid reserve")
         prefix = self.feeBurnDataPrefix(_reserve)
 
         self._require(_route[0] == _reserve, 'First address in route must be reserve address.')
         self._require(_route[-1] == self._addresses[OMM_TOKEN], 'Last address in route must be OMM Token.')
 
-        try:
-            route = json_dumps([str(address) for address in _route])
-        except Exception as e:
-            revert(f"{TAG}: Invalid Route")
-
+        route = json_dumps([str(address) for address in _route])
         self.feeBurnData[prefix].route.set(route)
 
     @external
     @only_governance
     def updateIsActive(self, _reserve: Address, _isActive: bool):
+        self._require(self.is_reserve_valid(_reserve), "Invalid reserve")
         prefix = self.feeBurnDataPrefix(_reserve)
         self.feeBurnData[prefix].isActive.set(_isActive)
 
     @external
     @only_governance
     def updateTotalAmount(self, _reserve: Address, _totalAmount: int):
+        self._require(self.is_reserve_valid(_reserve), "Invalid reserve")
         prefix = self.feeBurnDataPrefix(_reserve)
         self._require(_totalAmount > 0, "Total amount should be greater than zero")
         self.feeBurnData[prefix].totalAmount.set(_totalAmount)
@@ -121,7 +122,7 @@ class FeeProvider(Addresses):
 
     @external(readonly=True)
     def getFeeBurnData(self, _reserve: Address) -> dict:
-        if self._check_reserve(_reserve):
+        if self.is_reserve_valid(_reserve):
             prefix = self.feeBurnDataPrefix(_reserve)
             response = getFeeBurnData(prefix, self.feeBurnData)
             return response
@@ -166,7 +167,7 @@ class FeeProvider(Addresses):
     @external
     @only_governance
     def burnFee(self, _reserve: Address):
-        self._require(self._check_reserve(_reserve), "Invalid reserve")
+        self._require(self.is_reserve_valid(_reserve), "Invalid reserve")
 
         fee_burn_data = self.getFeeBurnData(_reserve)
         current_block_height = self.block_height
@@ -263,7 +264,7 @@ class FeeProvider(Addresses):
     def feeBurnDataPrefix(self, _reserve: Address) -> bytes:
         return b'|'.join([FEE_BURN_DB_PREFIX, str(_reserve).encode()])
 
-    def _check_reserve(self, _reserve: Address) -> bool:
+    def is_reserve_valid(self, _reserve: Address) -> bool:
         core = self.create_interface_score(
             self._addresses[LENDING_POOL_CORE], CoreInterface)
         reserve_addresses = core.getReserves()
