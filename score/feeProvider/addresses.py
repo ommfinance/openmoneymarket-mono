@@ -3,6 +3,10 @@ from .utils.checks import *
 
 # ADDRESSES
 GOVERNANCE = 'governance'
+DAO_FUND = 'daoFund'
+DEX = 'dex'
+OMM_TOKEN = 'ommToken'
+LENDING_POOL_CORE = 'lendingPoolCore'
 
 
 class Addresses(IconScoreBase):
