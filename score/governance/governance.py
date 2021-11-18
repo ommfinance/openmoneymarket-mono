@@ -158,6 +158,47 @@ class Governance(Addresses):
         feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
         feeProvider.transferFund(_token, _value, _to)
 
+    @external
+    @only_owner
+    def updateDaoFundPercentage(self, _reserve: Address, _daoFundPercentage: int):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
+        feeProvider.updateDaoFundPercentage(_reserve, _daoFundPercentage)
+
+    @external
+    @only_owner
+    def updateTotalAmount(self, _reserve: Address, _totalAmount: int):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
+        feeProvider.updateTotalAmount(_reserve, _totalAmount)
+
+    @external
+    @only_owner
+    def updateBlockHeightLimit(self, _reserve: Address, _blockHeightLimit: int):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
+        feeProvider.updateBlockHeightLimit(_reserve, _blockHeightLimit)
+
+    @external
+    @only_owner
+    def updateRoute(self, _reserve: Address, _route: List[Address]):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
+        feeProvider.updateRoute(_reserve, _route)
+
+    @external
+    @only_owner
+    def updateIsActive(self, _reserve: Address, _isActive: bool):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
+        feeProvider.updateIsActive(_reserve, _isActive)
+
+    @external
+    @only_owner
+    def addFeeBurnData(self, _reserve: FeeBurnDataAttributes):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
+        feeProvider.addFeeBurnData(_reserve)
+
+    @external
+    def burnFee(self, _reserve: Address):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
+        feeProvider.burnFee(_reserve)
+
     @external(readonly=True)
     def getVotersCount(self, vote_index: int) -> dict:
         proposal = ProposalDB(var_key=vote_index, db=self.db)

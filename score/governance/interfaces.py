@@ -40,6 +40,18 @@ class AssetConfig(TypedDict):
     assetName: str
     rewardEntity: str
 
+class FeeBurnDataAttributes(TypedDict):
+    reserveName: str
+    reserveAddress: Address
+    totalAmount: int
+    daoFundPercentage: int
+    lastBurnBlockHeight: int
+    blockHeightLimit: int
+    route: str
+    isActive: bool
+    totalOMMBought: int
+    totalAmountSwapped: int
+    totalAmountToDaoFund: int
 
 class RewardInterface(InterfaceScore):
 
@@ -135,6 +147,33 @@ class FeeProviderInterface(InterfaceScore):
     def transferFund(self, _token: Address, _value: int, _to: Address):
         pass
 
+    @interface
+    def burnFee(self, _reserve: Address):
+        pass
+
+    @interface
+    def addFeeBurnData(self, _reserve: 'FeeBurnDataAttributes'):
+        pass
+
+    @interface
+    def updateTotalAmount(self, _reserve: Address, _totalAmount: int):
+        pass
+
+    @interface
+    def updateDaoFundPercentage(self, _reserve: Address, _daoFundPercentage: int):
+        pass
+
+    @interface
+    def updateBlockHeightLimit(self, _reserve: Address, _blockHeightLimit: int):
+        pass
+
+    @interface
+    def updateRoute(self, _reserve: Address, _route: List[Address]):
+        pass
+
+    @interface
+    def updateIsActive(self, _reserve: Address, _isActive: bool):
+        pass
 
 class OmmTokenInterface(InterfaceScore):
     @interface
