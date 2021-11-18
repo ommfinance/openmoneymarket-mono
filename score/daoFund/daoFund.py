@@ -34,3 +34,27 @@ class DaoFund(Addresses):
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes = None) -> None:
         self.FundReceived(_value, self.msg.sender)
+
+    @external(readonly=True)
+    def getReserveBalances(self):
+        """
+        Returns balance of all the supported reserves for this contract
+        """
+        address_provider = self.create_interface_score(
+            self._addressProvider.get(), AddressProviderInterface)
+        reserve_address = address_provider.getReserveAddresses()
+        balances = {}
+        for name, address in reserve_address.items():
+            reserve = self.create_interface_score(address, TokenInterface)
+            balances[name] = reserve.balanceOf(self.address)
+        return balances
+
+    @external(readonly=True)
+    def getReserveBalance(self, _reserve: Address):
+        """
+        Return balance of specific reserve for this contract
+
+        :param _reserve: Address of reserve of which balance is to be queried
+        """
+        reserve = self.create_interface_score(_reserve, TokenInterface)
+        return reserve.balanceOf(self.address)
