@@ -27,6 +27,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     _TOTAL_STAKED_BALANCE = 'total_stake_balance'
     _UNSTAKING_PERIOD = 'unstaking_period'
     _SNAPSHOT_STARTED_AT = 'snapshot-started-at'
+    _TOTAL_BURNT = "total_burnt"
 
     def __init__(self, db: IconScoreDatabase) -> None:
         """
@@ -46,6 +47,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
         self._snapshot_started_at = VarDB(self._SNAPSHOT_STARTED_AT, db, value_type=int)
+        self._total_burnt = VarDB(self._TOTAL_BURNT, db, value_type=int)
 
     def on_install(
             self,
@@ -95,9 +97,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
 
     def on_update(self) -> None:
         super().on_update()
-        _now = self.now()
-        self._snapshot_started_at.set(_now)
-        self._snapshot.create_total_checkpoints(_now, self._total_staked_balance.get())
+        self._total_burnt.set(0)
 
     @external(readonly=True)
     def name(self) -> str:
@@ -136,6 +136,13 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         """
 
         return self.available_balanceOf(_owner)
+
+    @external(readonly=True)
+    def totalOmmBurnt(self) -> int:
+        """
+        Returns total number of OMM tokens burnt
+        """
+        return self._total_burnt.get()
 
     @external(readonly=True)
     def available_balanceOf(self, _owner: Address) -> int:
@@ -443,3 +450,27 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._balances[_to] += _amount
 
         self.Transfer(ZERO_SCORE_ADDRESS, _to, _amount, _data)
+
+    def _burn(self, _from: Address, _amount: int, _data: bytes = None) -> None:
+        """
+        Burns _amount number of tokens from `_from`. 
+        Decreases the balance of that account and total supply.
+        This is an internal function
+
+        :param _from: Address to burn the tokens from
+        :param _amount: Number of tokens to be burned from `_from`.
+        :param _data: Any information or message
+
+        Raises
+        ZeroValueError
+        if the `amount` is less than or equal to zero.
+        """
+
+        if _amount <= 0:
+            revert(f"ZeroValueError: _amount: {_amount}")
+
+        self._total_supply.set(self._total_supply.get() - _amount)
+        self._balances[_from] -= _amount
+        self._total_burnt.set(self._total_burnt.get() + _amount)
+
+        self.Transfer(_from, ZERO_SCORE_ADDRESS, _amount, _data)
