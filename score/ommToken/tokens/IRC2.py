@@ -469,7 +469,15 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         if _amount <= 0:
             revert(f"ZeroValueError: _amount: {_amount}")
 
-        self._total_supply.set(self._total_supply.get() - _amount)
+        balance = self._balances[_from]
+        total_supply = self._total_supply.get()
+
+        if _amount > balance:
+            revert(f"{TAG}: Insufficient Balance to burn: Balance {balance}, Amount to burn {_amount}")
+        if _amount > total_supply:
+            revert(f"{TAG}: Amount {_amount} greater than {total_supply}")
+
+        self._total_supply.set(total_supply - _amount)
         self._balances[_from] -= _amount
         self._total_burnt.set(self._total_burnt.get() + _amount)
 
