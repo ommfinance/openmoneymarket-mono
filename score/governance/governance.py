@@ -199,6 +199,11 @@ class Governance(Addresses):
         feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
         feeProvider.burnFee(_reserve)
 
+    @external
+    def burnFeeFromAllReserve(self):
+        feeProvider = self.create_interface_score(self._addresses[FEE_PROVIDER], FeeProviderInterface)
+        feeProvider.burnFeeFromAllReserve()
+
     @external(readonly=True)
     def getVotersCount(self, vote_index: int) -> dict:
         proposal = ProposalDB(var_key=vote_index, db=self.db)
