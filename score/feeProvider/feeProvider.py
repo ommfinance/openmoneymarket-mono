@@ -163,15 +163,6 @@ class FeeProvider(Addresses):
 
     @external
     @only_governance
-    def burnFeeFromAllReserve(self):
-        core = self.create_interface_score(
-            self._addresses[LENDING_POOL_CORE], CoreInterface)
-        reserve_addresses = core.getReserves()
-        for reserve in reserve_addresses:
-            self._burnFee(reserve)
-
-    @external
-    @only_governance
     def burnFee(self, _reserve: Address):
         self._burnFee(_reserve)
 

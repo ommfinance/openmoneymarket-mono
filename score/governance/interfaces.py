@@ -152,10 +152,6 @@ class FeeProviderInterface(InterfaceScore):
         pass
 
     @interface
-    def burnFeeFromAllReserve(self):
-        pass
-
-    @interface
     def addFeeBurnData(self, _reserve: 'FeeBurnDataAttributes'):
         pass
 
