@@ -192,7 +192,7 @@ class FeeProvider(Addresses):
                       f"Burned recently. Try again after sometime.")
 
         omm_addr = self._addresses[OMM_TOKEN]
-        dex_addr = self._addresses[DEX]
+        router_addr = self._addresses[ROUTER]
 
         omm = self.create_interface_score(omm_addr, OMMInterface)
         reserve = self.create_interface_score(_reserve, TokenInterface)
