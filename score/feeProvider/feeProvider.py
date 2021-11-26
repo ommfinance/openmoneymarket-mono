@@ -28,7 +28,7 @@ class FeeProvider(Addresses):
         pass
 
     @eventlog(indexed=3)
-    def FeeBurned(self, _reserve: Address, omm_recieved: int, _amount_to_burn: int, _amount_to_dao_fund: int):
+    def FeeBurned(self, _reserve: Address, omm_received: int, _amount_to_burn: int, _amount_to_dao_fund: int):
         pass    
 
     @only_owner
@@ -83,7 +83,6 @@ class FeeProvider(Addresses):
         self._require(self.is_reserve_valid(_reserve), "Invalid reserve")
         prefix = self.feeBurnDataPrefix(_reserve)
 
-        self._require(_route[0] == _reserve, 'First address in route must be reserve address.')
         self._require(_route[-1] == self._addresses[OMM_TOKEN], 'Last address in route must be OMM Token.')
 
         route = json_dumps([str(address) for address in _route])
@@ -157,8 +156,6 @@ class FeeProvider(Addresses):
             revert(f"Invalid route: {fee_object.route}")
 
         self._require(Address.from_string(
-            route[0]) == _reserveAddress, f'First address in route must be reserve address.')
-        self._require(Address.from_string(
             route[-1]) == self._addresses[OMM_TOKEN], f'Last address in route must be OMM Token.')
 
         prefix = self.feeBurnDataPrefix(_reserveAddress)
@@ -200,76 +197,53 @@ class FeeProvider(Addresses):
         reserve_balance = reserve.balanceOf(self.address)
 
         total_amount = min(reserve_balance, totalAmount) 
+        amount_in_exa = convertToExa(total_amount, decimals)
+
+        dao_fund_percentage = fee_burn_data.get('daoFundPercentage')
+        amount_to_dao_fund = convertExaToOther(exaMul(dao_fund_percentage, amount_in_exa), decimals)
+        amount_to_burn = total_amount - amount_to_dao_fund
 
         if total_amount > 0:
-            amount_in_exa = convertToExa(total_amount, decimals)
+            if _reserve == omm_addr:
+                omm_received = amount_to_burn
+            else:
+                try:
+                    route = json_loads(fee_burn_data.get('route'))
+                except Exception as e:
+                    revert(f"Invalid route: {fee_burn_data.get('route')}")
+                
+                temp = []
+                length = len(route)
+                counter = 0
+                
+                for address in route:
+                    if counter != length - 1:
+                        temp.append(b'"' + address.encode() + b'", ')
+                    else:
+                        temp.append(b'"' + address.encode() + b'"')
+                    counter += 1
 
-            dao_fund_percentage = fee_burn_data.get('daoFundPercentage')
+                path = b'[' + b''.join(temp) + b']'
 
-            amount_to_dao_fund = convertExaToOther(exaMul(dao_fund_percentage, amount_in_exa), decimals)
-            amount_to_burn = amount_to_swap = total_amount - amount_to_dao_fund
-
-            try:
-                route = json_loads(fee_burn_data.get('route'))
-            except Exception as e:
-                revert(f"Invalid route: {fee_burn_data.get('route')}")
-
-            if len(route) >= 2:
-                # reserve other than OMM Token
                 omm_before = omm.balanceOf(self.address)
 
-                for i in range(len(route)-1):
-                    token_from = Address.from_string(route[i])
-                    token_to = Address.from_string(route[i+1])
+                data = (
+                        b'{"method": "_swap", "params": {"path": ' + path +
+                        b', "toToken": "' + str(omm_addr).encode() + b'"}}'
+                )
 
-                    if i == 0:
-                        token_from_interface = reserve
-                        token_to_interface = self.create_interface_score(
-                            token_to, TokenInterface)
-                    elif i + 1 == len(route):
-                        token_from_interface = token_to_interface
-                        token_to_interface = omm
-                    else:
-                        token_from_interface = token_to_interface
-                        token_to_interface = self.create_interface_score(
-                            token_to, TokenInterface)
-
-                    token_to_balance_before = token_to_interface.balanceOf(self.address)
-
-                    data = json_dumps({
-                        "method": "_swap",
-                        "params": {
-                            "toToken": f"{token_to}"
-                        }
-                    }).encode('utf-8')
-
-                    # swap
-                    token_from_interface.transfer(dex_addr, amount_to_swap, data)
-
-                    token_to_balance_after = token_to_interface.balanceOf(self.address)
-
-                    # amount for next swap
-                    amount_to_swap = token_to_balance_after - token_to_balance_before
-
+                # swap using balanced router
+                reserve.transfer(router_addr, amount_to_burn, data)
                 omm_after = omm.balanceOf(self.address)
-                omm_recieved = omm_after - omm_before
-
-            elif Address.from_string(route[0]) == self._addresses[OMM_TOKEN] and len(route) == 1:
-                # reserve is OMM Token
-                omm_recieved = amount_to_burn
-
-            else:
-                revert(f"Invalid route.")
-
-            total_omm_bought = fee_burn_data.get('totalOMMBought') + omm_recieved
-            self.updateTotalOMMBought(_reserve, total_omm_bought)
+                omm_received = omm_after - omm_before
 
             total_amount_swapped = fee_burn_data.get('totalAmountSwapped') + amount_to_burn
             self.updateTotalAmountSwapped(_reserve, total_amount_swapped)
 
             # burn all recieved OMM from the swap
-            omm.burn(omm_recieved)
-            self._totalOmmBurnt.set(omm_recieved+self._totalOmmBurnt.get())
+            omm.burn(omm_received)
+            self._totalOmmBurnt.set(omm_received+self._totalOmmBurnt.get())
+
             total_omm_burnt = fee_burn_data.get('totalOMMBurnt') + omm_received
             self.updateTotalOMMBurnt(_reserve, total_omm_burnt)
 
@@ -279,7 +253,11 @@ class FeeProvider(Addresses):
             self.updateTotalAmountToDaoFund(_reserve, total_amount_to_dao_fund)
             self.updateLastBurnBlockHeight(_reserve, current_block_height)
 
-            self.FeeBurned(_reserve, omm_recieved, amount_to_burn, amount_to_dao_fund)
+            self.FeeBurned(_reserve, omm_received, amount_to_burn, amount_to_dao_fund)
+
+        else:
+            revert(f'{TAG}: Out of balance for this reserve: {_reserve}')
+
 
     @staticmethod
     def _require(_condition: bool, _message: str):
