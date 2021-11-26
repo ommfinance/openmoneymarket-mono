@@ -9,7 +9,7 @@ class FeeBurnDataAttributes(TypedDict):
     blockHeightLimit: int
     route: str
     isActive: bool
-    totalOMMBought: int
+    totalOMMBurnt: int
     totalAmountSwapped: int
     totalAmountToDaoFund: int
 
@@ -24,7 +24,7 @@ class FeeBurnData(object):
         self.blockHeightLimit = VarDB('blockHeightLimit', db, int)
         self.route = VarDB('route', db, str)
         self.isActive = VarDB('isActive', db, bool)
-        self.totalOMMBought = VarDB('totalOMMBought', db, int)
+        self.totalOMMBurnt = VarDB('totalOMMBurnt', db, int)
         self.totalAmountSwapped = VarDB('totalAmountSwapped', db, int)
         self.totalAmountToDaoFund = VarDB('totalAmountToDaoFund', db, int)
 
@@ -55,7 +55,7 @@ def addReserveFeeBurnData(prefix: bytes, _fee: 'FeeBurnDataDB', feeData: 'FeeBur
     _fee[prefix].blockHeightLimit.set(feeData.blockHeightLimit)
     _fee[prefix].route.set(feeData.route)
     _fee[prefix].isActive.set(feeData.isActive)
-    _fee[prefix].totalOMMBought.set(feeData.totalOMMBought)
+    _fee[prefix].totalOMMBurnt.set(feeData.totalOMMBurnt)
     _fee[prefix].totalAmountSwapped.set(feeData.totalAmountSwapped)
     _fee[prefix].totalAmountToDaoFund.set(feeData.totalAmountToDaoFund)
 
@@ -68,7 +68,7 @@ def getFeeBurnData(prefix: bytes, _fee: 'FeeBurnDataDB') -> dict:
     blockHeightLimit = _fee[prefix].blockHeightLimit.get()
     route = _fee[prefix].route.get()
     isActive = _fee[prefix].isActive.get()
-    totalOMMBought = _fee[prefix].totalOMMBought.get()
+    totalOMMBurnt = _fee[prefix].totalOMMBurnt.get()
     totalAmountSwapped = _fee[prefix].totalAmountSwapped.get()
     totalAmountToDaoFund = _fee[prefix].totalAmountToDaoFund.get()
     return {
@@ -80,7 +80,7 @@ def getFeeBurnData(prefix: bytes, _fee: 'FeeBurnDataDB') -> dict:
         'blockHeightLimit': blockHeightLimit,
         'route': route,
         'isActive': isActive,
-        'totalOMMBought': totalOMMBought,
+        'totalOMMBurnt': totalOMMBurnt,
         'totalAmountSwapped': totalAmountSwapped,
         'totalAmountToDaoFund': totalAmountToDaoFund
     }
@@ -96,7 +96,7 @@ def createFeeBurnDataObject(feeBurnData: 'FeeBurnDataAttributes') -> 'FeeBurnDat
         blockHeightLimit=feeBurnData['blockHeightLimit'],
         route=feeBurnData['route'],
         isActive=feeBurnData['isActive'],
-        totalOMMBought=feeBurnData['totalOMMBought'],
+        totalOMMBurnt=feeBurnData['totalOMMBurnt'],
         totalAmountSwapped=feeBurnData['totalAmountSwapped'],
         totalAmountToDaoFund=feeBurnData['totalAmountToDaoFund']
     )
@@ -113,6 +113,6 @@ class FeeBurnDataObject(object):
         self.blockHeightLimit = kwargs.get('blockHeightLimit')
         self.route = kwargs.get('route')
         self.isActive = kwargs.get('isActive')
-        self.totalOMMBought = kwargs.get('totalOMMBought')
+        self.totalOMMBurnt = kwargs.get('totalOMMBurnt')
         self.totalAmountSwapped = kwargs.get('totalAmountSwapped')
         self.totalAmountToDaoFund = kwargs.get('totalAmountToDaoFund')

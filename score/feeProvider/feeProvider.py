@@ -108,9 +108,9 @@ class FeeProvider(Addresses):
         prefix = self.feeBurnDataPrefix(_reserve)
         self.feeBurnData[prefix].lastBurnBlockHeight.set(_lastBurnBlockHeight)
 
-    def updateTotalOMMBought(self, _reserve: Address, _totalOMMBought: int):
+    def updateTotalOMMBurnt(self, _reserve: Address, _totalOMMBurnt: int):
         prefix = self.feeBurnDataPrefix(_reserve)
-        self.feeBurnData[prefix].totalOMMBought.set(_totalOMMBought)
+        self.feeBurnData[prefix].totalOMMBurnt.set(_totalOMMBurnt)
 
     def updateTotalAmountSwapped(self, _reserve: Address, _totalAmountSwapped: int):
         prefix = self.feeBurnDataPrefix(_reserve)
@@ -270,6 +270,8 @@ class FeeProvider(Addresses):
             # burn all recieved OMM from the swap
             omm.burn(omm_recieved)
             self._totalOmmBurnt.set(omm_recieved+self._totalOmmBurnt.get())
+            total_omm_burnt = fee_burn_data.get('totalOMMBurnt') + omm_received
+            self.updateTotalOMMBurnt(_reserve, total_omm_burnt)
 
             reserve.transfer(self._addresses[DAO_FUND], amount_to_dao_fund, b'From fee provider')
 
