@@ -49,7 +49,7 @@ class FeeBurnDataAttributes(TypedDict):
     blockHeightLimit: int
     route: str
     isActive: bool
-    totalOMMBought: int
+    totalOMMBurnt: int
     totalAmountSwapped: int
     totalAmountToDaoFund: int
 
