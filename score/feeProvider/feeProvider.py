@@ -103,22 +103,6 @@ class FeeProvider(Addresses):
         self._require(_totalAmount > 0, "Total amount should be greater than zero")
         self.feeBurnData[prefix].totalAmount.set(_totalAmount)
 
-    def updateLastBurnBlockHeight(self, _reserve: Address, _lastBurnBlockHeight: int):
-        prefix = self.feeBurnDataPrefix(_reserve)
-        self.feeBurnData[prefix].lastBurnBlockHeight.set(_lastBurnBlockHeight)
-
-    def updateTotalOMMBurnt(self, _reserve: Address, _totalOMMBurnt: int):
-        prefix = self.feeBurnDataPrefix(_reserve)
-        self.feeBurnData[prefix].totalOMMBurnt.set(_totalOMMBurnt)
-
-    def updateTotalAmountSwapped(self, _reserve: Address, _totalAmountSwapped: int):
-        prefix = self.feeBurnDataPrefix(_reserve)
-        self.feeBurnData[prefix].totalAmountSwapped.set(_totalAmountSwapped)
-
-    def updateTotalAmountToDaoFund(self, _reserve: Address, _totalAmountToDaoFund: int):
-        prefix = self.feeBurnDataPrefix(_reserve)
-        self.feeBurnData[prefix].totalAmountToDaoFund.set(_totalAmountToDaoFund)
-
     @external(readonly=True)
     def getFeeBurnData(self, _reserve: Address) -> dict:
         if self.is_reserve_valid(_reserve):
@@ -170,12 +154,11 @@ class FeeProvider(Addresses):
         self._require(self.is_reserve_valid(_reserve), f"Invalid reserve: {_reserve}")
 
         fee_burn_data = self.getFeeBurnData(_reserve)
-        current_block_height = self.block_height
         totalAmount = fee_burn_data.get('totalAmount')
 
         self._require(fee_burn_data.get('isActive'),
                       "Reserve not active for fee burning")
-        self._require(current_block_height - fee_burn_data.get('lastBurnBlockHeight') >=
+        self._require(self.block_height - fee_burn_data.get('lastBurnBlockHeight') >=
                       fee_burn_data.get('blockHeightLimit'),
                       f"Burned recently. Try again after sometime.")
 
@@ -184,71 +167,61 @@ class FeeProvider(Addresses):
 
         omm = self.create_interface_score(omm_addr, OMMInterface)
         reserve = self.create_interface_score(_reserve, TokenInterface)
-        decimals = reserve.decimals()
         reserve_balance = reserve.balanceOf(self.address)
 
-        total_amount = min(reserve_balance, totalAmount) 
-        amount_in_exa = convertToExa(total_amount, decimals)
+        total_amount = min(reserve_balance, totalAmount)
+        self._require(total_amount > 0,
+                      f"Out of balance for this reserve: {_reserve}")
 
         dao_fund_percentage = fee_burn_data.get('daoFundPercentage')
-        amount_to_dao_fund = convertExaToOther(exaMul(dao_fund_percentage, amount_in_exa), decimals)
+        amount_to_dao_fund = exaMul(dao_fund_percentage, total_amount)
         amount_to_burn = total_amount - amount_to_dao_fund
 
-        if total_amount > 0:
-            if _reserve == omm_addr:
-                omm_received = amount_to_burn
-            else:
-                try:
-                    route = json_loads(fee_burn_data.get('route'))
-                except Exception as e:
-                    revert(f"Invalid route: {fee_burn_data.get('route')}")
-                
-                temp = []
-                length = len(route)
-                counter = 0
-                
-                for address in route:
-                    if counter != length - 1:
-                        temp.append(b'"' + address.encode() + b'", ')
-                    else:
-                        temp.append(b'"' + address.encode() + b'"')
-                    counter += 1
-
-                path = b'[' + b''.join(temp) + b']'
-
-                omm_before = omm.balanceOf(self.address)
-
-                data = (
-                        b'{"method": "_swap", "params": {"path": ' + path +
-                        b', "toToken": "' + str(omm_addr).encode() + b'"}}'
-                )
-
-                # swap using balanced router
-                reserve.transfer(router_addr, amount_to_burn, data)
-                omm_after = omm.balanceOf(self.address)
-                omm_received = omm_after - omm_before
-
-            total_amount_swapped = fee_burn_data.get('totalAmountSwapped') + amount_to_burn
-            self.updateTotalAmountSwapped(_reserve, total_amount_swapped)
-
-            # burn all recieved OMM from the swap
-            omm.burn(omm_received)
-            self._totalOmmBurnt.set(omm_received+self._totalOmmBurnt.get())
-
-            total_omm_burnt = fee_burn_data.get('totalOMMBurnt') + omm_received
-            self.updateTotalOMMBurnt(_reserve, total_omm_burnt)
-
-            reserve.transfer(self._addresses[DAO_FUND], amount_to_dao_fund, b'From fee provider')
-
-            total_amount_to_dao_fund = fee_burn_data.get('totalAmountToDaoFund') + amount_to_dao_fund
-            self.updateTotalAmountToDaoFund(_reserve, total_amount_to_dao_fund)
-            self.updateLastBurnBlockHeight(_reserve, current_block_height)
-
-            self.FeeBurned(_reserve, omm_received, amount_to_burn, amount_to_dao_fund)
-
+        if _reserve == omm_addr:
+            omm_received = amount_to_burn
         else:
-            revert(f'{TAG}: Out of balance for this reserve: {_reserve}')
+            try:
+                route = json_loads(fee_burn_data.get('route'))
+            except Exception as e:
+                revert(f"{TAG}:Invalid route: {fee_burn_data.get('route')}")
 
+            data = json_dumps({
+                'method': '_swap',
+                'params': {
+                    'toToken': str(omm_addr),
+                    'path': route
+                }
+            }).encode('utf-8')
+
+            omm_before = omm.balanceOf(self.address)
+
+            # swap using balanced router
+            reserve.transfer(router_addr, amount_to_burn, data)
+            omm_after = omm.balanceOf(self.address)
+            omm_received = omm_after - omm_before
+
+        # burn all recieved OMM from the swap
+        omm.burn(omm_received)
+        # send to dao fund
+        reserve.transfer(
+            self._addresses[DAO_FUND], amount_to_dao_fund, b'From fee provider')
+
+        self._totalOmmBurnt.set(omm_received+self._totalOmmBurnt.get())
+
+        total_amount_swapped = fee_burn_data.get('totalAmountSwapped') + amount_to_burn
+        total_omm_burnt = fee_burn_data.get('totalOMMBurnt') + omm_received
+        total_amount_to_dao_fund = fee_burn_data.get('totalAmountToDaoFund') + amount_to_dao_fund
+        self._update_after_omm_burn(_reserve, total_amount_swapped, total_omm_burnt, total_amount_to_dao_fund)
+
+        self.FeeBurned(_reserve, omm_received,
+                       amount_to_burn, amount_to_dao_fund)
+
+    def _update_after_omm_burn(self, _reserve: Address, _total_amount_swapped: int, _total_omm_burnt: int, _amount_to_dao_fund: int):
+        prefix = self.feeBurnDataPrefix(_reserve)
+        self.feeBurnData[prefix].lastBurnBlockHeight.set(self.block_height)
+        self.feeBurnData[prefix].totalOMMBurnt.set(_total_omm_burnt)
+        self.feeBurnData[prefix].totalAmountSwapped.set(_total_amount_swapped)
+        self.feeBurnData[prefix].totalAmountToDaoFund.set(_amount_to_dao_fund)
 
     @staticmethod
     def _require(_condition: bool, _message: str):
