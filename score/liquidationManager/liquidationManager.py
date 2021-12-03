@@ -1,5 +1,4 @@
 from .utils.math import *
-from .utils.checks import *
 from .addresses import *
 from .interfaces import *
 
@@ -55,7 +54,7 @@ class LiquidationManager(Addresses):
 
         collateralPrice = priceOracle.get_reference_data(collateralBase, 'USD')
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
-        _stakingAddress=self.getAddress(STAKING)
+        _stakingAddress = self.getAddress(STAKING)
         if collateralBase == 'ICX':
             staking = self.create_interface_score(_stakingAddress, StakingInterface)
             sicxRate = staking.getTodayRate()
@@ -103,22 +102,13 @@ class LiquidationManager(Addresses):
         principalBase = dataProvider.getSymbol(_reserve)
         principalPrice = priceOracle.get_reference_data(principalBase, 'USD')
         userAccountData = dataProvider.getUserAccountData(_user)
-        reserveData = dataProvider.getReserveData(_reserve)
+        collateralData = dataProvider.getReserveData(_collateral)
 
         liquidatedCollateralForFee = 0
         feeLiquidated = 0
 
-        reserveLiquidationThreshold = reserveData['liquidationThreshold']
-        userLiquidationThreshold = self.calculateCurrentLiquidationThreshold(userAccountData['totalBorrowBalanceUSD'],
-                                                                             userAccountData['totalFeesUSD'],
-                                                                             userAccountData[
-                                                                                 'totalCollateralBalanceUSD'])
-
-        if reserveLiquidationThreshold >= userLiquidationThreshold:
-            revert(f'{TAG}: '
-                   f'unsuccessful liquidation call,user is below liquidation threshold'
-                   f'liquidation threshold of reserve is {reserveLiquidationThreshold}'
-                   f'user ltv is {userLiquidationThreshold}')
+        if not collateralData['usageAsCollateralEnabled']:
+            revert(f'{TAG}:  the reserve{_collateral} cannot be used as collateral')
         userHealthFactor = userAccountData['healthFactor']
         if not userAccountData['healthFactorBelowThreshold']:
             revert(f'{TAG}: '
