@@ -63,6 +63,7 @@ class ProposalDB:
         self.status = VarDB(self._key + "_status", db, value_type=str)
         self.fee = VarDB(self._key + "_fee", db, value_type=int)
         self.fee_refunded = VarDB(self._key + "_fee_refunded", db, value_type=bool)
+        self.forum_link = VarDB(self._key + "_forum_link",db,value_type=str)
 
     @classmethod
     def proposal_id(cls, _proposal_name: str, db: IconScoreDatabase) -> int:
@@ -77,7 +78,7 @@ class ProposalDB:
     @classmethod
     def create_proposal(cls, name: str, description: str, proposer: Address, quorum: int, majority: int, snapshot: int,
                         start: int,
-                        end: int, fee: int, db: IconScoreDatabase) -> 'ProposalDB':
+                        end: int, fee: int,forum, db: IconScoreDatabase) -> 'ProposalDB':
         vote_index = cls(0, db).proposals_count.get() + 1
         new_proposal = ProposalDB(vote_index, db)
         new_proposal.proposals_count.set(vote_index)
@@ -95,6 +96,7 @@ class ProposalDB:
         new_proposal.active.set(True)
         new_proposal.fee.set(fee)
         new_proposal.fee_refunded.set(False)
+        new_proposal.forum_link.set(forum)
         return new_proposal
 
 
