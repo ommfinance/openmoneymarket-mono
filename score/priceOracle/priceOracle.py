@@ -56,6 +56,9 @@ class PriceOracle(Addresses):
     def _get_price(self, _base: str, _quote) -> int:
         if _base in STABLE_TOKENS:
             return 1 * 10 ** 18
+        elif _base == "BALN":
+            dex = self.create_interface_score(self.getAddress(DEX), DataSourceInterface)
+            return dex.getBalnPrice()
         else:
             oracle = self.create_interface_score(self.getAddress(BAND_ORACLE), OracleInterface)
             price = oracle.get_reference_data(_base, _quote)
