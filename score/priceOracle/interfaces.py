@@ -24,6 +24,10 @@ class DataSourceInterface(InterfaceScore):
     def getPriceByName(self, _name: str) -> int:
         pass
 
+    @interface
+    def getBalnPrice(self) -> int:
+        pass
+
 
 class TokenInterface(InterfaceScore):
     @interface
