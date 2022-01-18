@@ -192,7 +192,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     def getStakersList(self, _start: int, _end: int) -> List[Address]:
         self._require(_end > _start, f'start index cannot be greater than end index')
         self._require(_end - _start <= 100, f'range cannot be greater than 100')
-        return self._stakers.range(_start, _end)
+        return [addr for addr in self._stakers.range(_start, _end)]
 
     @external(readonly=True)
     def totalStakers(self) -> int:
