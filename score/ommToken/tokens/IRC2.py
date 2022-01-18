@@ -450,7 +450,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._handleAction(_user, _user_old_staked_balance, _old_total_staked_balance)
         _initial_timestamp: int = self._snapshot_started_at.get()
         self._create_initial_snapshot(_user, _initial_timestamp, _user_old_staked_balance)
-        self._createSnapshot(_user, _user_new_staked_balance, _new_total_staked_balance)
+        self._createSnapshot(_user,_user_old_staked_balance, _user_new_staked_balance, _new_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstakin g period has already been reached.
