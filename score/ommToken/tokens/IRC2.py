@@ -28,6 +28,8 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     _UNSTAKING_PERIOD = 'unstaking_period'
     _SNAPSHOT_STARTED_AT = 'snapshot-started-at'
 
+    _STAKERS = 'stakers'
+
     def __init__(self, db: IconScoreDatabase) -> None:
         """
         Variable Definition
@@ -46,6 +48,8 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
         self._snapshot_started_at = VarDB(self._SNAPSHOT_STARTED_AT, db, value_type=int)
+
+        self._stakers = EnumerableSetDB(self._STAKERS, db, value_type=Address)
 
     def on_install(
             self,
@@ -167,6 +171,36 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     def getUnstakingPeriod(self) -> int:
         return self._unstaking_period.get()
 
+    @only_owner
+    @external
+    def addStaker(self,_stakers:List[Address]):
+        for items in _stakers:
+            self._addStaker(items)
+
+    @only_owner
+    @external
+    def removeStaker(self,_stakers:List[Address]):
+        for items in _stakers:
+            self._removeStaker(items)
+
+    def _addStaker(self,_staker:Address):
+        if _staker not in self._stakers:
+            self._stakers.add(_staker)
+    
+    def _removeStaker(self,_staker:Address):
+        if _staker in self._stakers:
+            self._stakers.remove(_staker)
+
+    @external(readonly= True)
+    def getStakersList(self,_start:int,_end:int)->List[Address]:
+        self._require(_end > _start,f'{TAG} start index cannot be greater than end index')
+        self._require(_end - _start <=100,f'{TAG} range cannot be greater than 100')
+        return self._stakers.range(_start,_end)
+
+    @external(readonly=True)
+    def totalStakers(self)->int:
+        return len(self._stakers)
+
     @external(readonly=True)
     def details_balanceOf(self, _owner: Address) -> dict:
         userBalance = self._balances[_owner]
@@ -234,7 +268,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     @eventlog(indexed=3)
     def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         pass
-
+    
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         IRC2._require(self.msg.sender not in self._lock_list,
@@ -317,7 +351,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         stake_increment = new_stake - _user_old_stake
         IRC2._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
         self._staked_balances[_user][Status.STAKED] = _value
-
+        self._addStaker(_user)
         _new_total_staked_balance = old_total_supply + stake_increment
         self.onStakeChanged({
             "_user": _user,
@@ -354,6 +388,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._staked_balances[_user][Status.UNSTAKING] = unstakingBalance - _value
 
         _new_total_staked_balance = old_total_supply + _value
+        self._addStaker(_user)
         self.onStakeChanged({
             "_user": _user,
             "_new_total_staked_balance": _new_total_staked_balance,
@@ -393,7 +428,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._staked_balances[_user][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
 
         _new_total_staked_balance = before_total_staked_balance - _value
-
+        self._removeStaker(_user)
         self.onStakeChanged({
             "_user": _user,
             "_new_total_staked_balance": _new_total_staked_balance,
