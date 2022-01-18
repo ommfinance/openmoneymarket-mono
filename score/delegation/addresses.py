@@ -3,7 +3,7 @@ from .utils.checks import *
 
 LENDING_POOL_CORE = 'lendingPoolCore'
 OMM_TOKEN = 'ommToken'
-STAKING ='staking'
+STAKING = 'staking'
 SICX = 'sicx'
 
 
