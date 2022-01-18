@@ -173,32 +173,32 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
 
     @only_owner
     @external
-    def addStaker(self,_stakers:List[Address]):
+    def addStaker(self, _stakers: List[Address]):
         for items in _stakers:
             self._addStaker(items)
 
     @only_owner
     @external
-    def removeStaker(self,_stakers:List[Address]):
+    def removeStaker(self, _stakers: List[Address]):
         for items in _stakers:
             self._removeStaker(items)
 
-    def _addStaker(self,_staker:Address):
+    def _addStaker(self, _staker: Address):
         if _staker not in self._stakers:
             self._stakers.add(_staker)
-    
-    def _removeStaker(self,_staker:Address):
+
+    def _removeStaker(self, _staker: Address):
         if _staker in self._stakers:
             self._stakers.remove(_staker)
 
-    @external(readonly= True)
-    def getStakersList(self,_start:int,_end:int)->List[Address]:
-        self._require(_end > _start,f'{TAG} start index cannot be greater than end index')
-        self._require(_end - _start <=100,f'{TAG} range cannot be greater than 100')
-        return self._stakers.range(_start,_end)
+    @external(readonly=True)
+    def getStakersList(self, _start: int, _end: int) -> List[Address]:
+        self._require(_end > _start, f'start index cannot be greater than end index')
+        self._require(_end - _start <= 100, f'range cannot be greater than 100')
+        return self._stakers.range(_start, _end)
 
     @external(readonly=True)
-    def totalStakers(self)->int:
+    def totalStakers(self) -> int:
         return len(self._stakers)
 
     @external(readonly=True)
@@ -268,7 +268,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     @eventlog(indexed=3)
     def Transfer(self, _from: Address, _to: Address, _value: int, _data: bytes):
         pass
-    
+
     @external
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         IRC2._require(self.msg.sender not in self._lock_list,
@@ -450,7 +450,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._handleAction(_user, _user_old_staked_balance, _old_total_staked_balance)
         _initial_timestamp: int = self._snapshot_started_at.get()
         self._create_initial_snapshot(_user, _initial_timestamp, _user_old_staked_balance)
-        self._createSnapshot(_user,_user_old_staked_balance, _user_new_staked_balance, _new_total_staked_balance)
+        self._createSnapshot(_user, _user_old_staked_balance, _user_new_staked_balance, _new_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstakin g period has already been reached.
