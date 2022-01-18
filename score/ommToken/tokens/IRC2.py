@@ -99,9 +99,6 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
 
     def on_update(self) -> None:
         super().on_update()
-        _now = self.now()
-        self._snapshot_started_at.set(_now)
-        self._snapshot.create_total_checkpoints(_now, self._total_staked_balance.get())
 
     @external(readonly=True)
     def name(self) -> str:
