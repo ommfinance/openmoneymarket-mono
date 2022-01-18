@@ -428,7 +428,8 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._staked_balances[_user][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
 
         _new_total_staked_balance = before_total_staked_balance - _value
-        self._removeStaker(_user)
+        if _new_staked_balance == 0:
+            self._removeStaker(_user)
         self.onStakeChanged({
             "_user": _user,
             "_new_total_staked_balance": _new_total_staked_balance,
