@@ -228,13 +228,23 @@ class Delegation(Addresses):
     @external(readonly=True)
     def getUserDelegationDetails(self, _user: Address) -> List[PrepDelegations]:
         user_details = []
-
+        omm_token = self.create_interface_score(self._addresses[OMM_TOKEN], OmmTokenInterface)
+        sicx = self.create_interface_score(self._addresses[SICX], TokenInterface)
+        staking = self.create_interface_score(self._addresses[STAKING], StakingInterface)
+        user_staked_token = omm_token.details_balanceOf(_user)['stakedBalance']
+        total_staked_token = omm_token.getTotalStaked()['totalStaked']
+        core_sicx_balance = sicx.balanceOf(self._addresses[LENDING_POOL_CORE])
+        sicx_icx_rate = staking.getTodayRate()
+        omm_icx_power = exaMul(sicx_icx_rate,exaDiv(core_sicx_balance,total_staked_token))
         for index in range(5):
             prep: Address = self._userPreps[_user][index]
             if prep != ZERO_SCORE_ADDRESS and prep is not None:
+                votes_in_per = self._percentageDelegations[_user][index]
+                votes_in_icx = exaMul(omm_icx_power,exaMul(votes_in_per, user_staked_token))
                 user_details.append({
                     '_address': prep,
-                    '_votes_in_per': self._percentageDelegations[_user][index]
+                    '_votes_in_per': votes_in_per,
+                    '_votes_in_icx':votes_in_icx
                 })
 
         return user_details
