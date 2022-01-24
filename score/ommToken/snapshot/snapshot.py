@@ -25,7 +25,7 @@ class Snapshot(IconScoreBase):
         self._snapshot = SnapshotDB(_name, db)
 
     @eventlog
-    def SnapshotCreated(self, _owner: Address, _user_before_staked: int, _user_after_staked: int):
+    def SnapshotCreated(self, _owner: Address, _user_staked: int, _user_before_staked: int):
         pass
 
     def _is_snapshot_exists(self, _owner: Address) -> bool:
@@ -53,7 +53,7 @@ class Snapshot(IconScoreBase):
         self._snapshot.create_checkpoints(_owner, _now, _user_new_staked_balance)
         self._snapshot.create_total_checkpoints(_now, _total_staked_balance)
 
-        self.SnapshotCreated(_owner, _user_old_staked_balance, _user_new_staked_balance)
+        self.SnapshotCreated(_owner, _user_new_staked_balance, _user_old_staked_balance)
 
     @abstractmethod
     def stakedBalanceOfAt(self, _owner: Address, _timestamp: int) -> int:
