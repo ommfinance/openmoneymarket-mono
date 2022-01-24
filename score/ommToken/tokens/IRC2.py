@@ -199,6 +199,10 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         return len(self._stakers)
 
     @external(readonly=True)
+    def inStakerList(self, _staker: Address) -> bool:
+        return _staker in self._stakers
+
+    @external(readonly=True)
     def details_balanceOf(self, _owner: Address) -> dict:
         userBalance = self._balances[_owner]
         stakedBalance = self._staked_balances[_owner][Status.STAKED]
