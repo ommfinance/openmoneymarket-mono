@@ -228,7 +228,7 @@ class Delegation(Addresses):
     @external(readonly=True)
     def getUserDelegationDetails(self, _user: Address) -> List[PrepDelegations]:
         user_details = []
-😂
+
         for index in range(5):
             prep: Address = self._userPreps[_user][index]
             if prep != ZERO_SCORE_ADDRESS and prep is not None:
