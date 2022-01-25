@@ -228,7 +228,7 @@ class Delegation(Addresses):
     @external(readonly=True)
     def getUserDelegationDetails(self, _user: Address) -> List[PrepDelegations]:
         user_details = []
-
+        
         for index in range(5):
             prep: Address = self._userPreps[_user][index]
             if prep != ZERO_SCORE_ADDRESS and prep is not None:
@@ -253,12 +253,9 @@ class Delegation(Addresses):
         for index in range(5):
             prep: Address = self._userPreps[_user][index]
             if prep != ZERO_SCORE_ADDRESS and prep is not None:
-                votes_in_per = self._percentageDelegations[_user][index]
-                votes_in_icx = exaMul(omm_icx_power, exaMul(votes_in_per, user_staked_token))
                 user_details.append({
                     '_address': prep,
-                    '_votes_in_per': votes_in_per,
-                    '_votes_in_icx': votes_in_icx
+                    '_votes_in_per': self._percentageDelegations[_user][index]
                 })
 
         return user_details
