@@ -28,8 +28,6 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     _UNSTAKING_PERIOD = 'unstaking_period'
     _SNAPSHOT_STARTED_AT = 'snapshot-started-at'
 
-    _STAKERS = 'stakers'
-
     def __init__(self, db: IconScoreDatabase) -> None:
         """
         Variable Definition
@@ -48,8 +46,6 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._total_staked_balance = VarDB(self._TOTAL_STAKED_BALANCE, db, value_type=int)
         self._unstaking_period = VarDB(self._UNSTAKING_PERIOD, db, value_type=int)
         self._snapshot_started_at = VarDB(self._SNAPSHOT_STARTED_AT, db, value_type=int)
-
-        self._stakers = EnumerableSetDB(self._STAKERS, db, value_type=Address)
 
     def on_install(
             self,
@@ -99,6 +95,9 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
 
     def on_update(self) -> None:
         super().on_update()
+        _now = self.now()
+        self._snapshot_started_at.set(_now)
+        self._snapshot.create_total_checkpoints(_now, self._total_staked_balance.get())
 
     @external(readonly=True)
     def name(self) -> str:
@@ -167,40 +166,6 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     @external(readonly=True)
     def getUnstakingPeriod(self) -> int:
         return self._unstaking_period.get()
-
-    @only_owner
-    @external
-    def addStaker(self, _stakers: List[Address]):
-        for items in _stakers:
-            self._addStaker(items)
-
-    @only_owner
-    @external
-    def removeStaker(self, _stakers: List[Address]):
-        for items in _stakers:
-            self._removeStaker(items)
-
-    def _addStaker(self, _staker: Address):
-        if _staker not in self._stakers:
-            self._stakers.add(_staker)
-
-    def _removeStaker(self, _staker: Address):
-        if _staker in self._stakers:
-            self._stakers.remove(_staker)
-
-    @external(readonly=True)
-    def getStakersList(self, _start: int, _end: int) -> List[Address]:
-        self._require(_end > _start, f'start index cannot be greater than end index')
-        self._require(_end - _start <= 100, f'range cannot be greater than 100')
-        return [addr for addr in self._stakers.range(_start, _end)]
-
-    @external(readonly=True)
-    def totalStakers(self) -> int:
-        return len(self._stakers)
-
-    @external(readonly=True)
-    def inStakerList(self, _staker: Address) -> bool:
-        return _staker in self._stakers
 
     @external(readonly=True)
     def details_balanceOf(self, _owner: Address) -> dict:
@@ -352,7 +317,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         stake_increment = new_stake - _user_old_stake
         IRC2._require(stake_increment > 0, "Stake error: Stake amount less than previously staked value")
         self._staked_balances[_user][Status.STAKED] = _value
-        self._addStaker(_user)
+
         _new_total_staked_balance = old_total_supply + stake_increment
         self.onStakeChanged({
             "_user": _user,
@@ -389,7 +354,6 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._staked_balances[_user][Status.UNSTAKING] = unstakingBalance - _value
 
         _new_total_staked_balance = old_total_supply + _value
-        self._addStaker(_user)
         self.onStakeChanged({
             "_user": _user,
             "_new_total_staked_balance": _new_total_staked_balance,
@@ -429,8 +393,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._staked_balances[_user][Status.UNSTAKING_PERIOD] = self.now() + self._unstaking_period.get()
 
         _new_total_staked_balance = before_total_staked_balance - _value
-        if _new_staked_balance == 0:
-            self._removeStaker(_user)
+
         self.onStakeChanged({
             "_user": _user,
             "_new_total_staked_balance": _new_total_staked_balance,
@@ -452,7 +415,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._handleAction(_user, _user_old_staked_balance, _old_total_staked_balance)
         _initial_timestamp: int = self._snapshot_started_at.get()
         self._create_initial_snapshot(_user, _initial_timestamp, _user_old_staked_balance)
-        self._createSnapshot(_user, _user_old_staked_balance, _user_new_staked_balance, _new_total_staked_balance)
+        self._createSnapshot(_user, _user_new_staked_balance, _new_total_staked_balance)
 
     def _makeAvailable(self, _from: Address):
         # Check if the unstakin g period has already been reached.
