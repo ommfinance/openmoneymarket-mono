@@ -3,6 +3,8 @@ from .utils.checks import *
 
 LENDING_POOL_CORE = 'lendingPoolCore'
 OMM_TOKEN = 'ommToken'
+SICX = 'sICX'
+STAKING = 'staking'
 
 
 class Addresses(IconScoreBase):
