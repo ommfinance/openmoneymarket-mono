@@ -9,6 +9,11 @@ class AddressDetails(TypedDict):
 class PrepDelegations(TypedDict):
     _address: Address
     _votes_in_per: int
+
+
+class PrepICXDelegations(TypedDict):
+    _address: Address
+    _votes_in_per: int
     _votes_in_icx: int
 
 

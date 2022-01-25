@@ -226,7 +226,7 @@ class Delegation(Addresses):
         return response
 
     @external(readonly=True)
-    def getUserDelegationDetails(self, _user: Address) -> List[PrepDelegations]:
+    def getUserICXDelegation(self, _user: Address) -> List[PrepICXDelegations]:
         user_details = []
         omm_token = self.create_interface_score(self._addresses[OMM_TOKEN], OmmTokenInterface)
         sicx = self.create_interface_score(self._addresses[SICX], TokenInterface)
