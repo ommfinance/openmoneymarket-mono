@@ -226,6 +226,20 @@ class Delegation(Addresses):
         return response
 
     @external(readonly=True)
+    def getUserDelegationDetails(self, _user: Address) -> List[PrepDelegations]:
+        user_details = []
+😂
+        for index in range(5):
+            prep: Address = self._userPreps[_user][index]
+            if prep != ZERO_SCORE_ADDRESS and prep is not None:
+                user_details.append({
+                    '_address': prep,
+                    '_votes_in_per': self._percentageDelegations[_user][index]
+                })
+
+        return user_details
+
+    @external(readonly=True)
     def getUserICXDelegation(self, _user: Address) -> List[PrepICXDelegations]:
         user_details = []
         omm_token = self.create_interface_score(self._addresses[OMM_TOKEN], OmmTokenInterface)
