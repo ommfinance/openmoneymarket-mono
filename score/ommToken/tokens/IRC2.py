@@ -179,12 +179,10 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
             self._removeStaker(items)
 
     def _addStaker(self, _staker: Address):
-        if _staker not in self._stakers:
-            self._stakers.add(_staker)
+        self._stakers.add(_staker)
 
     def _removeStaker(self, _staker: Address):
-        if _staker in self._stakers:
-            self._stakers.remove(_staker)
+        self._stakers.remove(_staker)
 
     @external(readonly=True)
     def getStakersList(self, _start: int, _end: int) -> List[Address]:
