@@ -138,18 +138,6 @@ class FeeProviderInterface(InterfaceScore):
 
 class OmmTokenInterface(InterfaceScore):
     @interface
-    def totalSupply(self) -> int:
-        pass
-
-    @interface
-    def stakedBalanceOfAt(self, _owner: Address, _timestamp: int) -> int:
-        pass
-
-    @interface
-    def totalStakedBalanceOfAt(self, _timestamp: int) -> int:
-        pass
-
-    @interface
     def transfer(self, _to: Address, _value: int, _data: bytes = None):
         pass
 
