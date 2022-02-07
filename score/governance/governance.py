@@ -422,6 +422,14 @@ class Governance(Addresses):
 
     @external
     @only_owner
+    def updateTimestampToBlock(self, vote_index: int, vote_snapshot: int, start_block: int, end_block: int):
+        proposal = ProposalDB(var_key=vote_index, db=self.db)
+        proposal.vote_snapshot.set(vote_snapshot)
+        proposal.start_snapshot.set(start_block)
+        proposal.end_snapshot.set(end_block)
+
+    @external
+    @only_owner
     def setProposalStatus(self, vote_index: int, _status: str):
         if _status not in ProposalStatus.STATUS:
             revert(TAG + f"invalid status sent")
