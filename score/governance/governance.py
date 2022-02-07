@@ -20,6 +20,7 @@ class Governance(Addresses):
 
     def on_update(self) -> None:
         super().on_update()
+        self._vote_duration.set(216000 * 10 ** 6) # approx 5 day equivalent in blocks 5 * 86400 // 3
 
     @external(readonly=True)
     def name(self) -> str:
@@ -259,7 +260,7 @@ class Governance(Addresses):
 
         if self.msg.sender not in eligible_addresses:
             revert("Only owner or proposer may call this method.")
-        if proposal.start_snapshot.get() <= self.now() and self.msg.sender != self.owner:
+        if proposal.start_snapshot.get() <= self.block_height and self.msg.sender != self.owner:
             revert("Only owner can cancel a vote that has started.")
         if vote_index < 1 or vote_index > ProposalDB.proposal_count(self.db):
             revert(f"There is no proposal with index {vote_index}.")
@@ -276,23 +277,19 @@ class Governance(Addresses):
         Defines a new vote and which actions are to be executed if it is successful.
         :param name: name of the vote
         :param description: description of the vote
-        :param vote_start: timestamp to start the vote
-        :param snapshot: which timestamp to use for the omm stake snapshot
+        :param vote_start: block height to start the vote
+        :param snapshot: which block height to use for the omm stake snapshot
 
         """
         if len(description) > 500:
             revert(TAG + f'Description must be less than or equal to 500 characters.')
-        current_time = self.now()
-        if len(str(current_time)) != len(str(vote_start)):
-            revert(TAG + f'vote start timestamp should be in microseconds {current_time}  {vote_start}')
-        if len(str(current_time)) != len(str(snapshot)):
-            revert(TAG + f'snapshot start timestamp should be in microseconds')
+        current_block = self.block_height
 
-        if vote_start <= current_time:
-            revert(f'Vote cannot start at or before the current timestamp.')
-        if not current_time <= snapshot < vote_start:
-            revert(f'The reference snapshot must be in the range: [current_time ({current_time}), '
-                   f'start_time  ({vote_start})].')
+        if vote_start <= current_block:
+            revert(f'Vote cannot start at or before the current block height.')
+        if not current_block <= snapshot < vote_start:
+            revert(f'The reference snapshot must be in the range: [current_block ({current_block}), '
+                   f'start_block  ({vote_start})].')
         vote_index = ProposalDB.proposal_id(name, self.db)
         if vote_index > 0:
             revert(f'Poll name {name} has already been used.')
@@ -396,7 +393,7 @@ class Governance(Addresses):
 
         if vote_index < 1 or vote_index > ProposalDB.proposal_count(self.db):
             revert(f"There is no proposal with index {vote_index}.")
-        if self.now() < end_snap:
+        if self.block_height < end_snap:
             revert("Omm Governance: Voting period has not ended.")
         if not proposal.active.get():
             revert("This proposal is not active.")
@@ -475,7 +472,7 @@ class Governance(Addresses):
                        }
         status = vote_data.status.get()
         majority = vote_status['majority']
-        if status == ProposalStatus.STATUS[ProposalStatus.ACTIVE] and self.now() >= vote_status["end day"]:
+        if status == ProposalStatus.STATUS[ProposalStatus.ACTIVE] and self.block_height >= vote_status["end day"]:
             if vote_status['for'] + vote_status['against'] < vote_status['quorum']:
                 vote_status['status'] = ProposalStatus.STATUS[ProposalStatus.NO_QUORUM]
             elif (EXA - majority) * vote_status['for'] > majority * vote_status['against']:
