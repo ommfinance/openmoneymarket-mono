@@ -13,6 +13,7 @@ class Governance(Addresses):
         self._omm_vote_definition_criterion = VarDB('min_omm', db, int)
         self._vote_definition_fee = VarDB('definition_fee', db, int)
         self._quorum = VarDB('quorum', db, int)
+        self._ve_omm_vote_definition_threshold = VarDB('ve_omm_vote_definition_threhold', db, int)
 
     def on_install(self, _addressProvider: Address) -> None:
         super().on_install(_addressProvider)
@@ -213,6 +214,24 @@ class Governance(Addresses):
         Returns the Omm fee required for defining a vote.
         """
         return self._vote_definition_fee.get()
+
+    @external
+    @only_owner
+    def setVeOMMVoteDefinitionThreshold(self, _amount: int) -> None:
+        """
+        Sets minimum numbers of veOMM required for a user to create a proposal
+        :param _amount: number of veOMM 
+        """
+        if _amount <= 0 :
+            revert(f"{TAG}: Vote Definition threshold should be greater than zero.")
+        self._ve_omm_vote_definition_threshold.set(_amount)
+
+    @external(readonly=True)
+    def getVeOMMVoteDefinitionThreshold(self) -> int:
+        """
+        Returns the minimum number of veTokens required to create a proposal
+        """
+        return self._ve_omm_vote_definition_threshold.get()
 
     @external
     @only_owner
