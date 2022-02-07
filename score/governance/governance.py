@@ -20,10 +20,6 @@ class Governance(Addresses):
 
     def on_update(self) -> None:
         super().on_update()
-        self._vote_duration.set(5 * U_SECONDS_DAY)
-        self._omm_vote_definition_criterion.set(EXA // 1000)
-        self._vote_definition_fee.set(1000 * EXA)
-        self._quorum.set(20 * EXA // 100)
 
     @external(readonly=True)
     def name(self) -> str:
