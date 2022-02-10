@@ -14,6 +14,8 @@ class Delegation(Addresses):
     _CONTRIBUTORS = 'contributors'
     _VOTE_THRESHOLD = 'voteThreshold'
 
+    _WORKING_BALANCE = 'working_balance'
+    _WORKING_TOTAL_SUPPLY = 'working_total_supply'
     _WEIGHT = 'weight'
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
@@ -26,6 +28,8 @@ class Delegation(Addresses):
         self._contributors = ArrayDB(self._CONTRIBUTORS, db, value_type=Address)
         self._voteThreshold = VarDB(self._VOTE_THRESHOLD, db, value_type=int)
 
+        self._working_total_supply = VarDB(self._WORKING_TOTAL_SUPPLY, db, value_type=int)
+        self._working_balance = DictDB(self._WORKING_BALANCE, db, value_type=int)
         self._weight = VarDB(self._WEIGHT, db, value_type=int)
     def on_install(self, _addressProvider: Address) -> None:
         super().on_install(_addressProvider)
