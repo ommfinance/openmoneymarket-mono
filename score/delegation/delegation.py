@@ -14,6 +14,7 @@ class Delegation(Addresses):
     _CONTRIBUTORS = 'contributors'
     _VOTE_THRESHOLD = 'voteThreshold'
 
+    _WEIGHT = 'weight'
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._preps = EnumerableSetDB(self._PREPS, db, value_type=Address)
@@ -25,12 +26,14 @@ class Delegation(Addresses):
         self._contributors = ArrayDB(self._CONTRIBUTORS, db, value_type=Address)
         self._voteThreshold = VarDB(self._VOTE_THRESHOLD, db, value_type=int)
 
+        self._weight = VarDB(self._WEIGHT, db, value_type=int)
     def on_install(self, _addressProvider: Address) -> None:
         super().on_install(_addressProvider)
         self._voteThreshold.set(1 * 10 ** 15)
 
     def on_update(self) -> None:
         super().on_update()
+        self._weight.set(40 * 10 ** 18 // 100)
 
     @staticmethod
     def _require(_condition: bool, _message: str):
@@ -40,6 +43,15 @@ class Delegation(Addresses):
     @external(readonly=True)
     def name(self) -> str:
         return f"Omm {TAG}"
+
+    @only_owner
+    @external
+    def setWeight(self, _weight: int):
+        self._weight.set(_weight)
+
+    @external(readonly=True)
+    def getWeight(self):
+        return self._weight.get()
 
     @only_owner
     @external
