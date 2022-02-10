@@ -5,6 +5,7 @@ LENDING_POOL_CORE = 'lendingPoolCore'
 OMM_TOKEN = 'ommToken'
 SICX = 'sICX'
 STAKING = 'staking'
+VE_OMM = 'veOMM'
 
 
 class Addresses(IconScoreBase):
