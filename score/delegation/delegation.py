@@ -39,6 +39,29 @@ class Delegation(Addresses):
         super().on_update()
         self._weight.set(40 * 10 ** 18 // 100)
 
+        core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
+        core.updatePrepDelegations(self._initializeVotesToContributors())
+
+    def _initializeVotesToContributors(self):
+        delegations = []
+        total_percentage = 0
+
+        defaultDelegation = self._distributeVoteToContributors()
+        for delegation in defaultDelegation:
+            votes: int = delegation['_votes_in_per']
+            prep: Address = delegation['_address']
+
+            vote_percentage = votes * 100
+            total_percentage += vote_percentage
+            delegations.append({
+                '_votes_in_per': vote_percentage,
+                '_address': prep
+            })
+        dust_votes = 100 * EXA - total_percentage
+        if dust_votes > 0:
+            delegations[0]['_votes_in_per'] += dust_votes
+
+        return delegations
     @staticmethod
     def _require(_condition: bool, _message: str):
         if not _condition:
