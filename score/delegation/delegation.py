@@ -188,6 +188,13 @@ class Delegation(Addresses):
         return new_working_balance
 
     @external
+    def kick(self, _user: Address):
+        veOMM = self.create_interface_score(self._addresses[VE_OMM], VeOmmInterface)
+        ve_balance = veOMM.balanceOf(_user)
+        self._require(ve_balance == 0, f'{TAG}: voting escrow lock is not expired')
+        self._update_working_balance(_user)
+
+    @external
     def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
         if _user is not None and self.msg.sender == self._addresses[OMM_TOKEN]:
             user = _user
