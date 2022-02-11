@@ -333,6 +333,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     @only_lending_pool
     @external
     def stake(self, _value: int, _user: Address) -> None:
+        revert(f"{TAG}: Staking no longer supported.")
         userBalance = self._balances[_user]
         IRC2._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
         IRC2._require(_value >= self._minimum_stake.get(),
@@ -360,6 +361,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
 
     @external
     def cancelUnstake(self, _value: int):
+        revert(f"{TAG}: Staking no longer supported. Lock your tokens.")
         IRC2._require(_value > 0, f'Cannot cancel negative unstake')
 
         _user = self.msg.sender
