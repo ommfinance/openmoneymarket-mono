@@ -468,9 +468,6 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         _user_old_staked_balance = params['_user_old_staked_balance']
 
         self._total_staked_balance.set(_new_total_staked_balance)
-        delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
-        delegation.updateDelegations(_user=_user)
-        self._handleAction(_user, _user_old_staked_balance, _old_total_staked_balance)
         _initial_timestamp: int = self._snapshot_started_at.get()
         self._create_initial_snapshot(_user, _initial_timestamp, _user_old_staked_balance)
         self._createSnapshot(_user, _user_old_staked_balance, _user_new_staked_balance, _new_total_staked_balance)
