@@ -437,6 +437,29 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
             "_user_old_staked_balance": staked_balance
         })
 
+    @external
+    def lockStakedOMM(self, _amount: int, _lockPeriod: int):
+        _user = self.msg.sender
+        staked_balance = self.staked_balanceOf(_user)
+        IRC2._require(staked_balance >= _amount, "Cannot lock more than staked.")
+        ve_omm_addr = self._addresses[VE_OMM]
+        ve_omm = self.create_interface_score(ve_omm_addr, VeOmmInterface)
+        locked_balance = ve_omm.getLocked(_user)
+
+        if locked_balance.get('amount') > 0 :
+            # increaseAmount
+            depositData = {'method': 'increaseAmount', 'params': {'unlockTime': _lockPeriod}}
+            data = json.dumps(depositData).encode('utf-8')
+        else:
+            # createLock
+            depositData = {'method': 'createLock', 'params': {'unlockTime': _lockPeriod}}
+            data = json.dumps(depositData).encode('utf-8')
+
+        self._staked_balances[_from][Status.STAKED] -= _amount
+
+        self._transfer(_user, ve_omm_addr, _amount, _data)
+
+
     def onStakeChanged(self, params: OnStakeChangedParams):
         _user = params['_user']
         _new_total_staked_balance = params['_new_total_staked_balance']
