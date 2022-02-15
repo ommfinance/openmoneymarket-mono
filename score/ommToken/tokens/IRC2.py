@@ -478,3 +478,8 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._balances[_to] += _amount
 
         self.Transfer(ZERO_SCORE_ADDRESS, _to, _amount, _data)
+
+    @external
+    @only_owner
+    def updateTotalStakedBalanceOfAt(self, _timestamp: int, _staked: int):
+        self._snapshot.create_total_checkpoints(_timestamp, _staked)
