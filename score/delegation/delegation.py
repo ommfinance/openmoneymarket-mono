@@ -17,13 +17,16 @@ class Delegation(Addresses):
     _WORKING_TOTAL_SUPPLY = 'working_total_supply'
     _WEIGHT = 'weight'
 
+    _LOCKED_PREPS = 'lockedPreps'
+    _LOCKED_PREP_VOTES = 'lockedPrepVotes'
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
-        self._preps = EnumerableSetDB(self._PREPS, db, value_type=Address)
+        self._preps = EnumerableSetDB(self._LOCKED_PREPS, db, value_type=Address)
         self._userPreps = DictDB(self._USER_PREPS, db, value_type=Address, depth=2)
         self._percentageDelegations = DictDB(self._PERCENTAGE_DELEGATIONS, db, value_type=int, depth=2)
-        self._prepVotes = DictDB(self._PREP_VOTES, db, value_type=int)
-        self._totalVotes = VarDB(self._TOTAL_VOTES, db, value_type=int)
+        self._prepVotes = DictDB(self._LOCKED_PREP_VOTES, db, value_type=int)
+        # self._totalVotes = VarDB(self._TOTAL_VOTES, db, value_type=int)
         self._contributors = ArrayDB(self._CONTRIBUTORS, db, value_type=Address)
         self._voteThreshold = VarDB(self._VOTE_THRESHOLD, db, value_type=int)
 
