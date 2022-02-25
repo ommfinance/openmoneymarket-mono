@@ -289,6 +289,14 @@ class Delegation(Addresses):
         return self._prepVotes[_prep]
 
     @external(readonly=True)
+    def getWorkingBalance(self, _user: Address) -> int:
+        return self._working_balance[_user]
+
+    @external(readonly=True)
+    def getWorkingTotalSupply(self) -> int:
+        return self._working_total_supply.get()
+
+    @external(readonly=True)
     def userPrepVotes(self, _user: Address) -> dict:
         response = {}
         working_balance = self._working_balance[_user]
