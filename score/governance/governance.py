@@ -20,7 +20,6 @@ class Governance(Addresses):
 
     def on_update(self) -> None:
         super().on_update()
-        self._vote_duration.set(216000 * 10 ** 6) # approx 5 day equivalent in blocks 5 * 86400 // 3
 
     @external(readonly=True)
     def name(self) -> str:
@@ -418,14 +417,6 @@ class Governance(Addresses):
             status = ProposalStatus.STATUS[ProposalStatus.EXECUTED]
             proposal.status.set(status)
         self.ActionExecuted(vote_index, status)
-
-    @external
-    @only_owner
-    def updateTimestampToBlock(self, vote_index: int, vote_snapshot: int, start_block: int, end_block: int):
-        proposal = ProposalDB(var_key=vote_index, db=self.db)
-        proposal.vote_snapshot.set(vote_snapshot)
-        proposal.start_snapshot.set(start_block)
-        proposal.end_snapshot.set(end_block)
 
     @external
     @only_owner
