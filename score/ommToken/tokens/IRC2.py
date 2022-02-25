@@ -449,11 +449,11 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         if locked_balance.get('amount') > 0 :
             # increaseAmount
             depositData = {'method': 'increaseAmount', 'params': {'unlockTime': _lockPeriod}}
-            data = json.dumps(depositData).encode('utf-8')
+            _data = json_dumps(depositData).encode('utf-8')
         else:
             # createLock
             depositData = {'method': 'createLock', 'params': {'unlockTime': _lockPeriod}}
-            data = json.dumps(depositData).encode('utf-8')
+            _data = json_dumps(depositData).encode('utf-8')
 
         self._staked_balances[_from][Status.STAKED] -= _amount
 
