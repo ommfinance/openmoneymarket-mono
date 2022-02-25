@@ -455,10 +455,9 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
             depositData = {'method': 'createLock', 'params': {'unlockTime': _lockPeriod}}
             _data = json_dumps(depositData).encode('utf-8')
 
-        self._staked_balances[_from][Status.STAKED] -= _amount
+        self._staked_balances[_user][Status.STAKED] -= _amount
 
         self._transfer(_user, ve_omm_addr, _amount, _data)
-
 
     def onStakeChanged(self, params: OnStakeChangedParams):
         _user = params['_user']
