@@ -140,7 +140,7 @@ class Delegation(Addresses):
     def _resetUser(self, _user: Address):
         working_balance = self._working_balance[_user]
         if self.msg.sender == self._addresses[OMM_TOKEN] or self.msg.sender == _user:
-            prepVotes = 0
+            # prepVotes = 0
             for index in range(5):
 
                 # removing votes
@@ -153,9 +153,9 @@ class Delegation(Addresses):
                 self._percentageDelegations[_user][index] = 0
 
                 # calculating total user votes
-                prepVotes += prep_vote
+                # prepVotes += prep_vote
 
-            self._totalVotes.set(self._totalVotes.get() - prepVotes)
+            # self._totalVotes.set(self._totalVotes.get() - prepVotes)
 
     def _validatePrep(self, _address):
         governance = self.create_interface_score(ZERO_SCORE_ADDRESS, GovernanceContractInterface)
@@ -227,6 +227,7 @@ class Delegation(Addresses):
         prepVotes = 0
         # resetting previous delegation preferences
         self._resetUser(user)
+        # prepVotes = 0
         for index, delegation in enumerate(delegations):
             address: Address = delegation['_address']
             votes: int = delegation['_votes_in_per']
@@ -245,7 +246,7 @@ class Delegation(Addresses):
             self._percentageDelegations[user][index] = votes
 
             # adjusting total votes
-            prepVotes += prep_vote
+            # prepVotes += prep_vote
             total_percentage += votes
         self._require(total_percentage == EXA,
                       f'{TAG}: '
@@ -254,7 +255,7 @@ class Delegation(Addresses):
                       f'delegation preferences {delegations}'
                       )
 
-        self._totalVotes.set(self._totalVotes.get() + prepVotes)
+        # self._totalVotes.set(self._totalVotes.get() + prepVotes)
 
         # get updated prep percentages
         updated_delegation = self.computeDelegationPercentages()
