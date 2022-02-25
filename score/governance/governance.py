@@ -10,6 +10,7 @@ class Governance(Addresses):
         super().__init__(db)
 
         self._vote_duration = VarDB('vote_duration', db, int)
+        # self._omm_vote_definition_criterion = VarDB('min_omm', db, int)
         self._vote_definition_fee = VarDB('definition_fee', db, int)
         self._quorum = VarDB('quorum', db, int)
         self._ve_omm_vote_definition_threshold = VarDB('ve_omm_vote_definition_threhold', db, int)
@@ -210,6 +211,26 @@ class Governance(Addresses):
         Returns the Omm fee required for defining a vote.
         """
         return self._vote_definition_fee.get()
+
+    # @external
+    # @only_owner
+    # def setOmmVoteDefinitionCriterion(self, percentage: int) -> None:
+    #     """
+    #     Sets the minimum percentage of omm's total supply which a user must have staked
+    #     in order to define a vote.
+    #     :param percentage: percent represented in basis points
+    #     """
+    #     if not (0 <= percentage <= EXA):
+    #         revert(TAG + f" Basis point must be between 0 and {EXA}.")
+    #     self._omm_vote_definition_criterion.set(percentage)
+
+    # @external(readonly=True)
+    # def getOmmVoteDefinitionCriterion(self) -> int:
+    #     """
+    #     Returns the minimum percentage of omm's total supply which a user must have staked
+    #     in order to define a vote. Percentage is returned as basis points.
+    #     """
+    #     return self._omm_vote_definition_criterion.get()
 
     @external
     @only_owner
