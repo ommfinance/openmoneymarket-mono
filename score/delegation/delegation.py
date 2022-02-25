@@ -42,6 +42,9 @@ class Delegation(Addresses):
         super().on_update()
         self._weight.set(40 * 10 ** 18 // 100)
 
+    @external
+    @only_owner
+    def initializeVotesToContributors(self) -> None:
         core = self.create_interface_score(self._addresses[LENDING_POOL_CORE], LendingPoolCoreInterface)
         core.updatePrepDelegations(self._initializeVotesToContributors())
 
