@@ -259,7 +259,7 @@ class Governance(Addresses):
 
         if self.msg.sender not in eligible_addresses:
             revert("Only owner or proposer may call this method.")
-        if proposal.start_snapshot.get() <= self.block_height and self.msg.sender != self.owner:
+        if proposal.start_snapshot.get() <= self.now() and self.msg.sender != self.owner:
             revert("Only owner can cancel a vote that has started.")
         if vote_index < 1 or vote_index > ProposalDB.proposal_count(self.db):
             revert(f"There is no proposal with index {vote_index}.")
@@ -271,24 +271,27 @@ class Governance(Addresses):
         proposal.status.set(ProposalStatus.STATUS[ProposalStatus.CANCELLED])
 
     def _defineVote(self, name: str, description: str, vote_start: int,
-                    snapshot: int, _proposer: Address, _forum: str) -> None:
+                    _proposer: Address, _forum: str) -> None:
         """
         Defines a new vote and which actions are to be executed if it is successful.
         :param name: name of the vote
         :param description: description of the vote
-        :param vote_start: block height to start the vote
-        :param snapshot: which block height to use for the omm stake snapshot
+        :param vote_start: timestamp to start the vote
+        :param _proposer: the wallet address that created the proposal
+        :param _forum: link to the discussion forum 
 
         """
         if len(description) > 500:
             revert(TAG + f'Description must be less than or equal to 500 characters.')
-        current_block = self.block_height
+        snapshot = self.block_height
+        current_time = self.now()
 
-        if vote_start <= current_block:
-            revert(f'Vote cannot start at or before the current block height.')
-        if not current_block <= snapshot < vote_start:
-            revert(f'The reference snapshot must be in the range: [current_block ({current_block}), '
-                   f'start_block  ({vote_start})].')
+        if len(str(current_time)) != len(str(vote_start)):
+            revert(TAG + f'vote start timestamp should be in microseconds {current_time}  {vote_start}')
+
+        if vote_start < current_time:
+            revert(f'Vote cannot start before the current timestamp.')
+
         vote_index = ProposalDB.proposal_id(name, self.db)
         if vote_index > 0:
             revert(f'Poll name {name} has already been used.')
@@ -337,7 +340,7 @@ class Governance(Addresses):
         proposal = ProposalDB(var_key=vote_index, db=self.db)
         start_snap = proposal.start_snapshot.get()
         end_snap = proposal.end_snapshot.get()
-        if vote_index <= 0 or not start_snap <= self.block_height < end_snap or proposal.active.get() is False:
+        if vote_index <= 0 or not start_snap <= self.now() < end_snap or proposal.active.get() is False:
             revert(f'That is not an active poll.')
         sender = self.msg.sender
         snapshot = proposal.vote_snapshot.get()
@@ -391,7 +394,7 @@ class Governance(Addresses):
 
         if vote_index < 1 or vote_index > ProposalDB.proposal_count(self.db):
             revert(f"There is no proposal with index {vote_index}.")
-        if self.block_height < end_snap:
+        if self.now() < end_snap:
             revert("Omm Governance: Voting period has not ended.")
         if not proposal.active.get():
             revert("This proposal is not active.")
@@ -470,7 +473,7 @@ class Governance(Addresses):
                        }
         status = vote_data.status.get()
         majority = vote_status['majority']
-        if status == ProposalStatus.STATUS[ProposalStatus.ACTIVE] and self.block_height >= vote_status["end day"]:
+        if status == ProposalStatus.STATUS[ProposalStatus.ACTIVE] and self.now() >= vote_status["end day"]:
             if vote_status['for'] + vote_status['against'] < vote_status['quorum']:
                 vote_status['status'] = ProposalStatus.STATUS[ProposalStatus.NO_QUORUM]
             elif (EXA - majority) * vote_status['for'] > majority * vote_status['against']:
@@ -508,10 +511,9 @@ class Governance(Addresses):
         if method == "defineVote" and params is not None:
             name = params.get("name")
             description = params.get("description")
-            vote_start = params.get("vote_start")
-            snapshot = params.get("snapshot")
+            vote_start = params.get("vote_start", self.now())
             forum = params.get("forum")
-            self._defineVote(name, description, vote_start, snapshot, _from, forum)
+            self._defineVote(name, description, vote_start, _from, forum)
         else:
             revert(f'{TAG}: No valid method called, data: {_data}')
 
