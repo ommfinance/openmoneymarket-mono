@@ -188,9 +188,11 @@ class Delegation(Addresses):
             new_working_balance += exaMul(exaDiv(exaMul(total_supply, ve_balance), ve_total_supply), (EXA - weight))
 
         new_working_balance = min(balance, new_working_balance)
+        new_working_total_supply = self._working_total_supply.get()
         old_bal = self._working_balance[_user]
-        self.working_balances[_user] = new_working_balance
-        self.working_supply += (new_working_balance - old_bal)
+        self._working_balance[_user] = new_working_balance
+        new_working_total_supply += (new_working_balance - old_bal)
+        self._working_total_supply.set(new_working_total_supply)
         return new_working_balance
 
     @external
@@ -223,10 +225,9 @@ class Delegation(Addresses):
 
     def _handleCalculation(self, delegations, user):
         total_percentage = 0
-        working_balance = self._update_working_balance(user)
-        prepVotes = 0
         # resetting previous delegation preferences
         self._resetUser(user)
+        working_balance = self._update_working_balance(user)
         # prepVotes = 0
         for index, delegation in enumerate(delegations):
             address: Address = delegation['_address']
@@ -340,7 +341,8 @@ class Delegation(Addresses):
 
     @external(readonly=True)
     def computeDelegationPercentages(self) -> List[PrepDelegations]:
-        total_votes = self._totalVotes.get()
+        # total_votes = self._totalVotes.get()
+        total_votes = self._working_total_supply.get()
         if total_votes == 0:
             default_preference = self._distributeVoteToContributors()
             for index in range(len(default_preference)):
