@@ -57,6 +57,9 @@ class AddressProvider(IconScoreBase):
     _O_TOKENS = 'o_tokens'
     _D_TOKENS = 'd_tokens'
 
+    bOMM = "bOMM"
+    REWARD_WEIGHT_CONTROLLER = "rewardWeightController"
+
     def __init__(self, db: IconScoreDatabase) -> None:
         super().__init__(db)
         self._addresses = DictDB("address", db, value_type=Address)
@@ -170,7 +173,9 @@ class AddressProvider(IconScoreBase):
                 "Rewards": self.getAddress(self.REWARDS),
                 "PriceOracle": self.getAddress(self.PRICE_ORACLE),
                 "StakedLp": self.getAddress(self.STAKED_LP),
-                "DEX": self.getAddress(self.DEX)
+                "DEX": self.getAddress(self.DEX),
+                "bOMM": self.getAddress(self.bOMM),
+                "RewardWeightController": self.getAddress(self.REWARD_WEIGHT_CONTROLLER)
             }
         }
 
