@@ -15,7 +15,7 @@ class Delegation(Addresses):
 
     _WORKING_BALANCE = 'working_balance'
     _WORKING_TOTAL_SUPPLY = 'working_total_supply'
-    _WEIGHT = 'weight'
+    # _WEIGHT = 'weight'
 
     _LOCKED_PREPS = 'lockedPreps'
     _LOCKED_PREP_VOTES = 'lockedPrepVotes'
@@ -32,7 +32,7 @@ class Delegation(Addresses):
 
         self._working_total_supply = VarDB(self._WORKING_TOTAL_SUPPLY, db, value_type=int)
         self._working_balance = DictDB(self._WORKING_BALANCE, db, value_type=int)
-        self._weight = VarDB(self._WEIGHT, db, value_type=int)
+        # self._weight = VarDB(self._WEIGHT, db, value_type=int)
 
     def on_install(self, _addressProvider: Address) -> None:
         super().on_install(_addressProvider)
@@ -40,7 +40,8 @@ class Delegation(Addresses):
 
     def on_update(self) -> None:
         super().on_update()
-        self._weight.set(40 * 10 ** 18 // 100)
+        self._working_total_supply.set(0)
+        # self._weight.set(40 * 10 ** 18 // 100)
 
     @external
     @only_owner
@@ -78,14 +79,14 @@ class Delegation(Addresses):
     def name(self) -> str:
         return f"Omm {TAG}"
 
-    @only_owner
-    @external
-    def setWeight(self, _weight: int):
-        self._weight.set(_weight)
+    # @only_owner
+    # @external
+    # def setWeight(self, _weight: int):
+    #     self._weight.set(_weight)
 
-    @external(readonly=True)
-    def getWeight(self):
-        return self._weight.get()
+    # @external(readonly=True)
+    # def getWeight(self):
+    #     return self._weight.get()
 
     @only_owner
     @external
@@ -175,19 +176,20 @@ class Delegation(Addresses):
     def _update_working_balance(self, _user: Address) -> int:
         veOMM = self.create_interface_score(self._addresses[VE_OMM], VeOmmInterface)
         ve_balance = veOMM.balanceOf(_user)
-        ve_total_supply = veOMM.totalSupply()
+        # ve_total_supply = veOMM.totalSupply()
 
-        omm_locked_balance = veOMM.getLocked(_user)
-        balance = omm_locked_balance.get("amount")
-        total_supply = veOMM.getTotalLocked(_user)
+        # omm_locked_balance = veOMM.getLocked(_user)
+        # balance = omm_locked_balance.get("amount")
+        # total_supply = veOMM.getTotalLocked(_user)
 
-        weight = self._weight.get()
+        # weight = self._weight.get()
 
-        new_working_balance = exaMul(balance, weight)
-        if ve_total_supply > 0:
-            new_working_balance += exaMul(exaDiv(exaMul(total_supply, ve_balance), ve_total_supply), (EXA - weight))
+        # new_working_balance = exaMul(balance, weight)
+        # if ve_total_supply > 0:
+        #     new_working_balance += exaMul(exaDiv(exaMul(total_supply, ve_balance), ve_total_supply), (EXA - weight))
 
-        new_working_balance = min(balance, new_working_balance)
+        # new_working_balance = min(balance, new_working_balance)
+        new_working_balance = ve_balance
         new_working_total_supply = self._working_total_supply.get()
         old_bal = self._working_balance[_user]
         self._working_balance[_user] = new_working_balance
