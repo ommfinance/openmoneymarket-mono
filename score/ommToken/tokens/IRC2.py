@@ -442,9 +442,9 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         _user = self.msg.sender
         staked_balance = self.staked_balanceOf(_user)
         IRC2._require(staked_balance >= _amount, "Cannot lock more than staked.")
-        ve_omm_addr = self._addresses[VE_OMM]
-        ve_omm = self.create_interface_score(ve_omm_addr, VeOmmInterface)
-        locked_balance = ve_omm.getLocked(_user)
+        boosted_omm_addr = self._addresses[BOOSTED_OMM]
+        boosted_omm = self.create_interface_score(boosted_omm_addr, BoostedOmmInterface)
+        locked_balance = boosted_omm.getLocked(_user)
 
         if locked_balance.get('amount') > 0 :
             # increaseAmount
@@ -457,7 +457,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
 
         self._staked_balances[_user][Status.STAKED] -= _amount
 
-        self._transfer(_user, ve_omm_addr, _amount, _data)
+        self._transfer(_user, boosted_omm_addr, _amount, _data)
 
     def onStakeChanged(self, params: OnStakeChangedParams):
         _user = params['_user']

@@ -48,7 +48,7 @@ class TokenFallbackInterface(InterfaceScore):
     def tokenFallback(self, _from: Address, _value: int, _data: bytes):
         pass
 
-class VeOmmInterface(InterfaceScore):
+class BoostedOmmInterface(InterfaceScore):
     @interface
     def getLocked(self, _user: Address):
         pass
