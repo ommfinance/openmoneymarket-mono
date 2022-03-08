@@ -456,6 +456,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
             _data = json_dumps(depositData).encode('utf-8')
 
         self._staked_balances[_user][Status.STAKED] -= _amount
+        self._total_staked_balance.set(self._total_staked_balance.get() - _amount)
 
         self._transfer(_user, boosted_omm_addr, _amount, _data)
 
