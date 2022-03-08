@@ -51,7 +51,7 @@ class Snapshot(IconScoreBase):
         """
         _now = self.now()
         self._snapshot.create_checkpoints(_owner, _now, _user_new_staked_balance)
-        self._snapshot.create_total_checkpoints(_now, _user_new_staked_balance)
+        self._snapshot.create_total_checkpoints(_now, _total_staked_balance)
 
         self.SnapshotCreated(_owner, _user_new_staked_balance, _user_old_staked_balance)
 
