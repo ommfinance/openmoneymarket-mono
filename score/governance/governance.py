@@ -11,15 +11,16 @@ class Governance(Addresses):
 
         self._vote_duration = VarDB('vote_duration', db, int)
         # self._omm_vote_definition_criterion = VarDB('min_omm', db, int)
+        self._boosted_omm_vote_definition_criterion = VarDB('min_boosted_omm', db, int)
         self._vote_definition_fee = VarDB('definition_fee', db, int)
         self._quorum = VarDB('quorum', db, int)
-        self._ve_omm_vote_definition_threshold = VarDB('ve_omm_vote_definition_threhold', db, int)
 
     def on_install(self, _addressProvider: Address) -> None:
         super().on_install(_addressProvider)
 
     def on_update(self) -> None:
         super().on_update()
+        self._boosted_omm_vote_definition_criterion.set(2500 * 10 ** 18)
 
     @external(readonly=True)
     def name(self) -> str:
@@ -211,43 +212,25 @@ class Governance(Addresses):
         """
         return self._vote_definition_fee.get()
 
-    # @external
-    # @only_owner
-    # def setOmmVoteDefinitionCriterion(self, percentage: int) -> None:
-    #     """
-    #     Sets the minimum percentage of omm's total supply which a user must have staked
-    #     in order to define a vote.
-    #     :param percentage: percent represented in basis points
-    #     """
-    #     if not (0 <= percentage <= EXA):
-    #         revert(TAG + f" Basis point must be between 0 and {EXA}.")
-    #     self._omm_vote_definition_criterion.set(percentage)
-
-    # @external(readonly=True)
-    # def getOmmVoteDefinitionCriterion(self) -> int:
-    #     """
-    #     Returns the minimum percentage of omm's total supply which a user must have staked
-    #     in order to define a vote. Percentage is returned as basis points.
-    #     """
-    #     return self._omm_vote_definition_criterion.get()
-
     @external
     @only_owner
-    def setVeOMMVoteDefinitionThreshold(self, _amount: int) -> None:
+    def setBoostedOmmVoteDefinitionCriterion(self, _amount: int) -> None:
         """
-        Sets minimum numbers of veOMM required for a user to create a proposal
-        :param _amount: number of veOMM 
+        Sets the minimum amount of boosted OMM tokens which a user must have 
+        in order to define a vote.
+        :param _amount: Number of boosted OMM required
         """
-        if _amount <= 0 :
-            revert(f"{TAG}: Vote Definition threshold should be greater than zero.")
-        self._ve_omm_vote_definition_threshold.set(_amount)
+        # if not (0 <= percentage <= EXA):
+        #     revert(TAG + f" Basis point must be between 0 and {EXA}.")
+        self._boosted_omm_vote_definition_criterion.set(_amount)
 
     @external(readonly=True)
-    def getVeOMMVoteDefinitionThreshold(self) -> int:
+    def getBoostedOmmVoteDefinitionCriterion(self) -> int:
         """
-        Returns the minimum number of veTokens required to create a proposal
+        Returns the minimum number of boosted OMM which a user must have 
+        in order to define a vote.
         """
-        return self._ve_omm_vote_definition_threshold.get()
+        return self._boosted_omm_vote_definition_criterion.get()
 
     @external
     def cancelVote(self, vote_index: int) -> None:
@@ -296,11 +279,11 @@ class Governance(Addresses):
         if vote_index > 0:
             revert(f'Poll name {name} has already been used.')
 
-        # Test veOMM balance criterion
-        user_ve_omm_balance = self.myVotingWeight(_proposer, snapshot)
-        ve_omm_criterion = self.getVeOMMVoteDefinitionThreshold()
-        if user_ve_omm_balance < ve_omm_criterion:
-            revert(f"{TAG}: User needs to have {ve_omm_criterion} veOMM to define a vote.")
+        # Test bOMM balance criterion
+        user_bomm_balance = self.myVotingWeight(_proposer, snapshot)
+        bomm_criterion = self.getBoostedOmmVoteDefinitionCriterion()
+        if user_bomm_balance < bomm_criterion:
+            revrt(f"{TAG}: User needs to have {bomm_criterion} bOMM to define a vote.")
         proposal = ProposalDB.create_proposal(name=name, description=description, proposer=_proposer,
                                               quorum=self._quorum.get(),
                                               majority=MAJORITY, snapshot=snapshot, start=vote_start,
@@ -347,7 +330,7 @@ class Governance(Addresses):
 
         voting_weight = self.myVotingWeight(sender, snapshot)
         if voting_weight == 0:
-            revert(f'veOMM tokens needed to cast the vote.')
+            revert(f'Boosted OMM tokens needed to cast the vote.')
             
         prior_vote = (proposal.for_votes_of_user[sender], proposal.against_votes_of_user[sender])
         total_for_votes = proposal.total_for_votes.get()
@@ -444,17 +427,17 @@ class Governance(Addresses):
             return {}
         vote_data = ProposalDB(_vote_index, self.db)
         try:
-            ve_omm = self.create_interface_score(self._addresses["veOMM"], VeOmmInterface)
-            total_omm = ve_omm.totalSupplyAt(vote_data.vote_snapshot.get())
+            boosted_omm = self.create_interface_score(self._addresses["bOMM"], BoostedOmmInterface)
+            total_bomm = boosted_omm.totalSupplyAt(vote_data.vote_snapshot.get())
         except Exception:
-            total_omm = 0
-        if total_omm == 0:
+            total_bomm = 0
+        if total_bomm == 0:
             _for = 0
             _against = 0
         else:
             total_voted = (vote_data.total_for_votes.get(), vote_data.total_against_votes.get())
-            _for = EXA * total_voted[0] // total_omm
-            _against = EXA * total_voted[1] // total_omm
+            _for = EXA * total_voted[0] // total_bomm
+            _against = EXA * total_voted[1] // total_bomm
 
         vote_status = {'id': _vote_index,
                        'name': vote_data.name.get(),
@@ -492,8 +475,8 @@ class Governance(Addresses):
 
     @external(readonly=True)
     def myVotingWeight(self, _address: Address, _block: int) -> int:
-        ve_omm = self.create_interface_score(self._addresses["veOMM"], VeOmmInterface)
-        return ve_omm.balanceOfAt(_address, _block)
+        boosted_omm = self.create_interface_score(self._addresses["bOMM"], BoostedOmmInterface)
+        return boosted_omm.balanceOfAt(_address, _block)
 
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:

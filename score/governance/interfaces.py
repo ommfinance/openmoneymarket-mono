@@ -142,7 +142,7 @@ class OmmTokenInterface(InterfaceScore):
         pass
 
 
-class VeOmmInterface(InterfaceScore):
+class BoostedOmmInterface(InterfaceScore):
     @interface
     def balanceOfAt(self, address: Address, block: int) -> int:
         pass
