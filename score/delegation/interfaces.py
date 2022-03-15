@@ -28,7 +28,7 @@ class SystemInterface(InterfaceScore):
         pass
 
 
-class VeOmmInterface(InterfaceScore):
+class BoostedOmmInterface(InterfaceScore):
     @interface
     def balanceOf(self, _owner: Address) -> int:
         pass

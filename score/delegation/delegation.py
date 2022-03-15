@@ -174,8 +174,8 @@ class Delegation(Addresses):
         return [prep for prep in self._preps.range(0, len(self._preps))]
 
     def _update_working_balance(self, _user: Address) -> int:
-        veOMM = self.create_interface_score(self._addresses[VE_OMM], VeOmmInterface)
-        ve_balance = veOMM.balanceOf(_user)
+        boosted_omm = self.create_interface_score(self._addresses[BOOSTED_OMM], BoostedOmmInterface)
+        bomm_balance = boosted_omm.balanceOf(_user)
         # ve_total_supply = veOMM.totalSupply()
 
         # omm_locked_balance = veOMM.getLocked(_user)
@@ -189,7 +189,7 @@ class Delegation(Addresses):
         #     new_working_balance += exaMul(exaDiv(exaMul(total_supply, ve_balance), ve_total_supply), (EXA - weight))
 
         # new_working_balance = min(balance, new_working_balance)
-        new_working_balance = ve_balance
+        new_working_balance = bomm_balance
         new_working_total_supply = self._working_total_supply.get()
         old_bal = self._working_balance[_user]
         self._working_balance[_user] = new_working_balance
@@ -199,9 +199,9 @@ class Delegation(Addresses):
 
     @external
     def kick(self, _user: Address):
-        veOMM = self.create_interface_score(self._addresses[VE_OMM], VeOmmInterface)
-        ve_balance = veOMM.balanceOf(_user)
-        self._require(ve_balance == 0, f'{TAG}: voting escrow lock is not expired')
+        boosted_omm = self.create_interface_score(self._addresses[BOOSTED_OMM], BoostedOmmInterface)
+        bomm_balance = boosted_omm.balanceOf(_user)
+        self._require(bomm_balance == 0, f'{TAG}: boost lock is not expired')
         self._update_working_balance(_user)
 
     @external
