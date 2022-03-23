@@ -331,7 +331,7 @@ class Governance(Addresses):
         voting_weight = self.myVotingWeight(sender, snapshot)
         if voting_weight == 0:
             revert(f'Boosted OMM tokens needed to cast the vote.')
-            
+
         prior_vote = (proposal.for_votes_of_user[sender], proposal.against_votes_of_user[sender])
         total_for_votes = proposal.total_for_votes.get()
         total_against_votes = proposal.total_against_votes.get()
@@ -507,3 +507,15 @@ class Governance(Addresses):
         # returning extra omm to proposer
         if _value - vote_fee > 0:
             omm.transfer(_from, _value - vote_fee)
+
+    @external
+    @only_owner
+    def enableHandleActions(self):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.enableHandleActions()
+
+    @external
+    @only_owner
+    def disableHandleActions(self):
+        rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
+        rewards.disableHandleActions()
