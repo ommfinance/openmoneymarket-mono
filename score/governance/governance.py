@@ -20,7 +20,7 @@ class Governance(Addresses):
 
     def on_update(self) -> None:
         super().on_update()
-        self._boosted_omm_vote_definition_criterion.set(2500 * 10 ** 18)
+        self._boosted_omm_vote_definition_criterion.set(EXA // 1000)
 
     @external(readonly=True)
     def name(self) -> str:
@@ -214,21 +214,21 @@ class Governance(Addresses):
 
     @external
     @only_owner
-    def setBoostedOmmVoteDefinitionCriterion(self, _amount: int) -> None:
+    def setBoostedOmmVoteDefinitionCriterion(self, _percentage: int) -> None:
         """
-        Sets the minimum amount of boosted OMM tokens which a user must have 
+        Sets the minimum percentage of boosted OMM tokens which a user must have 
         in order to define a vote.
-        :param _amount: Number of boosted OMM required
+        :param _percentage: percent represented in basis points
         """
-        # if not (0 <= percentage <= EXA):
-        #     revert(TAG + f" Basis point must be between 0 and {EXA}.")
-        self._boosted_omm_vote_definition_criterion.set(_amount)
+        if not (0 <= _percentage <= EXA):
+            revert(TAG + f" Basis point must be between 0 and {EXA}.")
+        self._boosted_omm_vote_definition_criterion.set(_percentage)
 
     @external(readonly=True)
     def getBoostedOmmVoteDefinitionCriterion(self) -> int:
         """
-        Returns the minimum number of boosted OMM which a user must have 
-        in order to define a vote.
+        Returns the minimum percentage of boosted OMM's total supply which a user must have 
+        in order to define a vote. Percentage is returned as basis points.
         """
         return self._boosted_omm_vote_definition_criterion.get()
 
@@ -279,11 +279,13 @@ class Governance(Addresses):
         if vote_index > 0:
             revert(f'Poll name {name} has already been used.')
 
-        # Test bOMM balance criterion
-        user_bomm_balance = self.myVotingWeight(_proposer, snapshot)
+        boosted_omm = self.create_interface_score(self._addresses["bOMM"], BoostedOmmInterface)
+        user_bomm_balance = boosted_omm.balanceOfAt(_proposer, snapshot)
+        bomm_total = boosted_omm.totalSupplyAt(snapshot)
         bomm_criterion = self.getBoostedOmmVoteDefinitionCriterion()
-        if user_bomm_balance < bomm_criterion:
-            revrt(f"{TAG}: User needs to have {bomm_criterion} bOMM to define a vote.")
+
+        if (EXA * user_bomm_balance) // bomm_total < bomm_criterion:
+            revert(f'User needs at least {100 * bomm_criterion / EXA}% of total bOMM supply to define a vote.')
         proposal = ProposalDB.create_proposal(name=name, description=description, proposer=_proposer,
                                               quorum=self._quorum.get(),
                                               majority=MAJORITY, snapshot=snapshot, start=vote_start,
