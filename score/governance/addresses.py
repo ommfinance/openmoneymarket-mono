@@ -10,6 +10,7 @@ DAO_FUND = 'daoFund'
 FEE_PROVIDER = 'feeProvider'
 DEX ='dex'
 OMM_TOKEN = 'ommToken'
+REWARD_WEIGHT_CONTROLLER = 'rewardWeightController'
 
 
 class Addresses(IconScoreBase):

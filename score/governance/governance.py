@@ -140,6 +140,18 @@ class Governance(Addresses):
 
     @only_owner
     @external
+    def setTypeWeight(self, _weights: List[TypeWeightStruct], _timestamp: int = None):
+        rewardWeightController = self.create_interface_score(self._addresses[REWARD_WEIGHT_CONTROLLER], RewardWeightControllerInterface)
+        rewardWeightController.setTypeWeight(_weights, _timestamp)
+
+    @only_owner
+    @external
+    def setAssetWeight(self, _type: str, _weights: List[WeightStruct], _timestamp: int = None):
+        rewardWeightController = self.create_interface_score(self._addresses[REWARD_WEIGHT_CONTROLLER], RewardWeightControllerInterface)
+        rewardWeightController.setAssetWeight(_type, _weights, _timestamp)
+
+    @only_owner
+    @external
     def transferOmmToDaoFund(self, _value: int):
         rewards = self.create_interface_score(self._addresses[REWARDS], RewardInterface)
         rewards.transferOmmToDaoFund(_value)

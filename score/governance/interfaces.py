@@ -40,6 +40,13 @@ class AssetConfig(TypedDict):
     assetName: str
     rewardEntity: str
 
+class TypeWeightStruct(TypedDict):
+    key: str
+    weight: int
+
+class WeightStruct(TypedDict):
+    address: Address
+    weight: int
 
 class RewardInterface(InterfaceScore):
 
@@ -157,4 +164,13 @@ class BoostedOmmInterface(InterfaceScore):
 
     @interface
     def totalSupplyAt(self, block: int) -> int:
+        pass
+
+class RewardWeightControllerInterface(InterfaceScore):
+    @interface
+    def setTypeWeight(self, weights: List[TypeWeightStruct], timestamp: int = None) -> None:
+        pass
+
+    @interface
+    def setAssetWeight(self, type: str, weights: List[WeightStruct], timestamp: int = None) -> None:
         pass
