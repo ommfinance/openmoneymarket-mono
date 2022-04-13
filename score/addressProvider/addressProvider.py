@@ -221,7 +221,7 @@ class AddressProvider(IconScoreBase):
         for name in _names:
             address = self._addresses[name]
             if not address:
-                revert("{TAG}: wrong score name in the list")
+                revert(f"{TAG}: Incorrect score name in the list")
             addressDetails.append({"name": name, "address": address})
 
         to = self.create_interface_score(score, AddressInterface)
