@@ -203,6 +203,7 @@ class Delegation(Addresses):
         bomm_balance = boosted_omm.balanceOf(_user)
         self._require(bomm_balance == 0, f'{TAG}: boost lock is not expired')
         self._update_working_balance(_user)
+        self.updateDelegations(_user=_user)
 
     @external
     def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
