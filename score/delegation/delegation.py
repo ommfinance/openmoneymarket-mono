@@ -207,7 +207,7 @@ class Delegation(Addresses):
 
     @external
     def updateDelegations(self, _delegations: List[PrepDelegations] = None, _user: Address = None):
-        if _user is not None and self.msg.sender == self._addresses[OMM_TOKEN]:
+        if _user is not None and self.msg.sender == self._addresses[BOOSTED_OMM]:
             user = _user
         else:
             user = self.msg.sender
