@@ -127,8 +127,8 @@ class Delegation(Addresses):
         return self._distributeVoteToContributors() == self.getUserDelegationDetails(_user)
 
     def _resetUser(self, _user: Address):
-        working_balance = self._working_balance[_user]
         if self.msg.sender == self._addresses[BOOSTED_OMM] or self.msg.sender == _user:
+            working_balance = self._working_balance[_user]
             # prepVotes = 0
             for index in range(5):
 
