@@ -458,6 +458,10 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         self._staked_balances[_user][Status.STAKED] -= _amount
         self._total_staked_balance.set(self._total_staked_balance.get() - _amount)
 
+        new_staked_balance = self._staked_balances[_user][Status.STAKED]
+        if new_staked_balance == 0:
+            self._removeStaker(_user)
+
         self._transfer(_user, boosted_omm_addr, _amount, _data)
 
     def onStakeChanged(self, params: OnStakeChangedParams):
