@@ -438,7 +438,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         })
 
     @external
-    def lockStakedOMM(self, _amount: int, _lockPeriod: int):
+    def migrateStakedOMM(self, _amount: int, _lockPeriod: int):
         _user = self.msg.sender
         staked_balance = self.staked_balanceOf(_user)
         IRC2._require(staked_balance >= _amount, "Cannot lock more than staked.")
