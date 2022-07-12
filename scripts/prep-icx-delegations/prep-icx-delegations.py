@@ -7,7 +7,7 @@ from pprint import pprint
 from retry import retry
 
 # mainnet
-OMM_TOKEN = "cx1a29259a59f463a67bb2ef84398b30ca56b5830a"
+BOOSTED_OMM = "cxeaff5a10cb72bf85965b8b4af3e708ab772b7921"
 DELEGATION = "cx841f29ec6ce98b527d49a275e87d427627f1afe5"
 ENDPOINT = "https://ctz.solidwallet.io/api/v3"
 
@@ -49,13 +49,13 @@ class FetchData(object):
     
     def populate_stakers_list(self, skip: int = 0):
         params: dict = {
-            "_start": f'{skip}',
-            "_end": f'{skip+100}',
+            "start": f'{skip}',
+            "end": f'{skip+100}',
         }
-        payload: str = self.make_rpc_dict(OMM_TOKEN, "getStakersList", params)
+        payload: str = self.make_rpc_dict(BOOSTED_OMM, "getUsers", params)
         wallets: list = self.get_request(payload)
         self.stakers_list.extend(wallets)
-        if len(wallets) >= 100:
+        if len(wallets) == 100:
             self.populate_stakers_list(skip+100)
 
     def calculate_delegation_info(self, _user: str):
