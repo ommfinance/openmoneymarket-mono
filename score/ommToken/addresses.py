@@ -5,6 +5,7 @@ DELEGATION = 'delegation'
 REWARDS = 'rewards'
 LENDING_POOL = 'lendingPool'
 oUSDs = "oUSDS"
+BOOSTED_OMM = "bOMM"
 
 
 class Addresses(IconScoreBase):

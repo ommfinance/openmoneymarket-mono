@@ -48,12 +48,10 @@ class TokenFallbackInterface(InterfaceScore):
     def tokenFallback(self, _from: Address, _value: int, _data: bytes):
         pass
 
-
-class DelegationInterface(InterfaceScore):
+class BoostedOmmInterface(InterfaceScore):
     @interface
-    def updateDelegations(self, _delegations: List[PrepDelegationDetails] = None, _user: Address = None):
+    def getLocked(self, _user: Address):
         pass
-
 
 class RewardDistributionInterface(InterfaceScore):
     @interface

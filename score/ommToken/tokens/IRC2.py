@@ -333,6 +333,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
     @only_lending_pool
     @external
     def stake(self, _value: int, _user: Address) -> None:
+        revert(f"{TAG}: Staking no longer supported.")
         userBalance = self._balances[_user]
         IRC2._require(_value > 0, f'Cannot stake less than zero'f'value to stake {_value}')
         IRC2._require(_value >= self._minimum_stake.get(),
@@ -360,6 +361,7 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
 
     @external
     def cancelUnstake(self, _value: int):
+        revert(f"{TAG}: Staking no longer supported. Lock your tokens.")
         IRC2._require(_value > 0, f'Cannot cancel negative unstake')
 
         _user = self.msg.sender
@@ -435,6 +437,33 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
             "_user_old_staked_balance": staked_balance
         })
 
+    @external
+    def migrateStakedOMM(self, _amount: int, _lockPeriod: int):
+        _user = self.msg.sender
+        staked_balance = self.staked_balanceOf(_user)
+        IRC2._require(staked_balance >= _amount, "Cannot lock more than staked.")
+        boosted_omm_addr = self._addresses[BOOSTED_OMM]
+        boosted_omm = self.create_interface_score(boosted_omm_addr, BoostedOmmInterface)
+        locked_balance = boosted_omm.getLocked(_user)
+
+        if locked_balance.get('amount') > 0 :
+            # increaseAmount
+            depositData = {'method': 'increaseAmount', 'params': {'unlockTime': _lockPeriod}}
+            _data = json_dumps(depositData).encode('utf-8')
+        else:
+            # createLock
+            depositData = {'method': 'createLock', 'params': {'unlockTime': _lockPeriod}}
+            _data = json_dumps(depositData).encode('utf-8')
+
+        self._staked_balances[_user][Status.STAKED] -= _amount
+        self._total_staked_balance.set(self._total_staked_balance.get() - _amount)
+
+        new_staked_balance = self._staked_balances[_user][Status.STAKED]
+        if new_staked_balance == 0:
+            self._removeStaker(_user)
+
+        self._transfer(_user, boosted_omm_addr, _amount, _data)
+
     def onStakeChanged(self, params: OnStakeChangedParams):
         _user = params['_user']
         _new_total_staked_balance = params['_new_total_staked_balance']
@@ -443,9 +472,6 @@ class IRC2(TokenStandard, Addresses, OMMSnapshot):
         _user_old_staked_balance = params['_user_old_staked_balance']
 
         self._total_staked_balance.set(_new_total_staked_balance)
-        delegation = self.create_interface_score(self._addresses[DELEGATION], DelegationInterface)
-        delegation.updateDelegations(_user=_user)
-        self._handleAction(_user, _user_old_staked_balance, _old_total_staked_balance)
         _initial_timestamp: int = self._snapshot_started_at.get()
         self._create_initial_snapshot(_user, _initial_timestamp, _user_old_staked_balance)
         self._createSnapshot(_user, _user_old_staked_balance, _user_new_staked_balance, _new_total_staked_balance)
